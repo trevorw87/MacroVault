@@ -397,6 +397,7 @@ let uiDialogResolver = null;
 let barcodeDetector = null;
 let barcodeStream = null;
 let barcodeScanTimer = null;
+let barcodeScanBusy = false;
 let barcodeZxingReader = null;
 let barcodeZxingControls = null;
 let pendingImportedRecipe = null;
@@ -2564,6 +2565,14 @@ function barcodeTextFromResult(result) {
   return normalizeBarcode(typeof result?.getText === "function" ? result.getText() : result?.text || result?.rawValue || "");
 }
 
+function barcodeCameraError(error) {
+  if (!window.isSecureContext) return "Camera scanning requires a secure HTTPS connection. Upload a photo or type the barcode instead.";
+  if (error?.name === "NotAllowedError" || error?.name === "SecurityError") return "Camera access was blocked. Allow camera access for MacroVault, then try again.";
+  if (error?.name === "NotFoundError" || error?.name === "DevicesNotFoundError") return "No camera was found. Upload a barcode photo or type the number instead.";
+  if (error?.name === "NotReadableError" || error?.name === "TrackStartError") return "The camera is already in use by another app. Close it there, then try again.";
+  return error?.message || "Could not start camera. Try uploading a photo or typing the barcode.";
+}
+
 async function detectBarcodeFromSource(source) {
   const detector = await getBarcodeDetector();
   const codes = await detector.detect(source);
@@ -2595,6 +2604,7 @@ async function detectBarcodeFromPhoto(file) {
 }
 
 function stopBarcodeCamera() {
+  barcodeScanBusy = false;
   if (barcodeZxingControls) {
     barcodeZxingControls.stop();
     barcodeZxingControls = null;
@@ -2618,17 +2628,31 @@ async function startBarcodeCamera() {
   const panel = document.querySelector("#barcodeCameraPanel");
   stopBarcodeCamera();
   barcodeStatus("Starting camera...");
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error(window.isSecureContext
+      ? "Camera access is not available in this browser. Upload a photo or type the barcode instead."
+      : "Camera scanning requires a secure HTTPS connection. Upload a photo or type the barcode instead.");
+  }
   if (!hasNativeBarcodeDetector()) {
     const reader = getZxingReader();
     panel.hidden = false;
     barcodeStatus("Point your camera at the barcode.");
-    barcodeZxingControls = await reader.decodeFromVideoDevice(undefined, video, async (result) => {
+    let handled = false;
+    const onResult = async (result, _error, controls) => {
+      if (handled) return;
       const barcode = barcodeTextFromResult(result);
       if (!barcode) return;
+      handled = true;
+      controls?.stop();
       stopBarcodeCamera();
       document.querySelector("#barcodeManualInput").value = barcode;
       await lookupBarcode(barcode);
-    });
+    };
+    const controls = typeof reader.decodeFromConstraints === "function"
+      ? await reader.decodeFromConstraints({ video: { facingMode: { ideal: "environment" } }, audio: false }, video, onResult)
+      : await reader.decodeFromVideoDevice(undefined, video, onResult);
+    if (handled) controls?.stop();
+    else barcodeZxingControls = controls;
     return;
   }
   await getBarcodeDetector();
@@ -2641,7 +2665,8 @@ async function startBarcodeCamera() {
   await video.play();
   barcodeStatus("Point your camera at the barcode.");
   barcodeScanTimer = setInterval(async () => {
-    if (video.readyState < 2) return;
+    if (video.readyState < 2 || barcodeScanBusy) return;
+    barcodeScanBusy = true;
     try {
       const barcode = await detectBarcodeFromSource(video);
       stopBarcodeCamera();
@@ -2649,12 +2674,14 @@ async function startBarcodeCamera() {
       await lookupBarcode(barcode);
     } catch {
       // Keep scanning until a barcode is visible.
+    } finally {
+      barcodeScanBusy = false;
     }
   }, 650);
 }
 
-function openBarcodeDialog() {
-  document.querySelector("#barcodeManualInput").value = "";
+function openBarcodeDialog(initialBarcode = "") {
+  document.querySelector("#barcodeManualInput").value = normalizeBarcode(initialBarcode);
   document.querySelector("#barcodePhotoInput").value = "";
   document.querySelector("#barcodeResult").hidden = true;
   document.querySelector("#barcodeResult").innerHTML = "";
@@ -4168,22 +4195,27 @@ document.querySelector("#addRecipeButton").addEventListener("click", () => openR
 document.querySelector("#addIngredientButton").addEventListener("click", () => openIngredientDialog());
 document.querySelector("#syncIngredientsButton").addEventListener("click", syncIngredientsFromRecipes);
 document.querySelector("#updateGenericNutritionButton").addEventListener("click", updateIngredientsWithGenericNutrition);
-document.querySelector("#scanBarcodeButton").addEventListener("click", openBarcodeDialog);
+document.querySelector("#scanBarcodeButton").addEventListener("click", () => openBarcodeDialog());
 document.querySelector("#lookupIngredientBarcodeButton").addEventListener("click", async () => {
   const barcode = normalizeBarcode(document.querySelector("#ingredientBarcode").value);
-  if (!barcode) {
-    showToast("Enter or scan a barcode first.", { type: "warning" });
+  openBarcodeDialog(barcode);
+  if (barcode) {
+    await lookupBarcode(barcode);
     return;
   }
-  openBarcodeDialog();
-  document.querySelector("#barcodeManualInput").value = barcode;
-  await lookupBarcode(barcode);
+  try {
+    await startBarcodeCamera();
+  } catch (error) {
+    stopBarcodeCamera();
+    barcodeStatus(barcodeCameraError(error));
+  }
 });
 document.querySelector("#startBarcodeCameraButton").addEventListener("click", async () => {
   try {
     await startBarcodeCamera();
   } catch (error) {
-    barcodeStatus(error.message || "Could not start camera. Try uploading a photo or typing the barcode.");
+    stopBarcodeCamera();
+    barcodeStatus(barcodeCameraError(error));
   }
 });
 document.querySelector("#takeBarcodePhotoButton").addEventListener("click", () => {

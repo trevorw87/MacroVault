@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.2
+
+- Allowed Add Ingredient to close or cancel without satisfying required fields.
+- Made the ingredient barcode action start scanning when no barcode has been typed.
+- Improved iPad and Safari scanning with rear-camera constraints, scan cleanup, and actionable camera errors.
+- Bumped the offline cache so installed clients receive the fixes immediately.
+
 ## 0.5.0
 
 - Added dedicated SQLite BLOB storage and HTTP delivery for uploaded images.

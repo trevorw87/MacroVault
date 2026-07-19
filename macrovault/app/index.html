@@ -320,7 +320,7 @@
       <form method="dialog" class="recipe-form" id="ingredientForm">
         <div class="dialog-heading">
           <h2 id="ingredientDialogTitle">Add ingredient</h2>
-          <button class="icon-button" value="cancel" type="submit" aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+          <button class="icon-button" value="cancel" type="submit" formnovalidate aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
         <input id="ingredientId" type="hidden">
         <label>
@@ -340,7 +340,7 @@
             Barcode
             <input id="ingredientBarcode" inputmode="numeric" placeholder="Scan or type barcode">
           </label>
-          <button class="secondary-button" id="lookupIngredientBarcodeButton" type="button">Lookup barcode</button>
+          <button class="secondary-button" id="lookupIngredientBarcodeButton" type="button">Scan / lookup</button>
         </div>
         <div class="recipe-image-fields">
           <label>
@@ -411,7 +411,7 @@
           </label>
         </div>
         <menu>
-          <button class="secondary-button" value="cancel" type="submit">Cancel</button>
+          <button class="secondary-button" value="cancel" type="submit" formnovalidate>Cancel</button>
           <button class="primary-button" id="saveIngredientButton" value="default" type="submit">Save ingredient</button>
         </menu>
       </form>
@@ -486,7 +486,7 @@
     </dialog>
 
     <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>
-    <script src="app.js?v=104"></script>
+    <script src="app.js?v=106"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
         navigator.serviceWorker.register("service-worker.js");
