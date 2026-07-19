@@ -17,7 +17,7 @@
   --teal: #35adb8;
   --shadow: 0 14px 34px rgba(24, 63, 34, 0.11);
   --shadow-soft: 0 7px 18px rgba(24, 63, 34, 0.08);
-  --recipe-image-height: 180px;
+  --recipe-image-height: 210px;
   --body-font: "Trebuchet MS", "Aptos", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --display-font: "Trebuchet MS", "Aptos Display", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   font-family: var(--body-font);

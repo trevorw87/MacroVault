@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.4
+
+- Increased recipe-card image height while preserving proportional center-cropping.
+
 ## 0.7.3
 
 - Added a separate original-ingredients reference field above the recipe method.
