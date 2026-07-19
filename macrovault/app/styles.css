@@ -4583,9 +4583,21 @@ textarea:focus-visible,
   gap: 7px;
 }
 
-.danger-button {
+.ui-dialog .danger-button {
+  color: #fff;
   background: linear-gradient(135deg, #d2534e, #a53531);
   box-shadow: 0 10px 22px rgba(165, 53, 49, 0.2);
+}
+
+.text-button.danger-button {
+  color: #a53531;
+  background: transparent;
+  box-shadow: none;
+}
+
+.text-button.danger-button:hover {
+  color: #842a27;
+  background: #fff0ef;
 }
 
 .favorite-button .ui-icon {
