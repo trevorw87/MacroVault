@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- Routed recipe and ingredient saves through dedicated resource APIs.
+- Added idempotent resource upserts, transactional bulk resource sync, and partial app-state saves.
+- Preserved the legacy whole-state API for backup imports and rollback compatibility.
+- Documented the Home Assistant sidebar shortcut setting.
+
 ## 0.3.0
 
 - Added versioned relational SQLite tables for recipes, ingredients, recipe links, and tags.

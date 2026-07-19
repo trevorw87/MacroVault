@@ -32,6 +32,7 @@ Once the repo is pushed to GitHub:
 4. Add the GitHub repository URL.
 5. Install and start the MacroVault add-on.
 6. Open the add-on Web UI.
+7. Enable **Show in sidebar** on the MacroVault App page for a Home Assistant menu shortcut.
 
 ## What Works
 

@@ -8,10 +8,13 @@ const IMAGE_UPLOAD_MAX_SIDE = 520;
 const IMAGE_UPLOAD_QUALITY = 0.62;
 const TESSERACT_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
 const API_STATE_URL = "api/state";
+const API_RESOURCES_URL = "api/resources";
+const RESOURCE_SYNC_BATCH_THRESHOLD = 25;
 let lastSaveWarning = "";
 let serverStorageAvailable = false;
 let serverSaveTimer = null;
 let serverSaveInFlight = null;
+let serverResourceBaseline = null;
 
 const tabs = [
   { id: "dashboard", label: "Dashboard", icon: "D" },
@@ -536,33 +539,110 @@ async function loadServerState() {
   const payload = await response.json();
   if (!payload?.state || typeof payload.state !== "object") return null;
   serverStorageAvailable = true;
+  serverResourceBaseline = resourceStateSnapshot(payload.state);
   return normalizeState({ ...structuredClone(sampleState), ...payload.state });
 }
 
-async function saveStateToServer(snapshot) {
-  const response = await fetch(API_STATE_URL, {
-    method: "PUT",
+function resourceStateSnapshot(snapshot) {
+  return {
+    recipes: structuredClone(snapshot?.recipes || []),
+    ingredients: structuredClone(snapshot?.ingredients || [])
+  };
+}
+
+function stateMetadataSnapshot(snapshot) {
+  const metadata = structuredClone(snapshot || {});
+  delete metadata.recipes;
+  delete metadata.ingredients;
+  return metadata;
+}
+
+function resourceChanges(previousItems, nextItems) {
+  const previousById = new Map((previousItems || []).map((item) => [item.id, item]));
+  const nextById = new Map((nextItems || []).map((item) => [item.id, item]));
+  return {
+    removed: [...previousById.keys()].filter((id) => !nextById.has(id)),
+    changed: [...nextById.values()].filter((item) => {
+      const previous = previousById.get(item.id);
+      return !previous || JSON.stringify(previous) !== JSON.stringify(item);
+    })
+  };
+}
+
+async function requestServerJson(path, { method = "GET", body, acceptedStatuses = [] } = {}) {
+  const response = await fetch(path, {
+    method,
     headers: {
       "Accept": "application/json",
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ state: snapshot })
+    body: body === undefined ? undefined : JSON.stringify(body)
   });
-  if (!response.ok) {
-    throw new Error(`MacroVault database save returned ${response.status}`);
+  if (!response.ok && !acceptedStatuses.includes(response.status)) {
+    throw new Error(`MacroVault database request returned ${response.status}`);
   }
+  return response.status === 204 ? null : response.json();
+}
+
+async function syncResourcesToServer(snapshot) {
+  const nextResources = resourceStateSnapshot(snapshot);
+  if (!serverResourceBaseline) {
+    await requestServerJson(API_RESOURCES_URL, { method: "PUT", body: nextResources });
+    return;
+  }
+
+  const recipeChanges = resourceChanges(serverResourceBaseline.recipes, nextResources.recipes);
+  const ingredientChanges = resourceChanges(serverResourceBaseline.ingredients, nextResources.ingredients);
+  const changeCount = recipeChanges.removed.length + recipeChanges.changed.length
+    + ingredientChanges.removed.length + ingredientChanges.changed.length;
+
+  if (changeCount > RESOURCE_SYNC_BATCH_THRESHOLD) {
+    await requestServerJson(API_RESOURCES_URL, { method: "PUT", body: nextResources });
+    return;
+  }
+
+  for (const id of recipeChanges.removed) {
+    await requestServerJson(`api/recipes/${encodeURIComponent(id)}`, { method: "DELETE", acceptedStatuses: [404] });
+  }
+  for (const id of ingredientChanges.removed) {
+    await requestServerJson(`api/ingredients/${encodeURIComponent(id)}`, { method: "DELETE", acceptedStatuses: [404] });
+  }
+  for (const ingredient of ingredientChanges.changed) {
+    await requestServerJson(`api/ingredients/${encodeURIComponent(ingredient.id)}`, {
+      method: "PUT",
+      body: { ingredient, position: nextResources.ingredients.findIndex((item) => item.id === ingredient.id) }
+    });
+  }
+  for (const recipe of recipeChanges.changed) {
+    await requestServerJson(`api/recipes/${encodeURIComponent(recipe.id)}`, {
+      method: "PUT",
+      body: { recipe, position: nextResources.recipes.findIndex((item) => item.id === recipe.id) }
+    });
+  }
+}
+
+async function saveStateToServer(snapshot) {
+  await syncResourcesToServer(snapshot);
+  const result = await requestServerJson(API_STATE_URL, {
+    method: "PATCH",
+    body: { state: stateMetadataSnapshot(snapshot) }
+  });
+  serverResourceBaseline = resourceStateSnapshot(snapshot);
   serverStorageAvailable = true;
-  return response.json();
+  return result;
 }
 
 function queueServerStateSave(snapshot) {
   const serverSnapshot = structuredClone(snapshot);
   clearTimeout(serverSaveTimer);
   serverSaveTimer = setTimeout(() => {
-    serverSaveInFlight = saveStateToServer(serverSnapshot).catch((error) => {
-      serverStorageAvailable = false;
-      console.warn("Unable to save MacroVault state to the server database", error);
-    });
+    serverSaveInFlight = (serverSaveInFlight || Promise.resolve())
+      .catch(() => undefined)
+      .then(() => saveStateToServer(serverSnapshot))
+      .catch((error) => {
+        serverStorageAvailable = false;
+        console.warn("Unable to save MacroVault state to the server database", error);
+      });
   }, 250);
 }
 
@@ -581,6 +661,7 @@ async function initializeStateFromStorage() {
       return;
     }
     state = browserState;
+    serverResourceBaseline = { recipes: [], ingredients: [] };
     queueServerStateSave(state);
   } catch (error) {
     serverStorageAvailable = false;

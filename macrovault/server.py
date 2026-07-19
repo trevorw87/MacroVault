@@ -493,7 +493,7 @@ def read_resources(resource, resource_id=None):
     return json.loads(row["raw_json"]) if row else None
 
 
-def mutate_resource(resource, operation, resource_id, item=None):
+def mutate_resource(resource, operation, resource_id, item=None, position=None):
     state_key = resource
     singular = "recipe" if resource == "recipes" else "ingredient"
     with STATE_LOCK:
@@ -510,11 +510,17 @@ def mutate_resource(resource, operation, resource_id, item=None):
         if operation == "create":
             if index is not None:
                 raise FileExistsError(f"{singular.title()} already exists")
-            collection.insert(0, item)
-        elif operation == "update":
+            insert_at = max(0, min(position, len(collection))) if isinstance(position, int) else 0
+            collection.insert(insert_at, item)
+        elif operation == "upsert":
             if index is None:
-                raise LookupError(f"{singular.title()} not found")
-            collection[index] = item
+                insert_at = max(0, min(position, len(collection))) if isinstance(position, int) else len(collection)
+                collection.insert(insert_at, item)
+            elif isinstance(position, int):
+                collection.pop(index)
+                collection.insert(max(0, min(position, len(collection))), item)
+            else:
+                collection[index] = item
         elif operation == "delete":
             if index is None:
                 raise LookupError(f"{singular.title()} not found")
@@ -532,6 +538,35 @@ def mutate_resource(resource, operation, resource_id, item=None):
                                 day[slot] = ""
         write_state(state)
     return None if operation == "delete" else item
+
+
+def replace_resources(recipes, ingredients):
+    if not isinstance(recipes, list) or not isinstance(ingredients, list):
+        raise ValueError("Recipes and ingredients must be arrays")
+    for resource, collection in (("recipe", recipes), ("ingredient", ingredients)):
+        for position, item in enumerate(collection):
+            if not isinstance(item, dict):
+                raise ValueError(f"{resource.title()} at position {position} must be an object")
+            if not str(item.get("id") or "").strip() or not str(item.get("name") or "").strip():
+                raise ValueError(f"{resource.title()} at position {position} requires id and name")
+    with STATE_LOCK:
+        stored = read_state()
+        state = stored["state"] if stored else {}
+        state["recipes"] = recipes
+        state["ingredients"] = ingredients
+        return write_state(state)
+
+
+def replace_state_metadata(metadata):
+    if not isinstance(metadata, dict):
+        raise ValueError("State metadata must be an object")
+    with STATE_LOCK:
+        stored = read_state()
+        current = stored["state"] if stored else {}
+        merged = dict(metadata)
+        merged["recipes"] = current.get("recipes") or []
+        merged["ingredients"] = current.get("ingredients") or []
+        return write_state(merged)
 
 
 def parse_resource_path(path):
@@ -632,11 +667,30 @@ class MacroVaultHandler(BaseHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, {"ok": True, **metadata})
             return
+        if parsed_path == "/api/resources":
+            self.handle_resource_replace()
+            return
         resource_path = parse_resource_path(parsed_path)
         if not resource_path or resource_path[1] is None:
             self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "message": "Not found"})
             return
-        self.handle_resource_write("update", *resource_path)
+        self.handle_resource_write("upsert", *resource_path)
+
+    def do_PATCH(self):
+        if urlparse(self.path).path != "/api/state":
+            self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "message": "Not found"})
+            return
+        try:
+            payload = self.read_json_body()
+            metadata = payload.get("state") if isinstance(payload, dict) else None
+            result = replace_state_metadata(metadata)
+        except OverflowError as error:
+            self.send_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "message": str(error)})
+            return
+        except (ValueError, sqlite3.IntegrityError) as error:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "message": str(error)})
+            return
+        self.send_json(HTTPStatus.OK, {"ok": True, **result})
 
     def do_DELETE(self):
         resource_path = parse_resource_path(urlparse(self.path).path)
@@ -655,7 +709,10 @@ class MacroVaultHandler(BaseHTTPRequestHandler):
         try:
             payload = self.read_json_body()
             item = self.resource_payload(payload, resource, resource_id)
-            result = mutate_resource(resource, operation, item["id"], item)
+            position = payload.get("position") if isinstance(payload, dict) else None
+            if position is not None and (isinstance(position, bool) or not isinstance(position, int)):
+                raise ValueError("Resource position must be an integer")
+            result = mutate_resource(resource, operation, item["id"], item, position)
         except OverflowError as error:
             self.send_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "message": str(error)})
             return
@@ -671,6 +728,20 @@ class MacroVaultHandler(BaseHTTPRequestHandler):
         singular = "recipe" if resource == "recipes" else "ingredient"
         status = HTTPStatus.CREATED if operation == "create" else HTTPStatus.OK
         self.send_json(status, {"ok": True, singular: result})
+
+    def handle_resource_replace(self):
+        try:
+            payload = self.read_json_body()
+            recipes = payload.get("recipes") if isinstance(payload, dict) else None
+            ingredients = payload.get("ingredients") if isinstance(payload, dict) else None
+            result = replace_resources(recipes, ingredients)
+        except OverflowError as error:
+            self.send_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "message": str(error)})
+            return
+        except (ValueError, sqlite3.IntegrityError) as error:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "message": str(error)})
+            return
+        self.send_json(HTTPStatus.OK, {"ok": True, **result})
 
     def serve_static(self, request_path):
         clean_path = unquote(request_path).split("?", 1)[0]

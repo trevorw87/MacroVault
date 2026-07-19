@@ -120,7 +120,7 @@ class DatabaseSandbox:
         self.assertEqual(server.read_resources("recipes")[0]["id"], "recipe-soup")
 
         updated = {**recipe, "name": "Tomato Soup"}
-        server.mutate_resource("recipes", "update", recipe["id"], updated)
+        server.mutate_resource("recipes", "upsert", recipe["id"], updated)
         self.assertEqual(server.read_resources("recipes", recipe["id"])["name"], "Tomato Soup")
 
         server.mutate_resource("recipes", "delete", recipe["id"])
@@ -224,6 +224,41 @@ class ApiTestCase(DatabaseSandbox, unittest.TestCase):
         self.assertEqual(status, 200)
         status, _ = self.request("GET", "/api/recipes/recipe-salad")
         self.assertEqual(status, 404)
+
+        recipe["name"] = "Retry-safe Salad"
+        status, created_by_put = self.request(
+            "PUT",
+            "/api/recipes/recipe-salad",
+            {"recipe": recipe, "position": 0},
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(created_by_put["recipe"]["name"], "Retry-safe Salad")
+        self.assertEqual(server.read_resources("recipes")[0]["id"], "recipe-salad")
+
+    def test_bulk_resources_and_partial_state_endpoint(self):
+        replacement = sample_state()
+        replacement["recipes"][0]["name"] = "Resource API Toast"
+        status, _ = self.request(
+            "PUT",
+            "/api/resources",
+            {
+                "recipes": replacement["recipes"],
+                "ingredients": replacement["ingredients"],
+            },
+        )
+        self.assertEqual(status, 200)
+
+        status, _ = self.request(
+            "PATCH",
+            "/api/state",
+            {"state": {"planner": {"2026-07-20": {"breakfast": "recipe-toast"}}, "bought": []}},
+        )
+        self.assertEqual(status, 200)
+
+        status, payload = self.request("GET", "/api/state")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["state"]["recipes"][0]["name"], "Resource API Toast")
+        self.assertEqual(payload["state"]["planner"]["2026-07-20"]["breakfast"], "recipe-toast")
 
 
 if __name__ == "__main__":
