@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0
+
+- Added sodium in milligrams throughout ingredient, recipe, nutrition-label, and barcode workflows.
+- Made imported barcode product names, serving sizes, and nutrition values editable before applying them.
+- Bumped the offline cache so installed and Home Assistant clients receive the updated forms.
+
 ## 0.6.4
 
 - Normalized Open Food Facts v3 and legacy nutrition without mixing per-100 and per-serving values.

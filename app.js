@@ -1214,7 +1214,8 @@ function nutritionFromDefault(defaultNutrition) {
     carbs: roundNutrition(defaultNutrition.carbs),
     sugar: roundNutrition(defaultNutrition.sugar),
     fibre: roundNutrition(defaultNutrition.fibre),
-    fat: roundNutrition(defaultNutrition.fat)
+    fat: roundNutrition(defaultNutrition.fat),
+    sodium: roundNutrition(defaultNutrition.sodium)
   };
 }
 
@@ -1235,7 +1236,7 @@ function ingredientNutritionEstimate(name) {
   const macros = rule
     ? { protein: Math.round(rule.protein), carbs: Math.round(rule.carbs), fat: Math.round(rule.fat) }
     : { protein: 0, carbs: 0, fat: 0 };
-  return { calories: caloriesFromMacros(macros), ...macros, sugar: 0, fibre: 0 };
+  return { calories: caloriesFromMacros(macros), ...macros, sugar: 0, fibre: 0, sodium: 0 };
 }
 
 function ingredientFromName(name) {
@@ -1257,7 +1258,7 @@ function ingredientFromName(name) {
 }
 
 function hasNutritionValues(nutrition) {
-  return Boolean(Number(nutrition?.calories) || Number(nutrition?.protein) || Number(nutrition?.carbs) || Number(nutrition?.fat) || Number(nutrition?.sugar) || Number(nutrition?.fibre));
+  return Boolean(Number(nutrition?.calories) || Number(nutrition?.protein) || Number(nutrition?.carbs) || Number(nutrition?.fat) || Number(nutrition?.sugar) || Number(nutrition?.fibre) || Number(nutrition?.sodium));
 }
 
 function shouldRefreshGenericNutrition(ingredient, defaultNutrition) {
@@ -1330,7 +1331,8 @@ function normalizeIngredients(existingIngredients, recipes) {
         carbs: roundNutrition(nutrition?.carbs),
         sugar: roundNutrition(nutrition?.sugar),
         fibre: roundNutrition(nutrition?.fibre),
-        fat: roundNutrition(nutrition?.fat)
+        fat: roundNutrition(nutrition?.fat),
+        sodium: roundNutrition(nutrition?.sodium)
       }
     });
   });
@@ -1540,7 +1542,8 @@ function scaleNutrition(nutrition = {}, scale = 1) {
     carbs: roundNutrition((Number(nutrition.carbs) || 0) * scale),
     sugar: roundNutrition((Number(nutrition.sugar) || 0) * scale),
     fibre: roundNutrition((Number(nutrition.fibre) || 0) * scale),
-    fat: roundNutrition((Number(nutrition.fat) || 0) * scale)
+    fat: roundNutrition((Number(nutrition.fat) || 0) * scale),
+    sodium: roundNutrition((Number(nutrition.sodium) || 0) * scale)
   };
 }
 
@@ -1606,7 +1609,7 @@ function normalizeNutritionLabelText(text) {
 
 function nutritionLabelLines(text) {
   return String(text || "")
-    .split(/\n|(?=\b(?:energy|calories|protein|total fat|fat|carbohydrate|carbohydrates|carbs|sugars?|dietary fibre|fiber|fibre)\b)/i)
+    .split(/\n|(?=\b(?:energy|calories|protein|total fat|fat|carbohydrate|carbohydrates|carbs|sugars?|dietary fibre|fiber|fibre|sodium)\b)/i)
     .map(normalizeNutritionLabelText)
     .filter(Boolean);
 }
@@ -1648,6 +1651,12 @@ function nutrientValueFromLine(line, type) {
     if (calorieMatch) return numberFromText(calorieMatch[1]);
     return 0;
   }
+  if (type === "sodium") {
+    const sodiumMatch = normalized.match(/(\d+(?:[.,]\d+)?)\s*(mg|g)\b/i);
+    if (!sodiumMatch) return numberFromText(normalized);
+    const value = numberFromText(sodiumMatch[1]);
+    return sodiumMatch[2].toLowerCase() === "g" ? value * 1000 : value;
+  }
   const gramsMatch = normalized.match(/(\d+(?:[.,]\d+)?)\s*g\b/i);
   if (gramsMatch) return numberFromText(gramsMatch[1]);
   return numberFromText(normalized);
@@ -1660,7 +1669,8 @@ function findNutrientValue(lines, type) {
     carbs: [/\btotal\s+carbohydrate\b/i, /\bcarbohydrates?\b/i, /\bcarbs?\b/i],
     sugar: [/\bsugars?\b/i],
     fibre: [/\bdietary\s+fib(?:er|re)\b/i, /\bfib(?:er|re)\b/i],
-    fat: [/\btotal\s+fat\b/i, /\bfat\b/i]
+    fat: [/\btotal\s+fat\b/i, /\bfat\b/i],
+    sodium: [/\bsodium\b/i]
   };
   const blockers = {
     carbs: [/\bsugars?\b/i],
@@ -1683,7 +1693,8 @@ function parseNutritionLabelText(text) {
     carbs: roundNutrition(findNutrientValue(lines, "carbs")),
     sugar: roundNutrition(findNutrientValue(lines, "sugar")),
     fibre: roundNutrition(findNutrientValue(lines, "fibre")),
-    fat: roundNutrition(findNutrientValue(lines, "fat"))
+    fat: roundNutrition(findNutrientValue(lines, "fat")),
+    sodium: roundNutrition(findNutrientValue(lines, "sodium"))
   };
   return { serving, nutrition, lines };
 }
@@ -1712,6 +1723,7 @@ function fillIngredientNutritionFromScan(scan) {
   document.querySelector("#ingredientSugar").value = scan.nutrition.sugar;
   document.querySelector("#ingredientFibre").value = scan.nutrition.fibre;
   document.querySelector("#ingredientFat").value = scan.nutrition.fat;
+  document.querySelector("#ingredientSodium").value = scan.nutrition.sodium;
 }
 
 function renderNutritionLabelResult(scan) {
@@ -1729,6 +1741,7 @@ function renderNutritionLabelResult(scan) {
       <span>${scan.nutrition.sugar}g sugar</span>
       <span>${scan.nutrition.fibre}g fibre</span>
       <span>${scan.nutrition.fat}g F</span>
+      <span>${scan.nutrition.sodium}mg sodium</span>
     </div>
     <p class="muted">Review the numbers before saving. OCR can misread small print.</p>
   `;
@@ -1802,7 +1815,8 @@ function recipeNutritionTotals(recipe) {
     carbs: roundNutrition(Number(recipe?.macros?.carbs) || 0),
     fat: roundNutrition(Number(recipe?.macros?.fat) || 0),
     sugar: roundNutrition(Number(recipe?.nutrition?.sugar) || 0),
-    fibre: roundNutrition(Number(recipe?.nutrition?.fibre) || 0)
+    fibre: roundNutrition(Number(recipe?.nutrition?.fibre) || 0),
+    sodium: roundNutrition(Number(recipe?.nutrition?.sodium) || 0)
   };
 }
 
@@ -1815,7 +1829,8 @@ function recipeNutritionPerServing(recipe) {
     carbs: roundNutrition(totals.carbs / servings),
     fat: roundNutrition(totals.fat / servings),
     sugar: roundNutrition(totals.sugar / servings),
-    fibre: roundNutrition(totals.fibre / servings)
+    fibre: roundNutrition(totals.fibre / servings),
+    sodium: roundNutrition(totals.sodium / servings)
   };
 }
 
@@ -1839,8 +1854,9 @@ function recipeNutritionFromLinkedIngredients(recipe, ingredients = state.ingred
     sum.sugar += usedNutrition.sugar;
     sum.fibre += usedNutrition.fibre;
     sum.fat += usedNutrition.fat;
+    sum.sodium += usedNutrition.sodium;
     return sum;
-  }, { calories: 0, protein: 0, carbs: 0, sugar: 0, fibre: 0, fat: 0 });
+  }, { calories: 0, protein: 0, carbs: 0, sugar: 0, fibre: 0, fat: 0, sodium: 0 });
 
   return {
     calories: roundNutrition(totals.calories),
@@ -1851,7 +1867,8 @@ function recipeNutritionFromLinkedIngredients(recipe, ingredients = state.ingred
     },
     nutrition: {
       sugar: roundNutrition(totals.sugar),
-      fibre: roundNutrition(totals.fibre)
+      fibre: roundNutrition(totals.fibre),
+      sodium: roundNutrition(totals.sodium)
     }
   };
 }
@@ -1958,6 +1975,7 @@ function fillEstimatedMacros() {
   document.querySelector("#recipeCarbs").value = roundNutrition(estimated.carbs / servings);
   document.querySelector("#recipeFat").value = roundNutrition(estimated.fat / servings);
   document.querySelector("#recipeFibre").value = 0;
+  document.querySelector("#recipeSodium").value = 0;
   renderRecipeNutritionSummary();
   document.querySelector("#macroEstimateNote").textContent = hasMeaningfulMacros(estimated)
     ? "Estimated per serve from recognized ingredients. Adjust if needed."
@@ -2135,8 +2153,8 @@ function recipeCard(recipe) {
             <span>${perServe.sugar}g sugar</span>
             <span>${perServe.fibre}g fibre</span>
           </div>
-          <div class="recipe-nutrition-total" title="${totals.calories} kcal, ${totals.protein}g protein, ${totals.sugar}g sugar, ${totals.fibre}g fibre total">
-            Total: ${totals.calories} kcal · ${totals.protein}g protein · ${totals.sugar}g sugar · ${totals.fibre}g fibre
+          <div class="recipe-nutrition-total" title="${totals.calories} kcal, ${totals.protein}g protein, ${totals.sugar}g sugar, ${totals.fibre}g fibre, ${totals.sodium}mg sodium total">
+            Total: ${totals.calories} kcal · ${totals.protein}g protein · ${totals.sugar}g sugar · ${totals.fibre}g fibre · ${totals.sodium}mg sodium
           </div>
         </div>
         <div class="card-actions">
@@ -2258,6 +2276,7 @@ function renderIngredients() {
               <span>${ingredient.nutrition.sugar}g sugar</span>
               <span>${ingredient.nutrition.fibre}g fibre</span>
               <span>${ingredient.nutrition.fat}g F</span>
+              <span>${ingredient.nutrition.sodium || 0}mg sodium</span>
             </div>
             <label class="ingredient-onhand">
               <input type="checkbox" ${ingredient.onHand ? "checked" : ""} data-ingredient-onhand="${ingredient.id}">
@@ -2295,6 +2314,7 @@ function openIngredientDialog(ingredient = null) {
   document.querySelector("#ingredientSugar").value = ingredient?.nutrition?.sugar ?? 0;
   document.querySelector("#ingredientFibre").value = ingredient?.nutrition?.fibre ?? 0;
   document.querySelector("#ingredientFat").value = ingredient?.nutrition?.fat ?? 0;
+  document.querySelector("#ingredientSodium").value = ingredient?.nutrition?.sodium ?? 0;
   document.querySelector("#ingredientOnHand").checked = Boolean(ingredient?.onHand);
   ingredientDialog.showModal();
 }
@@ -2427,6 +2447,7 @@ function openRecipeDialog(recipe = null) {
   document.querySelector("#recipeCarbs").value = recipe ? macrosPerServing(recipe).carbs : 45;
   document.querySelector("#recipeFat").value = recipe ? macrosPerServing(recipe).fat : 15;
   document.querySelector("#recipeFibre").value = recipe ? recipeNutritionPerServing(recipe).fibre : 0;
+  document.querySelector("#recipeSodium").value = recipe ? recipeNutritionPerServing(recipe).sodium : 0;
   renderRecipeNutritionSummary(recipe ? recipeNutritionTotals(recipe) : editorNutritionTotals());
   recipeDialog.showModal();
 }
@@ -2756,6 +2777,7 @@ function fillIngredientFormFromBarcode(data) {
   document.querySelector("#ingredientSugar").value = data.nutrition?.sugar ?? 0;
   document.querySelector("#ingredientFibre").value = data.nutrition?.fibre ?? 0;
   document.querySelector("#ingredientFat").value = data.nutrition?.fat ?? 0;
+  document.querySelector("#ingredientSodium").value = data.nutrition?.sodium ?? 0;
 }
 
 async function lookupBarcode(value, { skipExisting = false, editingIngredient = null } = {}) {
@@ -2804,24 +2826,45 @@ async function lookupBarcode(value, { skipExisting = false, editingIngredient = 
     barcodeStatus(`Found ${ingredientData.name}.`);
     document.querySelector("#barcodeResult").hidden = false;
     document.querySelector("#barcodeResult").innerHTML = `
-      <h3>${escapeHtml(ingredientData.name)}</h3>
-      <p class="muted">${escapeHtml(ingredientData.description || "Open Food Facts product")}</p>
-      <p class="barcode-nutrition-basis"><strong>Imported basis:</strong> per ${ingredientData.serving.amount}${ingredientData.serving.unit} · ${escapeHtml(nutritionMeta.confidence)} confidence</p>
-      <div class="ingredient-nutrition barcode-result-nutrition">
-        <span>per ${ingredientData.serving.amount}${ingredientData.serving.unit}</span>
-        <span>${ingredientData.nutrition.calories} kcal</span>
-        <span>${ingredientData.nutrition.protein}g P</span>
-        <span>${ingredientData.nutrition.carbs}g C</span>
-        <span>${ingredientData.nutrition.sugar}g sugar</span>
-        <span>${ingredientData.nutrition.fibre}g fibre</span>
-        <span>${ingredientData.nutrition.fat}g F</span>
+      <div>
+        <h3>Review imported values</h3>
+        <p class="muted">Open Food Facts is community maintained. Compare these values with the packet and correct them before applying.</p>
       </div>
+      <p class="barcode-nutrition-basis"><strong>Imported basis:</strong> per ${ingredientData.serving.amount}${ingredientData.serving.unit} · ${escapeHtml(nutritionMeta.confidence)} confidence</p>
       ${warningsMarkup}
-      <button class="primary-button" id="useBarcodeProductButton" type="button">Use these values</button>
+      <div class="barcode-review-grid">
+        <label class="barcode-review-name">Product name<input id="barcodeProductName" value="${escapeHtml(ingredientData.name)}"></label>
+        <label>Serving amount<input id="barcodeServingAmount" type="number" min="0.1" step="0.01" value="${ingredientData.serving.amount}"></label>
+        <label>Unit<select id="barcodeServingUnit"><option value="g" ${ingredientData.serving.unit === "g" ? "selected" : ""}>g</option><option value="ml" ${ingredientData.serving.unit === "ml" ? "selected" : ""}>ml</option><option value="each" ${ingredientData.serving.unit === "each" ? "selected" : ""}>each</option></select></label>
+        <label>Calories<input id="barcodeCalories" type="number" min="0" step="0.01" value="${ingredientData.nutrition.calories}"></label>
+        <label>Protein (g)<input id="barcodeProtein" type="number" min="0" step="0.01" value="${ingredientData.nutrition.protein}"></label>
+        <label>Carbs (g)<input id="barcodeCarbs" type="number" min="0" step="0.01" value="${ingredientData.nutrition.carbs}"></label>
+        <label>Sugar (g)<input id="barcodeSugar" type="number" min="0" step="0.01" value="${ingredientData.nutrition.sugar}"></label>
+        <label>Fibre (g)<input id="barcodeFibre" type="number" min="0" step="0.01" value="${ingredientData.nutrition.fibre}"></label>
+        <label>Fat (g)<input id="barcodeFat" type="number" min="0" step="0.01" value="${ingredientData.nutrition.fat}"></label>
+        <label>Sodium (mg)<input id="barcodeSodium" type="number" min="0" step="0.01" value="${ingredientData.nutrition.sodium}"></label>
+      </div>
+      <button class="primary-button" id="useBarcodeProductButton" type="button">Apply reviewed values</button>
     `;
     document.querySelector("#useBarcodeProductButton").addEventListener("click", () => {
       if (editingIngredient && !ingredientDialog.open) openIngredientDialog(editingIngredient);
-      fillIngredientFormFromBarcode(ingredientData);
+      fillIngredientFormFromBarcode({
+        ...ingredientData,
+        name: document.querySelector("#barcodeProductName").value.trim() || ingredientData.name,
+        serving: {
+          amount: Math.max(0.1, Number(document.querySelector("#barcodeServingAmount").value) || 1),
+          unit: document.querySelector("#barcodeServingUnit").value || "g"
+        },
+        nutrition: {
+          calories: roundNutrition(document.querySelector("#barcodeCalories").value),
+          protein: roundNutrition(document.querySelector("#barcodeProtein").value),
+          carbs: roundNutrition(document.querySelector("#barcodeCarbs").value),
+          sugar: roundNutrition(document.querySelector("#barcodeSugar").value),
+          fibre: roundNutrition(document.querySelector("#barcodeFibre").value),
+          fat: roundNutrition(document.querySelector("#barcodeFat").value),
+          sodium: roundNutrition(document.querySelector("#barcodeSodium").value)
+        }
+      });
     }, { once: true });
   } catch (error) {
     barcodeStatus(error.message || "Could not look up this barcode.");
@@ -2866,7 +2909,7 @@ function renderRecipeIngredientNutritionEditor() {
         <option value="${candidate.id}" ${ingredient?.id === candidate.id ? "selected" : ""}>${escapeHtml(candidate.name)}${candidate.label ? ` - ${escapeHtml(candidate.label)}` : ""}</option>
       `).join("");
       return `
-        <article class="recipe-ingredient-row" data-serving-amount="${serving.amount}" data-serving-unit="${serving.unit}" data-base-calories="${Number(nutrition.calories) || 0}" data-base-protein="${Number(nutrition.protein) || 0}" data-base-carbs="${Number(nutrition.carbs) || 0}" data-base-sugar="${Number(nutrition.sugar) || 0}" data-base-fibre="${Number(nutrition.fibre) || 0}" data-base-fat="${Number(nutrition.fat) || 0}">
+        <article class="recipe-ingredient-row" data-serving-amount="${serving.amount}" data-serving-unit="${serving.unit}" data-base-calories="${Number(nutrition.calories) || 0}" data-base-protein="${Number(nutrition.protein) || 0}" data-base-carbs="${Number(nutrition.carbs) || 0}" data-base-sugar="${Number(nutrition.sugar) || 0}" data-base-fibre="${Number(nutrition.fibre) || 0}" data-base-fat="${Number(nutrition.fat) || 0}" data-base-sodium="${Number(nutrition.sodium) || 0}">
           <div>
             <strong>${escapeHtml(item.name)}</strong>
             <span class="muted">${ingredient ? `Linked to ${escapeHtml(ingredient.name)} - row nutrition is for amount used` : "Will be added to ingredients"}</span>
@@ -2912,6 +2955,10 @@ function renderRecipeIngredientNutritionEditor() {
             fat used
             <input type="number" min="0" step="0.01" value="${usedNutrition.fat}" data-recipe-ingredient-index="${index}" data-recipe-ingredient-field="fat">
           </label>
+          <label>
+            sodium used (mg)
+            <input type="number" min="0" step="0.01" value="${usedNutrition.sodium}" data-recipe-ingredient-index="${index}" data-recipe-ingredient-field="sodium">
+          </label>
         </article>
       `;
     }).join("")}
@@ -2935,7 +2982,8 @@ function refreshRecipeIngredientRowNutrition(row) {
     carbs: Number(row.dataset.baseCarbs) || 0,
     sugar: Number(row.dataset.baseSugar) || 0,
     fibre: Number(row.dataset.baseFibre) || 0,
-    fat: Number(row.dataset.baseFat) || 0
+    fat: Number(row.dataset.baseFat) || 0,
+    sodium: Number(row.dataset.baseSodium) || 0
   }, scale);
   row.querySelector('[data-recipe-ingredient-field="calories"]').value = scaled.calories;
   row.querySelector('[data-recipe-ingredient-field="protein"]').value = scaled.protein;
@@ -2943,6 +2991,7 @@ function refreshRecipeIngredientRowNutrition(row) {
   row.querySelector('[data-recipe-ingredient-field="sugar"]').value = scaled.sugar;
   row.querySelector('[data-recipe-ingredient-field="fibre"]').value = scaled.fibre;
   row.querySelector('[data-recipe-ingredient-field="fat"]').value = scaled.fat;
+  row.querySelector('[data-recipe-ingredient-field="sodium"]').value = scaled.sodium;
 }
 
 function refreshRecipeIngredientRowFromSelection(row) {
@@ -2957,6 +3006,7 @@ function refreshRecipeIngredientRowFromSelection(row) {
   row.dataset.baseSugar = Number(ingredient.nutrition?.sugar) || 0;
   row.dataset.baseFibre = Number(ingredient.nutrition?.fibre) || 0;
   row.dataset.baseFat = Number(ingredient.nutrition?.fat) || 0;
+  row.dataset.baseSodium = Number(ingredient.nutrition?.sodium) || 0;
   refreshRecipeIngredientRowNutrition(row);
 }
 
@@ -2985,7 +3035,8 @@ function applyRecipeIngredientNutritionEdits(ingredientLines) {
       carbs: roundNutrition((Number(edits[index].carbs) || 0) / divisor),
       sugar: roundNutrition((Number(edits[index].sugar) || 0) / divisor),
       fibre: roundNutrition((Number(edits[index].fibre) || 0) / divisor),
-      fat: roundNutrition((Number(edits[index].fat) || 0) / divisor)
+      fat: roundNutrition((Number(edits[index].fat) || 0) / divisor),
+      sodium: roundNutrition((Number(edits[index].sodium) || 0) / divisor)
     };
   });
 }
@@ -3007,16 +3058,19 @@ function editorNutritionTotals() {
   const rowTotals = [...document.querySelectorAll(".recipe-ingredient-row")].reduce((sum, row) => {
     sum.sugar += Number(row.querySelector('[data-recipe-ingredient-field="sugar"]')?.value) || 0;
     sum.fibre += Number(row.querySelector('[data-recipe-ingredient-field="fibre"]')?.value) || 0;
+    sum.sodium += Number(row.querySelector('[data-recipe-ingredient-field="sodium"]')?.value) || 0;
     return sum;
-  }, { sugar: 0, fibre: 0 });
+  }, { sugar: 0, fibre: 0, sodium: 0 });
   const enteredFibre = roundNutrition((Number(document.querySelector("#recipeFibre")?.value) || 0) * servings);
+  const enteredSodium = roundNutrition((Number(document.querySelector("#recipeSodium")?.value) || 0) * servings);
   return {
     calories: roundNutrition((Number(document.querySelector("#recipeCalories")?.value) || 0) * servings),
     protein: roundNutrition((Number(document.querySelector("#recipeProtein")?.value) || 0) * servings),
     carbs: roundNutrition((Number(document.querySelector("#recipeCarbs")?.value) || 0) * servings),
     fat: roundNutrition((Number(document.querySelector("#recipeFat")?.value) || 0) * servings),
     sugar: roundNutrition(rowTotals.sugar),
-    fibre: roundNutrition(rowTotals.fibre || enteredFibre)
+    fibre: roundNutrition(rowTotals.fibre || enteredFibre),
+    sodium: roundNutrition(rowTotals.sodium || enteredSodium)
   };
 }
 
@@ -3030,7 +3084,8 @@ function renderRecipeNutritionSummary(totals = editorNutritionTotals()) {
     carbs: roundNutrition(totals.carbs / servings),
     fat: roundNutrition(totals.fat / servings),
     sugar: roundNutrition(totals.sugar / servings),
-    fibre: roundNutrition(totals.fibre / servings)
+    fibre: roundNutrition(totals.fibre / servings),
+    sodium: roundNutrition(totals.sodium / servings)
   };
   container.innerHTML = `
     <div>
@@ -3039,6 +3094,7 @@ function renderRecipeNutritionSummary(totals = editorNutritionTotals()) {
       <span>${totals.protein}g protein</span>
       <span>${totals.sugar}g sugar</span>
       <span>${totals.fibre}g fibre</span>
+      <span>${totals.sodium}mg sodium</span>
     </div>
     <div>
       <strong>Per serve</strong>
@@ -3046,6 +3102,7 @@ function renderRecipeNutritionSummary(totals = editorNutritionTotals()) {
       <span>${perServe.protein}g protein</span>
       <span>${perServe.sugar}g sugar</span>
       <span>${perServe.fibre}g fibre</span>
+      <span>${perServe.sodium}mg sodium</span>
     </div>
   `;
 }
@@ -3064,13 +3121,15 @@ function updateRecipeTotalsFromIngredientNutrition() {
     sum.sugar += Number(row.querySelector('[data-recipe-ingredient-field="sugar"]')?.value) || 0;
     sum.fibre += Number(row.querySelector('[data-recipe-ingredient-field="fibre"]')?.value) || 0;
     sum.fat += Number(row.querySelector('[data-recipe-ingredient-field="fat"]')?.value) || 0;
+    sum.sodium += Number(row.querySelector('[data-recipe-ingredient-field="sodium"]')?.value) || 0;
     return sum;
-  }, { calories: 0, protein: 0, carbs: 0, sugar: 0, fibre: 0, fat: 0 });
+  }, { calories: 0, protein: 0, carbs: 0, sugar: 0, fibre: 0, fat: 0, sodium: 0 });
   document.querySelector("#recipeCalories").value = roundNutrition(totals.calories / servings);
   document.querySelector("#recipeProtein").value = roundNutrition(totals.protein / servings);
   document.querySelector("#recipeCarbs").value = roundNutrition(totals.carbs / servings);
   document.querySelector("#recipeFat").value = roundNutrition(totals.fat / servings);
   document.querySelector("#recipeFibre").value = roundNutrition(totals.fibre / servings);
+  document.querySelector("#recipeSodium").value = roundNutrition(totals.sodium / servings);
   renderRecipeNutritionSummary(totals);
 }
 
@@ -3081,7 +3140,7 @@ function refreshRecipeServingMath() {
   const rows = [...document.querySelectorAll(".recipe-ingredient-row")];
   if (!rows.length && previousServings !== nextServings) {
     const scale = previousServings / nextServings;
-    ["recipeCalories", "recipeProtein", "recipeCarbs", "recipeFat", "recipeFibre"].forEach((id) => {
+    ["recipeCalories", "recipeProtein", "recipeCarbs", "recipeFat", "recipeFibre", "recipeSodium"].forEach((id) => {
       const input = document.querySelector(`#${id}`);
       input.value = roundNutrition((Number(input.value) || 0) * scale);
     });
@@ -4280,7 +4339,7 @@ document.querySelector("#recipeIngredients").addEventListener("input", () => {
 });
 document.querySelector("#recipeServings").addEventListener("input", refreshRecipeServingMath);
 document.querySelector("#recipeServings").addEventListener("change", refreshRecipeServingMath);
-["#recipeCalories", "#recipeProtein", "#recipeCarbs", "#recipeFat", "#recipeFibre"].forEach((selector) => {
+["#recipeCalories", "#recipeProtein", "#recipeCarbs", "#recipeFat", "#recipeFibre", "#recipeSodium"].forEach((selector) => {
   document.querySelector(selector).addEventListener("input", renderRecipeNutritionSummary);
 });
 document.querySelector("#recipeIngredientNutrition").addEventListener("input", (event) => {
@@ -4430,6 +4489,7 @@ recipeForm.addEventListener("submit", async (event) => {
     fat: roundNutrition(document.querySelector("#recipeFat").value)
   };
   const fibrePerServe = roundNutrition(document.querySelector("#recipeFibre").value);
+  const sodiumPerServe = roundNutrition(document.querySelector("#recipeSodium").value);
   const enteredMacros = scaleNutrition(enteredMacrosPerServe, servings);
   const editorTotals = editorNutritionTotals();
   const estimatedMacros = estimateMacrosFromIngredients(ingredientLines);
@@ -4453,7 +4513,8 @@ recipeForm.addEventListener("submit", async (event) => {
     nutrition: {
       ...(existingRecipe?.nutrition || {}),
       sugar: editorTotals.sugar,
-      fibre: editorTotals.fibre || roundNutrition(fibrePerServe * servings)
+      fibre: editorTotals.fibre || roundNutrition(fibrePerServe * servings),
+      sodium: editorTotals.sodium || roundNutrition(sodiumPerServe * servings)
     },
     imageUrl,
     favourite: existingRecipe?.favourite || false,
@@ -4529,7 +4590,8 @@ ingredientForm.addEventListener("submit", (event) => {
       carbs: roundNutrition(document.querySelector("#ingredientCarbs").value),
       sugar: roundNutrition(document.querySelector("#ingredientSugar").value),
       fibre: roundNutrition(document.querySelector("#ingredientFibre").value),
-      fat: roundNutrition(document.querySelector("#ingredientFat").value)
+      fat: roundNutrition(document.querySelector("#ingredientFat").value),
+      sodium: roundNutrition(document.querySelector("#ingredientSodium").value)
     }
   };
 

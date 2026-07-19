@@ -9,7 +9,8 @@
     carbs: ["carbohydrates", "carbs"],
     sugar: ["sugars", "sugar"],
     fibre: ["fiber", "fibre"],
-    fat: ["fat"]
+    fat: ["fat"],
+    sodium: ["sodium"]
   };
 
   function finiteNumber(value) {
@@ -21,6 +22,12 @@
   function round(value) {
     const number = finiteNumber(value) ?? 0;
     return Math.round(number * 10) / 10;
+  }
+
+  function sodiumMilligrams(value, unit = "g") {
+    const number = finiteNumber(value);
+    if (number === null) return null;
+    return String(unit || "g").trim().toLowerCase() === "mg" ? number : number * 1000;
   }
 
   function normalizeUnit(value, fallback = "g") {
@@ -81,6 +88,7 @@
           : finiteNumber(nutriments[`energy-kj_${suffix}`] ?? nutriments[`energy_${suffix}`]);
         if (energyKj !== null) value = energyKj / 4.184;
       }
+      if (name === "sodium" && value !== null) value = sodiumMilligrams(value);
       if (value === null) missing.push(name);
       values[name] = round(value);
     }
@@ -107,6 +115,7 @@
         const energyKj = finiteNumber(nutrient?.value_computed ?? nutrient?.value);
         if (energyKj !== null) value = energyKj / 4.184;
       }
+      if (name === "sodium" && value !== null) value = sodiumMilligrams(value, nutrient?.unit || nutrient?.unit_name);
       if (value === null) missing.push(name);
       values[name] = round(value);
     }

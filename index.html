@@ -6,7 +6,7 @@
     <title>MacroVault</title>
     <meta name="theme-color" content="#399b3f">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=108">
+    <link rel="stylesheet" href="styles.css?v=109">
   </head>
   <body>
     <div class="app-shell">
@@ -303,6 +303,10 @@
             Fibre per serve
             <input id="recipeFibre" type="number" min="0" step="0.01" value="0">
           </label>
+          <label>
+            Sodium per serve (mg)
+            <input id="recipeSodium" type="number" min="0" step="0.01" value="0">
+          </label>
         </div>
         <div class="nutrition-summary" id="recipeNutritionSummary"></div>
         <div class="macro-helper">
@@ -405,6 +409,10 @@
             Fat
             <input id="ingredientFat" type="number" min="0" step="0.01" value="0">
           </label>
+          <label>
+            Sodium (mg)
+            <input id="ingredientSodium" type="number" min="0" step="0.01" value="0">
+          </label>
           <label class="dialog-check">
             <input id="ingredientOnHand" type="checkbox">
             On hand
@@ -486,8 +494,8 @@
     </dialog>
 
     <script src="zxing-browser.min.js?v=107"></script>
-    <script src="barcode-nutrition.js?v=108"></script>
-    <script src="app.js?v=108"></script>
+    <script src="barcode-nutrition.js?v=109"></script>
+    <script src="app.js?v=109"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
         navigator.serviceWorker.register("service-worker.js");

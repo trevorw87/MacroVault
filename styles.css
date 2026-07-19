@@ -3454,6 +3454,31 @@ dialog::backdrop {
   margin-top: 12px;
 }
 
+.barcode-review-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.barcode-review-grid label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.barcode-review-grid input,
+.barcode-review-grid select {
+  width: 100%;
+  min-width: 0;
+}
+
+.barcode-review-name {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 620px) {
   .barcode-form {
     padding: 18px;
@@ -3469,6 +3494,16 @@ dialog::backdrop {
 
   .barcode-tools {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .barcode-review-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .barcode-review-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
