@@ -17,6 +17,6 @@ MacroVault is a local-first family meal planning app for Home Assistant.
 
 ## Data
 
-MacroVault currently stores data in the browser with `localStorage`.
+MacroVault stores shared app data in SQLite inside the add-on at `/data/macrovault.db`.
 
-Use the in-app JSON export/import buttons when moving between browsers or devices.
+The browser keeps a local backup with `localStorage`, and the in-app JSON export/import buttons are still available for manual backups.

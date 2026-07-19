@@ -1,1 +1,4 @@
 macrovault-home-assistant.zip
+.tmp-macrovault-data/
+__pycache__/
+*.pyc

@@ -1,4 +1,4 @@
 #!/usr/bin/with-contenv bashio
 set -e
 
-exec nginx -g "daemon off;"
+exec python3 /server.py

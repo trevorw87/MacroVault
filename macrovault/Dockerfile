@@ -11,10 +11,10 @@ LABEL \
   io.hass.type="app" \
   io.hass.arch="${BUILD_ARCH}"
 
-RUN apk add --no-cache nginx && mkdir -p /run/nginx /app
+RUN apk add --no-cache python3 && mkdir -p /app /data
 
-COPY ingress.conf /etc/nginx/http.d/default.conf
 COPY app/ /app/
+COPY server.py /server.py
 COPY run.sh /run.sh
 
 RUN chmod a+x /run.sh

@@ -7,7 +7,11 @@ const MAX_STORED_IMAGE_BYTES = 75 * 1024;
 const IMAGE_UPLOAD_MAX_SIDE = 520;
 const IMAGE_UPLOAD_QUALITY = 0.62;
 const TESSERACT_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+const API_STATE_URL = "api/state";
 let lastSaveWarning = "";
+let serverStorageAvailable = false;
+let serverSaveTimer = null;
+let serverSaveInFlight = null;
 
 const tabs = [
   { id: "dashboard", label: "Dashboard", icon: "D" },
@@ -338,7 +342,7 @@ const sampleState = {
   ]
 };
 
-let state = loadState();
+let state = normalizeState(structuredClone(sampleState));
 
 function applyGenericNutritionFromUrlRequest() {
   const url = new URL(window.location.href);
@@ -354,8 +358,6 @@ function applyGenericNutritionFromUrlRequest() {
   url.searchParams.delete("applyGenericNutrition");
   window.history.replaceState({}, "", url);
 }
-
-applyGenericNutritionFromUrlRequest();
 
 const navTabs = document.querySelector("#navTabs");
 const pageTitle = document.querySelector("#pageTitle");
@@ -521,6 +523,69 @@ function loadBackupState() {
   } catch (error) {
     console.warn("Unable to load MacroVault backup", error);
     return null;
+  }
+}
+
+async function loadServerState() {
+  const response = await fetch(API_STATE_URL, {
+    headers: { Accept: "application/json" },
+    cache: "no-store"
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`MacroVault database returned ${response.status}`);
+  const payload = await response.json();
+  if (!payload?.state || typeof payload.state !== "object") return null;
+  serverStorageAvailable = true;
+  return normalizeState({ ...structuredClone(sampleState), ...payload.state });
+}
+
+async function saveStateToServer(snapshot) {
+  const response = await fetch(API_STATE_URL, {
+    method: "PUT",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ state: snapshot })
+  });
+  if (!response.ok) {
+    throw new Error(`MacroVault database save returned ${response.status}`);
+  }
+  serverStorageAvailable = true;
+  return response.json();
+}
+
+function queueServerStateSave(snapshot) {
+  const serverSnapshot = structuredClone(snapshot);
+  clearTimeout(serverSaveTimer);
+  serverSaveTimer = setTimeout(() => {
+    serverSaveInFlight = saveStateToServer(serverSnapshot).catch((error) => {
+      serverStorageAvailable = false;
+      console.warn("Unable to save MacroVault state to the server database", error);
+    });
+  }, 250);
+}
+
+async function initializeStateFromStorage() {
+  const browserState = loadState();
+  try {
+    const serverState = await loadServerState();
+    if (serverState) {
+      state = serverState;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverState));
+        backupStateSnapshot(serverState, "after server load");
+      } catch (error) {
+        console.warn("Unable to refresh browser backup from MacroVault database", error);
+      }
+      return;
+    }
+    state = browserState;
+    queueServerStateSave(state);
+  } catch (error) {
+    serverStorageAvailable = false;
+    console.warn("Using browser storage because the MacroVault database is unavailable", error);
+    state = browserState;
   }
 }
 
@@ -713,22 +778,26 @@ function missingImageAssetUsages(nextState = state) {
 function saveState({ skipBackup = false } = {}) {
   lastSaveWarning = "";
   const nextState = normalizeImageAssets(structuredClone(state));
+  state = nextState;
+  queueServerStateSave(nextState);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-    state = nextState;
     if (!skipBackup) backupStateSnapshot(nextState, "after save");
     return true;
   } catch (error) {
     pruneUnusedImageAssets(nextState);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-      state = nextState;
       if (!skipBackup) backupStateSnapshot(nextState, "after reduced save");
       return true;
     } catch {
       // Keep the original error in the console because it carries the quota detail.
     }
     console.error("Unable to save MacroVault state", error);
+    if (serverStorageAvailable) {
+      lastSaveWarning = "MacroVault saved to the server database, but this browser could not refresh its local backup.";
+      return true;
+    }
     return false;
   }
 }
@@ -4197,4 +4266,14 @@ recipeImportForm.addEventListener("submit", async (event) => {
   await saveImportedRecipe();
 });
 
-render();
+async function initializeApp() {
+  await initializeStateFromStorage();
+  applyGenericNutritionFromUrlRequest();
+  render();
+}
+
+initializeApp().catch((error) => {
+  console.error("Unable to initialize MacroVault", error);
+  state = loadState();
+  render();
+});
