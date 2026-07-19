@@ -2689,32 +2689,11 @@ function openBarcodeDialog(initialBarcode = "") {
   barcodeDialog.showModal();
 }
 
-function productServingFromOpenFoodFacts(product) {
-  const servingQuantity = Number(product.serving_quantity);
-  if (servingQuantity > 0) {
-    const servingUnit = String(product.serving_quantity_unit || product.serving_size || "").toLowerCase().includes("ml") ? "ml" : "g";
-    return { amount: servingQuantity, unit: servingUnit };
-  }
-  return { amount: 100, unit: "g" };
-}
-
-function productNutritionFromOpenFoodFacts(product) {
-  const nutriments = product.nutriments || {};
-  return {
-    calories: roundNutrition(nutriments["energy-kcal_100g"] ?? nutriments["energy-kcal_serving"] ?? 0),
-    protein: roundNutrition(nutriments.proteins_100g ?? nutriments.proteins_serving ?? 0),
-    carbs: roundNutrition(nutriments.carbohydrates_100g ?? nutriments.carbohydrates_serving ?? 0),
-    sugar: roundNutrition(nutriments.sugars_100g ?? nutriments.sugars_serving ?? 0),
-    fibre: roundNutrition(nutriments.fiber_100g ?? nutriments.fibre_100g ?? nutriments.fiber_serving ?? nutriments.fibre_serving ?? 0),
-    fat: roundNutrition(nutriments.fat_100g ?? nutriments.fat_serving ?? 0)
-  };
-}
-
 function ingredientDataFromOpenFoodFacts(product, barcode) {
   const name = product.product_name || product.generic_name || `Barcode ${barcode}`;
   const brands = product.brands || "";
-  const serving = productServingFromOpenFoodFacts(product);
-  const nutritionPer100 = productNutritionFromOpenFoodFacts(product);
+  const normalized = window.MacroVaultBarcode?.normalizeNutrition(product);
+  if (!normalized) throw new Error("Nutrition normalizer failed to initialise. Reload MacroVault, then try again.");
   const category = product.categories_tags?.some((tag) => /dair|cheese|yogurt|yoghurt|milk/.test(tag)) ? "Dairy"
     : product.categories_tags?.some((tag) => /meat|fish|egg|protein/.test(tag)) ? "Protein"
       : product.categories_tags?.some((tag) => /fruit|vegetable|produce/.test(tag)) ? "Produce"
@@ -2727,9 +2706,34 @@ function ingredientDataFromOpenFoodFacts(product, barcode) {
     barcode,
     imageUrl: product.image_front_url || product.image_url || "",
     label: category,
-    serving,
-    nutrition: scaleNutrition(nutritionPer100, nutritionScale(serving.amount, serving.unit, { amount: 100, unit: serving.unit }))
+    serving: normalized.basis,
+    nutrition: normalized.nutrition,
+    nutritionMeta: normalized
   };
+}
+
+async function fetchOpenFoodFactsProduct(barcode) {
+  const fields = "product_name,generic_name,brands,categories_tags,serving_quantity,serving_quantity_unit,serving_size,product_quantity_unit,nutrition_data_per,nutrition_data_prepared_per,nutrition,nutriments,image_front_url,image_url";
+  const urls = [
+    `https://world.openfoodfacts.org/api/v3/product/${encodeURIComponent(barcode)}.json?fields=${fields}`,
+    `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=${fields}`
+  ];
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (response.status === 404) continue;
+        throw new Error(`Lookup failed (${response.status}).`);
+      }
+      const data = await response.json();
+      if (data.product) return data.product;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastError) throw lastError;
+  return null;
 }
 
 function fillIngredientFormFromBarcode(data) {
@@ -2754,43 +2758,55 @@ function fillIngredientFormFromBarcode(data) {
   document.querySelector("#ingredientFat").value = data.nutrition?.fat ?? 0;
 }
 
-async function lookupBarcode(value) {
+async function lookupBarcode(value, { skipExisting = false, editingIngredient = null } = {}) {
   const barcode = normalizeBarcode(value);
   if (!barcode) {
     barcodeStatus("Enter or scan a barcode first.");
     return;
   }
   const existing = state.ingredients.find((ingredient) => normalizeBarcode(ingredient.barcode) === barcode);
-  if (existing) {
+  if (existing && !skipExisting) {
     barcodeStatus(`Found saved ingredient: ${existing.name}`);
     document.querySelector("#barcodeResult").hidden = false;
     document.querySelector("#barcodeResult").innerHTML = `
       <h3>${escapeHtml(existing.name)}</h3>
       <p class="muted">This barcode is already saved in your ingredients.</p>
-      <button class="primary-button" id="openExistingBarcodeIngredientButton" type="button">Open ingredient</button>
+      <div class="barcode-result-actions">
+        <button class="primary-button" id="openExistingBarcodeIngredientButton" type="button">Open ingredient</button>
+        <button class="secondary-button" id="refreshExistingBarcodeIngredientButton" type="button">Refresh nutrition</button>
+      </div>
     `;
     document.querySelector("#openExistingBarcodeIngredientButton").addEventListener("click", () => {
       barcodeDialog.close();
       openIngredientDialog(existing);
     }, { once: true });
+    document.querySelector("#refreshExistingBarcodeIngredientButton").addEventListener("click", () => {
+      lookupBarcode(barcode, { skipExisting: true, editingIngredient: existing });
+    }, { once: true });
     return;
   }
   barcodeStatus("Looking up barcode...");
   try {
-    const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=product_name,generic_name,brands,categories_tags,serving_quantity,serving_quantity_unit,serving_size,nutriments,image_front_url,image_url`);
-    if (!response.ok) throw new Error(`Lookup failed (${response.status}).`);
-    const data = await response.json();
-    if (data.status !== 1 || !data.product) {
+    const product = await fetchOpenFoodFactsProduct(barcode);
+    if (!product) {
       barcodeStatus("No product found. You can still save this barcode manually.");
       fillIngredientFormFromBarcode({ name: `Barcode ${barcode}`, barcode, serving: { amount: 100, unit: "g" }, nutrition: ingredientNutritionEstimate("") });
       return;
     }
-    const ingredientData = ingredientDataFromOpenFoodFacts(data.product, barcode);
+    const ingredientData = ingredientDataFromOpenFoodFacts(product, barcode);
+    const nutritionMeta = ingredientData.nutritionMeta;
+    const warningsMarkup = nutritionMeta.warnings.length ? `
+      <div class="barcode-nutrition-warning" role="alert">
+        <strong>Check these values against the package</strong>
+        <ul>${nutritionMeta.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")}</ul>
+      </div>
+    ` : `<p class="barcode-nutrition-ok">Nutrition values passed automatic checks.</p>`;
     barcodeStatus(`Found ${ingredientData.name}.`);
     document.querySelector("#barcodeResult").hidden = false;
     document.querySelector("#barcodeResult").innerHTML = `
       <h3>${escapeHtml(ingredientData.name)}</h3>
       <p class="muted">${escapeHtml(ingredientData.description || "Open Food Facts product")}</p>
+      <p class="barcode-nutrition-basis"><strong>Imported basis:</strong> per ${ingredientData.serving.amount}${ingredientData.serving.unit} · ${escapeHtml(nutritionMeta.confidence)} confidence</p>
       <div class="ingredient-nutrition barcode-result-nutrition">
         <span>per ${ingredientData.serving.amount}${ingredientData.serving.unit}</span>
         <span>${ingredientData.nutrition.calories} kcal</span>
@@ -2800,9 +2816,11 @@ async function lookupBarcode(value) {
         <span>${ingredientData.nutrition.fibre}g fibre</span>
         <span>${ingredientData.nutrition.fat}g F</span>
       </div>
-      <button class="primary-button" id="useBarcodeProductButton" type="button">Use this ingredient</button>
+      ${warningsMarkup}
+      <button class="primary-button" id="useBarcodeProductButton" type="button">Use these values</button>
     `;
     document.querySelector("#useBarcodeProductButton").addEventListener("click", () => {
+      if (editingIngredient && !ingredientDialog.open) openIngredientDialog(editingIngredient);
       fillIngredientFormFromBarcode(ingredientData);
     }, { once: true });
   } catch (error) {

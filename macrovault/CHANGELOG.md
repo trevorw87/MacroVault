@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.4
+
+- Normalized Open Food Facts v3 and legacy nutrition without mixing per-100 and per-serving values.
+- Preserved the nutrition basis supplied by the product instead of scaling it a second time.
+- Added confidence checks and an explicit review step before importing barcode nutrition.
+- Added regression tests for per-100g, per-serving, structured v3, and invalid nutrition data.
+
 ## 0.6.3
 
 - Bundled the barcode decoder locally instead of loading a broken external CDN URL.
