@@ -807,6 +807,9 @@ function normalizeState(nextState) {
     const normalizedRecipe = normalizeRecipeIngredientQuantities(recipe);
     return {
       ...normalizedRecipe,
+      originalIngredients: Array.isArray(normalizedRecipe.originalIngredients)
+        ? normalizedRecipe.originalIngredients.map((item) => String(item || "").trim()).filter(Boolean)
+        : String(normalizedRecipe.originalIngredients || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
       imageUrl: normalizedRecipe.imageUrl || "",
       category: recipeCategory(normalizedRecipe),
       categories: recipeCategoriesForRecipe(normalizedRecipe),
@@ -2177,11 +2180,12 @@ function renderRecipes() {
   const recipes = state.recipes.filter((recipe) => {
     const recipeTags = Array.isArray(recipe.tags) ? recipe.tags : [];
     const recipeIngredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+    const originalIngredients = Array.isArray(recipe.originalIngredients) ? recipe.originalIngredients : [];
     const categoryLabel = recipeCategories
       .filter((category) => recipeBelongsToCategory(recipe, category.id))
       .map((category) => category.label)
       .join(" ");
-    const haystack = [recipe.name, categoryLabel, ...recipeTags, ...recipeIngredients].join(" ").toLowerCase();
+    const haystack = [recipe.name, categoryLabel, ...recipeTags, ...recipeIngredients, ...originalIngredients].join(" ").toLowerCase();
     const matchesSearch = !search || haystack.includes(search);
     const matchesTag = selectedTag === "all" || recipeTags.includes(selectedTag);
     return matchesSearch && matchesTag;
@@ -2439,6 +2443,7 @@ function openRecipeDialog(recipe = null) {
   updateRecipeImagePreview(recipe?.imageUrl || "");
   document.querySelector("#recipeIngredients").value = recipe?.ingredients?.join("\n") || "";
   renderRecipeIngredientNutritionEditor();
+  document.querySelector("#recipeOriginalIngredients").value = recipe?.originalIngredients?.join("\n") || "";
   document.querySelector("#recipeMethod").value = recipe?.method || "";
   document.querySelector("#recipeServings").value = recipeServings(recipe);
   document.querySelector("#recipeServings").dataset.previousServings = String(recipeServings(recipe));
@@ -3618,6 +3623,9 @@ async function saveImportedRecipe() {
     categories: recipeCategoriesForRecipe(importedRecipe),
     tags: importedRecipe.tags?.length ? importedRecipe.tags : ["imported"],
     ingredients: importedRecipe.ingredients?.length ? importedRecipe.ingredients : ["Review imported source"],
+    originalIngredients: importedRecipe.originalIngredients?.length
+      ? importedRecipe.originalIngredients
+      : [...(importedRecipe.ingredients?.length ? importedRecipe.ingredients : ["Review imported source"])],
     ingredientRefs: importedRecipe.ingredientRefs || [],
     method: importedRecipe.method || "Review imported source and add method.",
     servings: recipeServings(importedRecipe),
@@ -4525,6 +4533,10 @@ recipeForm.addEventListener("submit", async (event) => {
   const ingredientData = ingredientLines.map(parseIngredientLine);
   const ingredientEdits = readRecipeIngredientNutritionEdits();
   const ingredients = ingredientLines;
+  const originalIngredients = document.querySelector("#recipeOriginalIngredients").value
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
   const method = document.querySelector("#recipeMethod").value.trim();
   const previousState = structuredClone(state);
   const imageUrl = await prepareRecipeImageForSave(document.querySelector("#recipeImageData").value || document.querySelector("#recipeImageUrl").value.trim());
@@ -4551,6 +4563,7 @@ recipeForm.addEventListener("submit", async (event) => {
     categories: categories.length ? categories : [category],
     tags: tags.length ? tags : ["family recipe"],
     ingredients,
+    originalIngredients,
     method,
     servings,
     calories: shouldUseEstimate

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.3
+
+- Added a separate original-ingredients reference field above the recipe method.
+- Populated both working and original ingredient lists when importing recipes.
+- Preserved original ingredients independently when the working list is edited for linking and nutrition.
+
 ## 0.7.2
 
 - Standardized the dashboard snack cards and their image frames to a consistent height.
