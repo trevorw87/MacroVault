@@ -2445,6 +2445,7 @@ function openRecipeDialog(recipe = null) {
   renderRecipeIngredientNutritionEditor();
   document.querySelector("#recipeOriginalIngredients").value = recipe?.originalIngredients?.join("\n") || "";
   document.querySelector("#recipeMethod").value = recipe?.method || "";
+  document.querySelector("#recipeSourceUrl").value = recipe?.sourceUrl || "";
   document.querySelector("#recipeServings").value = recipeServings(recipe);
   document.querySelector("#recipeServings").dataset.previousServings = String(recipeServings(recipe));
   document.querySelector("#recipeCalories").value = recipe ? caloriesPerServing(recipe) : caloriesFromMacros({ protein: 25, carbs: 45, fat: 15 });
@@ -4580,7 +4581,7 @@ recipeForm.addEventListener("submit", async (event) => {
     favourite: existingRecipe?.favourite || false,
     prepared: document.querySelector("#recipePrepared").checked,
     art: existingRecipe?.art || "custom",
-    sourceUrl: existingRecipe?.sourceUrl || "",
+    sourceUrl: document.querySelector("#recipeSourceUrl").value.trim(),
     ingredientRefs: ingredientData.map((item, index) => {
       const existingRef = existingRecipe?.ingredientRefs?.[index] || {};
       const existingIngredient = existingRef.ingredientId ? ingredientById(existingRef.ingredientId) : null;

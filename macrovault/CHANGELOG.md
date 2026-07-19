@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.5
+
+- Added an editable recipe-source URL field directly below the method.
+- Prefilled the source field with the website or video URL captured during recipe import.
+
 ## 0.7.4
 
 - Increased recipe-card image height while preserving proportional center-cropping.

@@ -6,7 +6,7 @@
     <title>MacroVault</title>
     <meta name="theme-color" content="#399b3f">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=113">
+    <link rel="stylesheet" href="styles.css?v=114">
   </head>
   <body>
     <div class="app-shell">
@@ -282,6 +282,10 @@
           Method
           <textarea id="recipeMethod" rows="5" placeholder="Paste or write the method"></textarea>
         </label>
+        <label>
+          Recipe source
+          <input id="recipeSourceUrl" type="url" placeholder="https://example.com/recipe">
+        </label>
         <div class="form-grid">
           <label>
             Serves
@@ -498,8 +502,8 @@
     </dialog>
 
     <script src="zxing-browser.min.js?v=107"></script>
-    <script src="barcode-nutrition.js?v=113"></script>
-    <script src="app.js?v=113"></script>
+    <script src="barcode-nutrition.js?v=114"></script>
+    <script src="app.js?v=114"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
         navigator.serviceWorker.register("service-worker.js");
