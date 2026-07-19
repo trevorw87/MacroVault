@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import base64
+import binascii
 import json
 import mimetypes
 import os
@@ -17,7 +19,7 @@ DATA_DIR = Path(os.environ.get("MACROVAULT_DATA_DIR", "/data")).resolve()
 DB_PATH = DATA_DIR / "macrovault.db"
 PORT = int(os.environ.get("MACROVAULT_PORT", "8099"))
 MAX_BODY_BYTES = 25 * 1024 * 1024
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 STATE_LOCK = threading.RLock()
 
 
@@ -187,6 +189,95 @@ def apply_schema_migrations(db):
             "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
             (1, "recipes, ingredients, and tags", utc_now()),
         )
+    if 2 not in applied:
+        db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS image_assets (
+                id TEXT PRIMARY KEY,
+                content_type TEXT NOT NULL,
+                data BLOB NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            """
+        )
+        db.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
+            (2, "server-managed image assets", utc_now()),
+        )
+
+
+def decode_image_data_url(value):
+    if not isinstance(value, str) or not value.startswith("data:image/") or "," not in value:
+        raise ValueError("Image asset data must be an embedded image")
+    header, encoded = value.split(",", 1)
+    if ";base64" not in header:
+        raise ValueError("Image asset must use base64 encoding")
+    content_type = header[5:].split(";", 1)[0].lower()
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error) as error:
+        raise ValueError("Image asset contains invalid base64 data") from error
+    if not data:
+        raise ValueError("Image asset is empty")
+    if len(data) > MAX_BODY_BYTES:
+        raise OverflowError("Image asset is too large")
+    return content_type, data
+
+
+def store_state_image_assets(db, state, now=None, prune=True):
+    """Move embedded image data into image_assets and leave metadata in state."""
+    now = now or utc_now()
+    library_present = isinstance(state.get("imageLibrary"), dict)
+    library = state.get("imageLibrary") if library_present else {}
+    metadata = {}
+
+    for key, asset in library.items():
+        if not isinstance(asset, dict):
+            continue
+        asset_id = str(asset.get("id") or key).strip()
+        if not asset_id:
+            continue
+        created_at = str(asset.get("createdAt") or now)
+        embedded = asset.get("data")
+        if embedded:
+            content_type, data = decode_image_data_url(embedded)
+            db.execute(
+                """
+                INSERT INTO image_assets
+                    (id, content_type, data, size_bytes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    content_type = excluded.content_type,
+                    data = excluded.data,
+                    size_bytes = excluded.size_bytes,
+                    updated_at = excluded.updated_at
+                """,
+                (asset_id, content_type, data, len(data), created_at, now),
+            )
+        row = db.execute(
+            "SELECT content_type, size_bytes, created_at FROM image_assets WHERE id = ?",
+            (asset_id,),
+        ).fetchone()
+        if row:
+            metadata[asset_id] = {
+                "id": asset_id,
+                "contentType": row["content_type"],
+                "sizeBytes": row["size_bytes"],
+                "createdAt": row["created_at"],
+            }
+
+    if library_present:
+        state["imageLibrary"] = metadata
+        if prune:
+            retained_ids = list(metadata)
+            if retained_ids:
+                placeholders = ",".join("?" for _ in retained_ids)
+                db.execute(f"DELETE FROM image_assets WHERE id NOT IN ({placeholders})", retained_ids)
+            else:
+                db.execute("DELETE FROM image_assets")
+    return state
 
 
 def add_projection_warning(db, code, record_id, details, detected_at):
@@ -399,7 +490,21 @@ def init_db():
             ("default",),
         ).fetchone()
         if row:
-            sync_state_projection(db, json.loads(row["state_json"]))
+            revisions = db.execute("SELECT id, state_json FROM state_revisions").fetchall()
+            for revision in revisions:
+                revision_state = json.loads(revision["state_json"])
+                store_state_image_assets(db, revision_state, prune=False)
+                db.execute(
+                    "UPDATE state_revisions SET state_json = ? WHERE id = ?",
+                    (compact_json(revision_state), revision["id"]),
+                )
+            state = json.loads(row["state_json"])
+            store_state_image_assets(db, state)
+            db.execute(
+                "UPDATE app_state SET state_json = ? WHERE id = ?",
+                (compact_json(state), "default"),
+            )
+            sync_state_projection(db, state)
 
 
 def read_state():
@@ -418,9 +523,11 @@ def read_state():
 
 
 def write_state(state):
-    serialized = compact_json(state)
     now = utc_now()
     with STATE_LOCK, connect_db() as db:
+        state = json.loads(compact_json(state))
+        store_state_image_assets(db, state, now)
+        serialized = compact_json(state)
         current = db.execute(
             "SELECT state_json, created_at FROM app_state WHERE id = ?",
             ("default",),
@@ -465,6 +572,7 @@ def schema_status():
             "ingredients": db.execute("SELECT COUNT(*) AS count FROM ingredients").fetchone()["count"],
             "recipeIngredients": db.execute("SELECT COUNT(*) AS count FROM recipe_ingredients").fetchone()["count"],
             "tags": db.execute("SELECT COUNT(*) AS count FROM tags").fetchone()["count"],
+            "images": db.execute("SELECT COUNT(*) AS count FROM image_assets").fetchone()["count"],
         }
         warnings = [
             {
@@ -478,6 +586,14 @@ def schema_status():
             ).fetchall()
         ]
     return {"version": version_row["version"] or 0, "counts": counts, "warnings": warnings}
+
+
+def read_image_asset(asset_id):
+    with connect_db() as db:
+        return db.execute(
+            "SELECT content_type, data, size_bytes FROM image_assets WHERE id = ?",
+            (asset_id,),
+        ).fetchone()
 
 
 def read_resources(resource, resource_id=None):
@@ -631,6 +747,19 @@ class MacroVaultHandler(BaseHTTPRequestHandler):
                 self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "message": "No MacroVault state stored yet."})
                 return
             self.send_json(HTTPStatus.OK, {"ok": True, **stored})
+            return
+        if parsed.path.startswith("/api/images/"):
+            asset_id = unquote(parsed.path[len("/api/images/"):]).strip()
+            asset = read_image_asset(asset_id) if asset_id else None
+            if not asset:
+                self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "message": "Image not found"})
+                return
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", asset["content_type"])
+            self.send_header("Content-Length", str(asset["size_bytes"]))
+            self.send_header("Cache-Control", "private, max-age=86400")
+            self.end_headers()
+            self.wfile.write(asset["data"])
             return
         resource_path = parse_resource_path(parsed.path)
         if resource_path:

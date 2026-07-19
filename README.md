@@ -50,6 +50,7 @@ Once the repo is pushed to GitHub:
 - Shared SQLite persistence with relational recipe and ingredient tables
 - Browser `localStorage` resilience backup
 - JSON export/import backup
+- Server-managed recipe and ingredient image storage
 - PWA manifest and basic offline cache
 
 ## Next Steps

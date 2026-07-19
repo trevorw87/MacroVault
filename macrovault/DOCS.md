@@ -6,6 +6,8 @@ The app stores its canonical state in SQLite at `/data/macrovault.db`.
 
 Version 0.3.0 adds relational tables for recipes, ingredients, recipe ingredient links, and tags. On first startup, the app automatically projects the existing JSON state into those tables in the same transaction. The original JSON state and its revision history remain available for compatibility and rollback.
 
+Version 0.5.0 adds the `image_assets` table. Uploaded recipe and ingredient images are stored as SQLite BLOBs and served by `GET /api/images/{id}`. On first startup after upgrading, embedded images are automatically extracted from the live state and revision history. Browser storage retains only lightweight state and image metadata.
+
 - `GET /api/state` returns the current app state.
 - `PUT /api/state` saves the complete state for backward compatibility and backup restoration.
 - `PATCH /api/state` replaces non-resource state while preserving recipes and ingredients.
@@ -15,6 +17,7 @@ Version 0.3.0 adds relational tables for recipes, ingredients, recipe ingredient
 - `GET|PUT|DELETE /api/recipes/{id}` reads, updates, or deletes a recipe.
 - `GET|POST /api/ingredients` lists or creates ingredients.
 - `GET|PUT|DELETE /api/ingredients/{id}` reads, updates, or deletes an ingredient.
+- `GET /api/images/{id}` serves a stored image asset.
 - The browser still keeps a local backup in `localStorage` for resilience.
 
 ## Home Assistant Sidebar

@@ -458,6 +458,17 @@ function loadState() {
   }
 }
 
+function stateWithoutEmbeddedImageData(value) {
+  const snapshot = structuredClone(value || {});
+  snapshot.imageLibrary = Object.fromEntries(Object.entries(snapshot.imageLibrary || {}).map(([id, asset]) => [id, {
+    id: asset.id || id,
+    contentType: asset.contentType || "",
+    sizeBytes: Number(asset.sizeBytes) || Math.round(((asset.data || "").length * 0.75)),
+    createdAt: asset.createdAt || todayDateKey()
+  }]));
+  return snapshot;
+}
+
 function stripLocalImagesForBackup(value) {
   if (!value || typeof value !== "object") return value;
   const backup = structuredClone(value);
@@ -798,7 +809,9 @@ function storeImageAsset(nextState, imageUrl) {
 function resolveImageUrl(imageUrl, nextState = state) {
   if (!isImageAssetRef(imageUrl)) return imageUrl || "";
   const id = imageAssetIdFromRef(imageUrl);
-  return nextState?.imageLibrary?.[id]?.data || "";
+  const asset = nextState?.imageLibrary?.[id];
+  if (!asset) return "";
+  return asset.data || `api/images/${encodeURIComponent(id)}`;
 }
 
 function normalizeImageAssets(nextState = state) {
@@ -845,7 +858,7 @@ function imageStorageSummary(nextState = state) {
   return Object.values(nextState.imageLibrary || {}).map((asset) => ({
     ...asset,
     uses: usages[asset.id] || [],
-    sizeKb: Math.round((((asset.data || "").length * 0.75) / 1024) * 10) / 10
+    sizeKb: Math.round(((Number(asset.sizeBytes) || ((asset.data || "").length * 0.75)) / 1024) * 10) / 10
   })).sort((a, b) => b.sizeKb - a.sizeKb);
 }
 
@@ -861,15 +874,16 @@ function saveState({ skipBackup = false } = {}) {
   const nextState = normalizeImageAssets(structuredClone(state));
   state = nextState;
   queueServerStateSave(nextState);
+  const browserSnapshot = stateWithoutEmbeddedImageData(nextState);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-    if (!skipBackup) backupStateSnapshot(nextState, "after save");
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(browserSnapshot));
+    if (!skipBackup) backupStateSnapshot(browserSnapshot, "after save");
     return true;
   } catch (error) {
     pruneUnusedImageAssets(nextState);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-      if (!skipBackup) backupStateSnapshot(nextState, "after reduced save");
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(browserSnapshot));
+      if (!skipBackup) backupStateSnapshot(browserSnapshot, "after reduced save");
       return true;
     } catch {
       // Keep the original error in the console because it carries the quota detail.
@@ -3397,8 +3411,24 @@ function deleteRecipe(recipeId) {
   render();
 }
 
-function exportState() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", () => reject(reader.error || new Error("Could not read image")));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function exportState() {
+  const exportedState = structuredClone(state);
+  for (const [id, asset] of Object.entries(exportedState.imageLibrary || {})) {
+    if (asset.data) continue;
+    const response = await fetch(`api/images/${encodeURIComponent(id)}`);
+    if (!response.ok) throw new Error(`Could not include image ${id} in the backup.`);
+    asset.data = await blobToDataUrl(await response.blob());
+  }
+  const blob = new Blob([JSON.stringify(exportedState, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -3480,13 +3510,13 @@ function renderImageStorage() {
   const missingAssets = missingImageAssetUsages(state);
   const totalSize = Math.round(assets.reduce((sum, asset) => sum + asset.sizeKb, 0) * 10) / 10;
   summary.textContent = assets.length || missingAssets.length
-    ? `${assets.length} uploaded image${assets.length === 1 ? "" : "s"} using about ${totalSize} KB in browser storage.`
-    : "No uploaded images are stored. Image URLs do not use local browser storage.";
+    ? `${assets.length} uploaded image${assets.length === 1 ? "" : "s"} using about ${totalSize} KB in MacroVault server storage.`
+    : "No uploaded images are stored in MacroVault. External image URLs are not copied to server storage.";
   grid.innerHTML = `
     ${missingAssets.length ? `
       <section class="image-storage-warning">
         <strong>${missingAssets.length} uploaded image reference${missingAssets.length === 1 ? "" : "s"} missing stored data</strong>
-        <p class="muted">These images cannot be displayed because the browser no longer has the uploaded image data. Re-upload the image or use an image URL.</p>
+        <p class="muted">These images cannot be displayed because the server no longer has the uploaded image data. Re-upload the image or use an image URL.</p>
         <div class="missing-image-list">
           ${missingAssets.map((asset) => `<span>${escapeHtml(asset.type)}: ${escapeHtml(asset.name)}</span>`).join("")}
         </div>
@@ -4161,7 +4191,13 @@ document.querySelector("#clearIngredientImageButton").addEventListener("click", 
   updateIngredientImagePreview("");
 });
 
-document.querySelector("#exportButton").addEventListener("click", exportState);
+document.querySelector("#exportButton").addEventListener("click", async () => {
+  try {
+    await exportState();
+  } catch (error) {
+    alert(error.message || "Could not export the full backup.");
+  }
+});
 
 document.querySelector("#importButton").addEventListener("click", () => {
   document.querySelector("#importFile").click();

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- Added dedicated SQLite BLOB storage and HTTP delivery for uploaded images.
+- Added automatic migration of embedded images from live state and revision history.
+- Reduced browser backups to image metadata while keeping full JSON exports portable.
+- Updated the image storage screen to report server-managed storage accurately.
+
 ## 0.4.0
 
 - Routed recipe and ingredient saves through dedicated resource APIs.

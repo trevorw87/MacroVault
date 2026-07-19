@@ -15,6 +15,12 @@ sys.path.insert(0, str(SERVER_DIR))
 import server  # noqa: E402
 
 
+TINY_PNG_DATA_URL = (
+    "data:image/png;base64,"
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
+
+
 def sample_state():
     return {
         "recipes": [
@@ -98,10 +104,10 @@ class DatabaseSandbox:
         stored = server.read_state()
         self.assertEqual(stored["state"], state)
         status = server.schema_status()
-        self.assertEqual(status["version"], 1)
+        self.assertEqual(status["version"], 2)
         self.assertEqual(
             status["counts"],
-            {"recipes": 1, "ingredients": 1, "recipeIngredients": 1, "tags": 2},
+            {"recipes": 1, "ingredients": 1, "recipeIngredients": 1, "tags": 2, "images": 0},
         )
         self.assertEqual(status["warnings"][0]["code"], "duplicate_ingredient_id")
         self.assertEqual(server.read_resources("ingredients")[0]["name"], "Bread")
@@ -125,6 +131,29 @@ class DatabaseSandbox:
 
         server.mutate_resource("recipes", "delete", recipe["id"])
         self.assertIsNone(server.read_resources("recipes", recipe["id"]))
+
+    def test_embedded_images_move_to_server_table(self):
+        state = sample_state()
+        state["recipes"][0]["imageUrl"] = "image-asset:img-toast"
+        state["imageLibrary"] = {
+            "img-toast": {
+                "id": "img-toast",
+                "data": TINY_PNG_DATA_URL,
+                "createdAt": "2026-07-19",
+            }
+        }
+
+        server.write_state(state)
+        stored = server.read_state()["state"]
+        asset = stored["imageLibrary"]["img-toast"]
+        self.assertNotIn("data", asset)
+        self.assertEqual(asset["contentType"], "image/png")
+        self.assertGreater(asset["sizeBytes"], 0)
+        self.assertEqual(server.schema_status()["counts"]["images"], 1)
+        self.assertEqual(server.read_image_asset("img-toast")["content_type"], "image/png")
+
+        server.init_db()
+        self.assertEqual(server.schema_status()["counts"]["images"], 1)
 
     def test_external_export_migrates_when_provided(self):
         export_path = os.environ.get("MACROVAULT_TEST_EXPORT")
@@ -161,6 +190,9 @@ class DatabaseSandbox:
             status["counts"]["recipeIngredients"],
             sum(len(item.get("ingredients") or []) for item in state["recipes"]),
         )
+        self.assertEqual(status["counts"]["images"], len(state.get("imageLibrary") or {}))
+        migrated_state = server.read_state()["state"]
+        self.assertTrue(all("data" not in asset for asset in (migrated_state.get("imageLibrary") or {}).values()))
 
 
 class DatabaseTestCase(DatabaseSandbox, unittest.TestCase):
@@ -170,6 +202,7 @@ class DatabaseTestCase(DatabaseSandbox, unittest.TestCase):
 class ApiTestCase(DatabaseSandbox, unittest.TestCase):
     test_state_projection_preserves_document_and_normalizes_resources = None
     test_resource_mutations_keep_state_and_projection_in_sync = None
+    test_embedded_images_move_to_server_table = None
     test_external_export_migrates_when_provided = None
 
     def setUp(self):
@@ -194,6 +227,15 @@ class ApiTestCase(DatabaseSandbox, unittest.TestCase):
         data = json.loads(response.read().decode("utf-8"))
         connection.close()
         return response.status, data
+
+    def raw_request(self, method, path):
+        connection = http.client.HTTPConnection("127.0.0.1", self.httpd.server_port, timeout=5)
+        connection.request(method, path)
+        response = connection.getresponse()
+        data = response.read()
+        headers = dict(response.getheaders())
+        connection.close()
+        return response.status, headers, data
 
     def test_schema_and_recipe_crud_endpoints(self):
         status, schema = self.request("GET", "/api/schema")
@@ -259,6 +301,20 @@ class ApiTestCase(DatabaseSandbox, unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["state"]["recipes"][0]["name"], "Resource API Toast")
         self.assertEqual(payload["state"]["planner"]["2026-07-20"]["breakfast"], "recipe-toast")
+
+    def test_image_asset_endpoint(self):
+        state = sample_state()
+        state["recipes"][0]["imageUrl"] = "image-asset:img-toast"
+        state["imageLibrary"] = {"img-toast": {"id": "img-toast", "data": TINY_PNG_DATA_URL}}
+        server.write_state(state)
+
+        status, headers, data = self.raw_request("GET", "/api/images/img-toast")
+        self.assertEqual(status, 200)
+        self.assertEqual(headers["Content-Type"], "image/png")
+        self.assertTrue(data.startswith(b"\x89PNG"))
+
+        status, _, _ = self.raw_request("GET", "/api/images/missing")
+        self.assertEqual(status, 404)
 
 
 if __name__ == "__main__":

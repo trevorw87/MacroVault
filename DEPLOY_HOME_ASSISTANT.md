@@ -1,5 +1,7 @@
 # Deploy MacroVault on Home Assistant
 
+> This static-hosting path is retained for reference. The supported shared-data deployment is the MacroVault Home Assistant add-on in this repository.
+
 MacroVault is currently a static, local-first web app. It can be hosted directly from Home Assistant's `/config/www` folder without Docker or a separate web server.
 
 ## Fast Path: Home Assistant Static Hosting
@@ -37,7 +39,7 @@ If `homeassistant.local` does not resolve on your network, use the Home Assistan
 http://YOUR_HA_IP:8123/local/macrovault/index.html
 ```
 
-## Important Data Note
+## Static Hosting Data Note
 
 This deployment hosts the app from the Home Assistant server, but the app data still lives in each browser's `localStorage`.
 
