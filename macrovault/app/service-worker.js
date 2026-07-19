@@ -1,11 +1,13 @@
-const CACHE_NAME = "macrovault-mvp-v106";
+const CACHE_NAME = "macrovault-mvp-v107";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./styles.css?v=105",
   "./app.js",
-  "./app.js?v=106",
+  "./app.js?v=107",
+  "./zxing-browser.min.js",
+  "./zxing-browser.min.js?v=107",
   "./manifest.webmanifest",
   "./icon.svg"
 ];

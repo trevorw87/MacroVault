@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3
+
+- Bundled the barcode decoder locally instead of loading a broken external CDN URL.
+- Added the decoder to the offline app cache for reliable camera and photo scanning.
+- Changed Upload photo to open the iPad photo picker instead of forcing camera capture.
+
 ## 0.6.2
 
 - Allowed Add Ingredient to close or cancel without satisfying required fields.

@@ -430,7 +430,7 @@
         <div class="barcode-tools">
           <button class="secondary-button" id="startBarcodeCameraButton" type="button">Use camera</button>
           <button class="secondary-button" id="takeBarcodePhotoButton" type="button">Upload photo</button>
-          <input class="visually-hidden-file" id="barcodePhotoInput" type="file" accept="image/*" capture="environment">
+          <input class="visually-hidden-file" id="barcodePhotoInput" type="file" accept="image/*">
         </div>
 
         <div class="barcode-camera" id="barcodeCameraPanel" hidden>
@@ -485,8 +485,8 @@
       </form>
     </dialog>
 
-    <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>
-    <script src="app.js?v=106"></script>
+    <script src="zxing-browser.min.js?v=107"></script>
+    <script src="app.js?v=107"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
         navigator.serviceWorker.register("service-worker.js");

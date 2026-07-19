@@ -2553,7 +2553,7 @@ function getZxingLibrary() {
 function getZxingReader() {
   const zxing = getZxingLibrary();
   if (!zxing?.BrowserMultiFormatReader) {
-    throw new Error("Barcode scanner fallback could not load. Check the internet connection, or type the barcode number.");
+    throw new Error("Barcode scanner failed to initialise. Reload MacroVault, or type the barcode number.");
   }
   if (!barcodeZxingReader) {
     barcodeZxingReader = new zxing.BrowserMultiFormatReader();
