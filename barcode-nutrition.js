@@ -161,5 +161,19 @@
     };
   }
 
-  return { normalizeNutrition, servingBasis };
+  function rescaleNutrition(nutrition = {}, fromBasis = {}, toBasis = {}) {
+    const fromAmount = finiteNumber(fromBasis.amount);
+    const toAmount = finiteNumber(toBasis.amount);
+    const fromUnit = normalizeUnit(fromBasis.unit, "");
+    const toUnit = normalizeUnit(toBasis.unit, "");
+    if (!fromAmount || fromAmount <= 0 || !toAmount || toAmount <= 0 || !fromUnit || fromUnit !== toUnit) return null;
+
+    const scale = toAmount / fromAmount;
+    return Object.fromEntries(Object.keys(nutrientKeys).map((name) => {
+      const value = finiteNumber(nutrition[name]) ?? 0;
+      return [name, Math.round(value * scale * 100) / 100];
+    }));
+  }
+
+  return { normalizeNutrition, rescaleNutrition, servingBasis };
 });

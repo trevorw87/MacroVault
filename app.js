@@ -2844,9 +2844,56 @@ async function lookupBarcode(value, { skipExisting = false, editingIngredient = 
         <label>Fat (g)<input id="barcodeFat" type="number" min="0" step="0.01" value="${ingredientData.nutrition.fat}"></label>
         <label>Sodium (mg)<input id="barcodeSodium" type="number" min="0" step="0.01" value="${ingredientData.nutrition.sodium}"></label>
       </div>
+      <p class="muted barcode-serving-scale-status" id="barcodeServingScaleStatus" role="status" aria-live="polite">Changing the serving amount automatically recalculates all nutrition values.</p>
       <button class="primary-button" id="useBarcodeProductButton" type="button">Apply reviewed values</button>
     `;
+    const servingAmountInput = document.querySelector("#barcodeServingAmount");
+    const servingUnitInput = document.querySelector("#barcodeServingUnit");
+    const servingScaleStatus = document.querySelector("#barcodeServingScaleStatus");
+    const nutritionReviewInputs = {
+      calories: "#barcodeCalories",
+      protein: "#barcodeProtein",
+      carbs: "#barcodeCarbs",
+      sugar: "#barcodeSugar",
+      fibre: "#barcodeFibre",
+      fat: "#barcodeFat",
+      sodium: "#barcodeSodium"
+    };
+    let reviewedBasis = { amount: ingredientData.serving.amount, unit: ingredientData.serving.unit };
+    const rescaleReviewedNutrition = () => {
+      const nextAmount = Number(servingAmountInput.value);
+      if (!Number.isFinite(nextAmount) || nextAmount <= 0) {
+        servingScaleStatus.textContent = "Enter a serving amount greater than zero to recalculate nutrition.";
+        return false;
+      }
+      const nextBasis = { amount: nextAmount, unit: servingUnitInput.value || "g" };
+      const currentNutrition = Object.fromEntries(Object.entries(nutritionReviewInputs).map(([name, selector]) => [
+        name,
+        Number(document.querySelector(selector).value) || 0
+      ]));
+      const rescaled = window.MacroVaultBarcode?.rescaleNutrition(currentNutrition, reviewedBasis, nextBasis);
+      if (!rescaled) {
+        servingScaleStatus.textContent = `Nutrition was not converted from ${reviewedBasis.unit} to ${nextBasis.unit}; correct the values using the package label.`;
+        reviewedBasis = nextBasis;
+        return true;
+      }
+      const previousBasis = reviewedBasis;
+      Object.entries(nutritionReviewInputs).forEach(([name, selector]) => {
+        document.querySelector(selector).value = rescaled[name];
+      });
+      reviewedBasis = nextBasis;
+      servingScaleStatus.textContent = previousBasis.amount === nextBasis.amount
+        ? `Nutrition remains based on ${nextBasis.amount}${nextBasis.unit}.`
+        : `Recalculated all nutrition values from ${previousBasis.amount}${previousBasis.unit} to ${nextBasis.amount}${nextBasis.unit}.`;
+      return true;
+    };
+    servingAmountInput.addEventListener("change", rescaleReviewedNutrition);
+    servingUnitInput.addEventListener("change", rescaleReviewedNutrition);
     document.querySelector("#useBarcodeProductButton").addEventListener("click", () => {
+      if (!rescaleReviewedNutrition()) {
+        servingAmountInput.focus();
+        return;
+      }
       if (editingIngredient && !ingredientDialog.open) openIngredientDialog(editingIngredient);
       fillIngredientFormFromBarcode({
         ...ingredientData,
@@ -2865,7 +2912,7 @@ async function lookupBarcode(value, { skipExisting = false, editingIngredient = 
           sodium: roundNutrition(document.querySelector("#barcodeSodium").value)
         }
       });
-    }, { once: true });
+    });
   } catch (error) {
     barcodeStatus(error.message || "Could not look up this barcode.");
   }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1
+
+- Automatically recalculated imported nutrition when the reviewed serving amount changes.
+- Prevented silent mass-to-volume conversions and prompted for package-label correction instead.
+
 ## 0.7.0
 
 - Added sodium in milligrams throughout ingredient, recipe, nutrition-label, and barcode workflows.

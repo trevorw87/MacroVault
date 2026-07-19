@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { normalizeNutrition, servingBasis } = require("../barcode-nutrition.js");
+const { normalizeNutrition, rescaleNutrition, servingBasis } = require("../barcode-nutrition.js");
 
 const per100 = normalizeNutrition({
   serving_quantity: 40,
@@ -65,5 +65,21 @@ assert.equal(structured.confidence, "high");
 const invalid = normalizeNutrition({ nutriments: { carbohydrates_100g: 5, sugars_100g: 12 } });
 assert.equal(invalid.confidence, "low");
 assert.ok(invalid.warnings.some((warning) => warning.includes("Sugar is higher")));
+
+const per30 = rescaleNutrition(per100.nutrition, { amount: 100, unit: "g" }, { amount: 30, unit: "g" });
+assert.deepEqual(per30, {
+  calories: 150,
+  protein: 2.4,
+  carbs: 18,
+  sugar: 12,
+  fibre: 1.2,
+  fat: 7.5,
+  sodium: 75
+});
+assert.equal(
+  rescaleNutrition(per100.nutrition, { amount: 100, unit: "g" }, { amount: 30, unit: "ml" }),
+  null,
+  "mass and volume must not be silently converted without density data"
+);
 
 console.log("Barcode nutrition normalization: PASS");
