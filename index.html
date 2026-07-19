@@ -6,7 +6,7 @@
     <title>MacroVault</title>
     <meta name="theme-color" content="#399b3f">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=103">
+    <link rel="stylesheet" href="styles.css?v=104">
   </head>
   <body>
     <div class="app-shell">
@@ -26,15 +26,32 @@
           <div>
             <p class="eyebrow">Family dashboard</p>
             <h1 id="pageTitle">Dashboard</h1>
+            <div class="sync-status" id="syncStatus" data-state="loading" role="status" aria-live="polite">
+              <span class="sync-status-dot" aria-hidden="true"></span>
+              <span id="syncStatusText">Loading data…</span>
+            </div>
           </div>
           <div class="topbar-actions">
-            <button class="icon-button bell-button" id="seedButton" title="Reload sample data" type="button">!</button>
+            <button class="icon-button" id="seedButton" aria-label="Reload sample data" title="Reload sample data" type="button">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg>
+            </button>
             <div class="profile-avatar" aria-label="Ashley profile">A</div>
-            <button class="secondary-button" id="exportButton" type="button">Export full backup</button>
-            <button class="secondary-button" id="importButton" type="button">Import</button>
+            <div class="action-overflow" id="actionOverflow">
+              <button class="secondary-button more-actions-button" id="moreActionsButton" type="button" aria-expanded="false" aria-controls="moreActionsMenu">
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+                <span>More</span>
+              </button>
+              <div class="action-menu" id="moreActionsMenu" hidden>
+                <button class="secondary-button" id="exportButton" type="button">Export full backup</button>
+                <button class="secondary-button" id="importButton" type="button">Import backup</button>
+                <button class="secondary-button" id="importRecipeButton" type="button">Import recipe</button>
+              </div>
+            </div>
             <input id="importFile" type="file" accept="application/json" hidden>
-            <button class="secondary-button" id="importRecipeButton" type="button">Import recipe</button>
-            <button class="primary-button" id="addRecipeButton" type="button">Add recipe</button>
+            <button class="primary-button add-recipe-button" id="addRecipeButton" type="button">
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Add recipe</span>
+            </button>
           </div>
         </header>
 
@@ -190,11 +207,33 @@
       </main>
     </div>
 
+    <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="false"></div>
+
+    <dialog class="ui-dialog" id="uiDialog" aria-labelledby="uiDialogTitle" aria-describedby="uiDialogMessage">
+      <form method="dialog" id="uiDialogForm">
+        <div class="dialog-heading">
+          <h2 id="uiDialogTitle">Confirm action</h2>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close">
+            <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+          </button>
+        </div>
+        <p id="uiDialogMessage"></p>
+        <label class="ui-dialog-input" id="uiDialogInputWrap" hidden>
+          <span id="uiDialogInputLabel">Value</span>
+          <input id="uiDialogInput">
+        </label>
+        <menu>
+          <button class="secondary-button" id="uiDialogCancel" value="cancel" type="submit">Cancel</button>
+          <button class="primary-button" id="uiDialogConfirm" value="confirm" type="submit">Continue</button>
+        </menu>
+      </form>
+    </dialog>
+
     <dialog id="recipeDialog">
       <form method="dialog" class="recipe-form" id="recipeForm">
         <div class="dialog-heading">
           <h2 id="recipeDialogTitle">Add recipe</h2>
-          <button class="icon-button" value="cancel" type="submit" title="Close">X</button>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
         <input id="recipeId" type="hidden">
         <div class="recipe-editor-top">
@@ -281,7 +320,7 @@
       <form method="dialog" class="recipe-form" id="ingredientForm">
         <div class="dialog-heading">
           <h2 id="ingredientDialogTitle">Add ingredient</h2>
-          <button class="icon-button" value="cancel" type="submit" title="Close">X</button>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
         <input id="ingredientId" type="hidden">
         <label>
@@ -385,7 +424,7 @@
             <h2>Scan barcode</h2>
             <p class="muted">Use live camera scanning, upload a barcode photo, or type the barcode number.</p>
           </div>
-          <button class="icon-button" value="cancel" type="submit" title="Close">X</button>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
 
         <div class="barcode-tools">
@@ -419,7 +458,7 @@
             <h2>Import recipe</h2>
             <p class="muted">Paste a recipe URL, YouTube link, or the recipe text itself.</p>
           </div>
-          <button class="icon-button" value="cancel" type="submit" title="Close">X</button>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
 
         <label>
@@ -447,7 +486,7 @@
     </dialog>
 
     <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>
-    <script src="app.js?v=100"></script>
+    <script src="app.js?v=104"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
         navigator.serviceWorker.register("service-worker.js");

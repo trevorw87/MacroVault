@@ -17,15 +17,31 @@ let serverSaveInFlight = null;
 let serverResourceBaseline = null;
 
 const tabs = [
-  { id: "dashboard", label: "Dashboard", icon: "D" },
-  { id: "recipes", label: "Recipes", icon: "R" },
-  { id: "ingredients", label: "Ingredients", icon: "I" },
-  { id: "planner", label: "Planner", icon: "P" },
-  { id: "shopping", label: "Shopping", icon: "S" },
-  { id: "kids", label: "Family", icon: "F" },
-  { id: "private", label: "Private", icon: "W" },
-  { id: "site", label: "Site", icon: "T" }
+  { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { id: "recipes", label: "Recipes", icon: "recipes" },
+  { id: "ingredients", label: "Ingredients", icon: "ingredients" },
+  { id: "planner", label: "Planner", icon: "planner" },
+  { id: "shopping", label: "Shopping", icon: "shopping" },
+  { id: "kids", label: "Family", icon: "family" },
+  { id: "private", label: "Private", icon: "private" },
+  { id: "site", label: "Site", icon: "storage" }
 ];
+
+const iconPaths = {
+  dashboard: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  recipes: '<path d="M6 3h11a2 2 0 0 1 2 2v16H7a3 3 0 0 1-3-3V5a2 2 0 0 1 2-2Z"/><path d="M7 3v18M10 8h6M10 12h6"/>',
+  ingredients: '<path d="M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10Z"/><path d="M8.5 15.5c2-1 4-3 5.5-6"/>',
+  planner: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>',
+  shopping: '<path d="M6 8h15l-2 8H8L6 4H3"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/>',
+  family: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2"/><path d="M3 20c0-4 2-7 6-7s6 3 6 7M15 15c3 0 5 2 5 5"/>',
+  private: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
+  storage: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+  heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/>'
+};
+
+function iconMarkup(name) {
+  return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">${iconPaths[name] || ""}</svg>`;
+}
 
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const mealPlanSlots = [
@@ -372,6 +388,12 @@ const recipeImportForm = document.querySelector("#recipeImportForm");
 const ingredientDialog = document.querySelector("#ingredientDialog");
 const ingredientForm = document.querySelector("#ingredientForm");
 const barcodeDialog = document.querySelector("#barcodeDialog");
+const syncStatus = document.querySelector("#syncStatus");
+const syncStatusText = document.querySelector("#syncStatusText");
+const toastRegion = document.querySelector("#toastRegion");
+const uiDialog = document.querySelector("#uiDialog");
+const uiDialogForm = document.querySelector("#uiDialogForm");
+let uiDialogResolver = null;
 let barcodeDetector = null;
 let barcodeStream = null;
 let barcodeScanTimer = null;
@@ -379,6 +401,81 @@ let barcodeZxingReader = null;
 let barcodeZxingControls = null;
 let pendingImportedRecipe = null;
 let tesseractLoadPromise = null;
+
+function setSyncStatus(status, message) {
+  if (!syncStatus || !syncStatusText) return;
+  syncStatus.dataset.state = status;
+  syncStatusText.textContent = message;
+}
+
+function showToast(message, { type = "info", duration = 5000 } = {}) {
+  if (!toastRegion || !message) return;
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  if (type === "error") toast.setAttribute("role", "alert");
+  const indicator = document.createElement("span");
+  indicator.className = "toast-indicator";
+  indicator.setAttribute("aria-hidden", "true");
+  const copy = document.createElement("p");
+  copy.textContent = message;
+  const close = document.createElement("button");
+  close.className = "toast-close";
+  close.type = "button";
+  close.setAttribute("aria-label", "Dismiss notification");
+  close.innerHTML = '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
+  close.addEventListener("click", () => toast.remove());
+  toast.append(indicator, copy, close);
+  toastRegion.append(toast);
+  requestAnimationFrame(() => toast.classList.add("visible"));
+  setTimeout(() => {
+    toast.classList.remove("visible");
+    setTimeout(() => toast.remove(), 180);
+  }, duration);
+}
+
+function openUiDialog({ title, message, confirmLabel = "Continue", cancelLabel = "Cancel", tone = "default", input = null }) {
+  if (uiDialogResolver) uiDialogResolver(null);
+  document.querySelector("#uiDialogTitle").textContent = title;
+  document.querySelector("#uiDialogMessage").textContent = message;
+  document.querySelector("#uiDialogConfirm").textContent = confirmLabel;
+  document.querySelector("#uiDialogCancel").textContent = cancelLabel;
+  document.querySelector("#uiDialogConfirm").classList.toggle("danger-button", tone === "danger");
+  const inputWrap = document.querySelector("#uiDialogInputWrap");
+  const inputElement = document.querySelector("#uiDialogInput");
+  inputWrap.hidden = !input;
+  if (input) {
+    document.querySelector("#uiDialogInputLabel").textContent = input.label || "Value";
+    inputElement.type = input.type || "text";
+    inputElement.inputMode = input.inputMode || "";
+    inputElement.min = input.min ?? "";
+    inputElement.step = input.step ?? "";
+    inputElement.value = input.value ?? "";
+  }
+  uiDialog.showModal();
+  requestAnimationFrame(() => (input ? inputElement : document.querySelector("#uiDialogConfirm")).focus());
+  return new Promise((resolve) => {
+    uiDialogResolver = resolve;
+  });
+}
+
+uiDialogForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const confirmed = event.submitter?.value === "confirm";
+  const result = confirmed
+    ? (document.querySelector("#uiDialogInputWrap").hidden ? true : document.querySelector("#uiDialogInput").value)
+    : null;
+  const resolve = uiDialogResolver;
+  uiDialogResolver = null;
+  uiDialog.close();
+  resolve?.(result);
+});
+
+uiDialog.addEventListener("close", () => {
+  if (!uiDialogResolver) return;
+  const resolve = uiDialogResolver;
+  uiDialogResolver = null;
+  resolve(null);
+});
 
 function restoreBackupFromUrlRequest() {
   const url = new URL(window.location.href);
@@ -646,12 +743,15 @@ async function saveStateToServer(snapshot) {
 function queueServerStateSave(snapshot) {
   const serverSnapshot = structuredClone(snapshot);
   clearTimeout(serverSaveTimer);
+  setSyncStatus("saving", "Saving…");
   serverSaveTimer = setTimeout(() => {
     serverSaveInFlight = (serverSaveInFlight || Promise.resolve())
       .catch(() => undefined)
       .then(() => saveStateToServer(serverSnapshot))
+      .then(() => setSyncStatus("saved", "Saved to Home Assistant"))
       .catch((error) => {
         serverStorageAvailable = false;
+        setSyncStatus("local", navigator.onLine ? "Saved in this browser" : "Offline — saved locally");
         console.warn("Unable to save MacroVault state to the server database", error);
       });
   }, 250);
@@ -663,6 +763,7 @@ async function initializeStateFromStorage() {
     const serverState = await loadServerState();
     if (serverState) {
       state = serverState;
+      setSyncStatus("saved", "Saved to Home Assistant");
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(serverState));
         backupStateSnapshot(serverState, "after server load");
@@ -676,6 +777,7 @@ async function initializeStateFromStorage() {
     queueServerStateSave(state);
   } catch (error) {
     serverStorageAvailable = false;
+    setSyncStatus("local", navigator.onLine ? "Saved in this browser" : "Offline — saved locally");
     console.warn("Using browser storage because the MacroVault database is unavailable", error);
     state = browserState;
   }
@@ -893,6 +995,7 @@ function saveState({ skipBackup = false } = {}) {
       lastSaveWarning = "MacroVault saved to the server database, but this browser could not refresh its local backup.";
       return true;
     }
+    setSyncStatus("error", "Could not save changes");
     return false;
   }
 }
@@ -1868,8 +1971,8 @@ function setTab(tabId) {
 
 function renderNav() {
   navTabs.innerHTML = tabs.map((tab) => `
-    <button class="nav-button ${state.activeTab === tab.id ? "active" : ""}" data-tab="${tab.id}" type="button">
-      <span class="nav-icon">${tab.icon}</span>
+    <button class="nav-button ${state.activeTab === tab.id ? "active" : ""}" data-tab="${tab.id}" type="button" ${state.activeTab === tab.id ? 'aria-current="page"' : ""}>
+      <span class="nav-icon">${iconMarkup(tab.icon)}</span>
       <span>${tab.label}</span>
     </button>
   `).join("");
@@ -2012,7 +2115,7 @@ function recipeCard(recipe) {
       <div class="recipe-body">
         <div class="recipe-title-row">
           <h3>${escapeHtml(recipe.name)}</h3>
-          <button class="favorite-button ${recipe.favourite ? "active" : ""}" data-favorite-recipe="${recipe.id}" title="Toggle favourite" type="button">F</button>
+          <button class="favorite-button ${recipe.favourite ? "active" : ""}" data-favorite-recipe="${recipe.id}" aria-label="${recipe.favourite ? "Remove from favourites" : "Add to favourites"}" title="${recipe.favourite ? "Remove from favourites" : "Add to favourites"}" type="button">${iconMarkup("heart")}</button>
         </div>
         <p class="muted">${escapeHtml(recipe.method)}</p>
         ${recipe.sourceUrl ? `<a class="source-link" href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
@@ -2205,7 +2308,7 @@ function updateIngredientsWithGenericNutrition() {
   const changed = applyGenericNutritionToIngredients(state, { force: true, refreshRecipeNutrition: true });
   saveState();
   render();
-  alert(`Updated generic nutrition for ${changed} ingredient${changed === 1 ? "" : "s"}.`);
+  showToast(`Updated generic nutrition for ${changed} ingredient${changed === 1 ? "" : "s"}.`, { type: "success" });
 }
 
 function renderPlanner() {
@@ -3381,7 +3484,7 @@ async function saveImportedRecipe() {
     pendingImportedRecipe = importedRecipe;
     if (saveButton) saveButton.disabled = false;
     document.querySelector("#recipeImportStatus").textContent = "Could not save. Browser storage may be full; remove uploaded images from Site or use image URLs.";
-    alert("Could not save this imported recipe. Browser storage is probably full from uploaded images.");
+    showToast("Could not save this imported recipe. Browser storage is probably full from uploaded images.", { type: "error", duration: 8000 });
     return;
   }
   pendingImportedRecipe = null;
@@ -3393,9 +3496,16 @@ async function saveImportedRecipe() {
   if (saveButton) saveButton.disabled = false;
 }
 
-function deleteRecipe(recipeId) {
+async function deleteRecipe(recipeId) {
   const recipe = recipeById(recipeId);
-  if (!recipe || !confirm(`Delete ${recipe.name}?`)) return;
+  if (!recipe) return;
+  const confirmed = await openUiDialog({
+    title: "Delete recipe?",
+    message: `${recipe.name} will be removed from recipes and the weekly planner.`,
+    confirmLabel: "Delete recipe",
+    tone: "danger"
+  });
+  if (!confirmed) return;
   state.recipes = state.recipes.filter((item) => item.id !== recipeId);
   days.forEach((day) => {
     mealPlanSlots
@@ -3409,6 +3519,7 @@ function deleteRecipe(recipeId) {
   state.bought = [];
   saveState();
   render();
+  showToast(`${recipe.name} deleted.`, { type: "success" });
 }
 
 function blobToDataUrl(blob) {
@@ -3449,9 +3560,9 @@ function importState(file) {
       state = normalizeState({ ...structuredClone(sampleState), ...imported });
       saveState({ skipBackup: true });
       render();
-      alert("MacroVault backup imported.");
+      showToast("MacroVault backup imported.", { type: "success" });
     } catch (error) {
-      alert(error.message || "Could not import this backup.");
+      showToast(error.message || "Could not import this backup.", { type: "error" });
     }
   });
   reader.readAsText(file);
@@ -3691,7 +3802,7 @@ function printWeekPlanner() {
   const hasPlannedWeek = printDays.some((day) => mealPlanSlots.some((slot) => state.planner?.[day]?.[slot.id]));
 
   if (!hasPlannedWeek) {
-    alert("Add meals to the planner first, then print the weekly planner.");
+    showToast("Add meals to the planner first, then print the weekly planner.", { type: "warning" });
     return;
   }
 
@@ -3740,7 +3851,7 @@ function printWeekPlanner() {
 
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
-    alert("Your browser blocked the print window. Please allow pop-ups for this local app and try again.");
+    showToast("Your browser blocked the print window. Please allow pop-ups and try again.", { type: "error" });
     return;
   }
 
@@ -3852,7 +3963,7 @@ function renderGenericNutritionStatus() {
   sessionStorage.removeItem(key);
 }
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
   const tabButton = event.target.closest("[data-tab]");
   if (tabButton) setTab(tabButton.dataset.tab);
 
@@ -3891,7 +4002,14 @@ document.addEventListener("click", (event) => {
   const deleteIngredientButton = event.target.closest("[data-delete-ingredient]");
   if (deleteIngredientButton) {
     const ingredient = ingredientById(deleteIngredientButton.dataset.deleteIngredient);
-    if (!ingredient || !confirm(`Delete ${ingredient.name}?`)) return;
+    if (!ingredient) return;
+    const confirmed = await openUiDialog({
+      title: "Delete ingredient?",
+      message: `${ingredient.name} will be removed from ingredient data and unlinked from recipes.`,
+      confirmLabel: "Delete ingredient",
+      tone: "danger"
+    });
+    if (!confirmed) return;
     state.ingredients = state.ingredients.filter((item) => item.id !== ingredient.id);
     state.recipes = state.recipes.map((recipe) => ({
       ...recipe,
@@ -3899,6 +4017,7 @@ document.addEventListener("click", (event) => {
     }));
     saveState();
     render();
+    showToast(`${ingredient.name} deleted.`, { type: "success" });
   }
 
   const deleteWeightButton = event.target.closest("[data-delete-weight]");
@@ -3929,7 +4048,14 @@ document.addEventListener("click", (event) => {
   if (healthExerciseButton) {
     const name = healthExerciseButton.dataset.healthExercise;
     const current = state.healthExercise?.[name] || "";
-    const minutes = Number(prompt(`Enter today's exercise minutes for ${name} from your health app:`, current));
+    const enteredMinutes = await openUiDialog({
+      title: "Update exercise",
+      message: `Enter today's exercise minutes for ${name}.`,
+      confirmLabel: "Save minutes",
+      input: { label: "Exercise minutes", type: "number", inputMode: "numeric", min: 0, step: 1, value: current }
+    });
+    if (enteredMinutes === null) return;
+    const minutes = Number(enteredMinutes);
     if (!Number.isFinite(minutes) || minutes < 0) return;
     ensureHealthExerciseForToday(state);
     state.healthExercise[name] = Math.round(minutes);
@@ -3940,7 +4066,7 @@ document.addEventListener("click", (event) => {
   }
 
   const deleteButton = event.target.closest("[data-delete-recipe]");
-  if (deleteButton) deleteRecipe(deleteButton.dataset.deleteRecipe);
+  if (deleteButton) await deleteRecipe(deleteButton.dataset.deleteRecipe);
 
   const favoriteButton = event.target.closest("[data-favorite-recipe]");
   if (favoriteButton) {
@@ -4046,7 +4172,7 @@ document.querySelector("#scanBarcodeButton").addEventListener("click", openBarco
 document.querySelector("#lookupIngredientBarcodeButton").addEventListener("click", async () => {
   const barcode = normalizeBarcode(document.querySelector("#ingredientBarcode").value);
   if (!barcode) {
-    alert("Enter or scan a barcode first.");
+    showToast("Enter or scan a barcode first.", { type: "warning" });
     return;
   }
   openBarcodeDialog();
@@ -4150,7 +4276,7 @@ document.querySelector("#recipeImageFile").addEventListener("change", async (eve
     document.querySelector("#recipeImageUrl").value = "";
     updateRecipeImagePreview(imageData);
   } catch (error) {
-    alert(error.message || "Could not prepare this image.");
+    showToast(error.message || "Could not prepare this image.", { type: "error" });
     event.target.value = "";
   }
 });
@@ -4179,7 +4305,7 @@ document.querySelector("#ingredientImageFile").addEventListener("change", async 
     document.querySelector("#ingredientImageUrl").value = "";
     updateIngredientImagePreview(imageData);
   } catch (error) {
-    alert(error.message || "Could not prepare this image.");
+    showToast(error.message || "Could not prepare this image.", { type: "error" });
     event.target.value = "";
   }
 });
@@ -4195,7 +4321,7 @@ document.querySelector("#exportButton").addEventListener("click", async () => {
   try {
     await exportState();
   } catch (error) {
-    alert(error.message || "Could not export the full backup.");
+    showToast(error.message || "Could not export the full backup.", { type: "error" });
   }
 });
 
@@ -4209,13 +4335,19 @@ document.querySelector("#importFile").addEventListener("change", (event) => {
   event.target.value = "";
 });
 
-document.querySelector("#seedButton").addEventListener("click", () => {
-  const confirmed = confirm("Reload sample data? This replaces saved recipes, ingredients, planner, family and private data in this browser. A backup will be kept first when browser storage allows it.");
+document.querySelector("#seedButton").addEventListener("click", async () => {
+  const confirmed = await openUiDialog({
+    title: "Reload sample data?",
+    message: "This replaces saved recipes, ingredients, planner, family and private data. A backup will be kept first when browser storage allows it.",
+    confirmLabel: "Reload sample data",
+    tone: "danger"
+  });
   if (!confirmed) return;
   backupCurrentStorage("before sample reload");
   state = normalizeState(structuredClone(sampleState));
   saveState({ skipBackup: true });
   render();
+  showToast("Sample data reloaded.", { type: "success" });
 });
 
 document.querySelector("#clearCheckedButton").addEventListener("click", () => {
@@ -4310,10 +4442,10 @@ recipeForm.addEventListener("submit", async (event) => {
   if (!saveState()) {
     state = previousState;
     document.querySelector("#macroEstimateNote").textContent = "Could not save. Browser storage may be full; remove uploaded images from Site or use image URLs.";
-    alert("Could not save. Browser storage is probably full from uploaded images. Remove a few large images from Site, or use image URLs instead of uploading.");
+    showToast("Could not save. Browser storage is probably full from uploaded images. Remove a few large images from Site, or use image URLs instead.", { type: "error", duration: 8000 });
     return;
   }
-  if (lastSaveWarning) alert(lastSaveWarning);
+  if (lastSaveWarning) showToast(lastSaveWarning, { type: "warning", duration: 8000 });
 
   recipeForm.reset();
   recipeDialog.close();
@@ -4360,7 +4492,7 @@ ingredientForm.addEventListener("submit", (event) => {
   syncIngredientsAndRecipeLinks(state, { refreshRecipeNutrition: true });
   if (!saveState()) {
     state = previousState;
-    alert("Could not save this ingredient. Browser storage is probably full from uploaded images. Remove a few images from Site, or use image URLs instead of uploading.");
+    showToast("Could not save this ingredient. Browser storage is probably full from uploaded images. Remove a few images from Site, or use image URLs instead.", { type: "error", duration: 8000 });
     return;
   }
   ingredientForm.reset();
@@ -4392,5 +4524,38 @@ async function initializeApp() {
 initializeApp().catch((error) => {
   console.error("Unable to initialize MacroVault", error);
   state = loadState();
+  setSyncStatus("local", "Saved in this browser");
   render();
+});
+
+const moreActionsButton = document.querySelector("#moreActionsButton");
+const moreActionsMenu = document.querySelector("#moreActionsMenu");
+
+function closeActionMenu() {
+  moreActionsMenu.hidden = true;
+  moreActionsButton.setAttribute("aria-expanded", "false");
+}
+
+moreActionsButton.addEventListener("click", () => {
+  const willOpen = moreActionsMenu.hidden;
+  moreActionsMenu.hidden = !willOpen;
+  moreActionsButton.setAttribute("aria-expanded", String(willOpen));
+});
+
+document.addEventListener("click", (event) => {
+  if (!document.querySelector("#actionOverflow").contains(event.target)) closeActionMenu();
+  if (event.target.closest("#moreActionsMenu button")) closeActionMenu();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !moreActionsMenu.hidden) {
+    closeActionMenu();
+    moreActionsButton.focus();
+  }
+});
+
+window.addEventListener("offline", () => setSyncStatus("local", "Offline — saved locally"));
+window.addEventListener("online", () => {
+  setSyncStatus("saving", "Reconnecting…");
+  queueServerStateSave(state);
 });
