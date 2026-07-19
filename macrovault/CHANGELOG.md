@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.2
+
+- Standardized the dashboard snack cards and their image frames to a consistent height.
+- Center-cropped portrait and landscape snack photos without changing the larger meal cards.
+
 ## 0.7.1
 
 - Automatically recalculated imported nutrition when the reviewed serving amount changes.

@@ -686,6 +686,8 @@ progress::-webkit-progress-value {
   grid-column: span 2;
   grid-template-columns: 96px minmax(0, 1fr);
   grid-template-rows: auto;
+  height: 96px;
+  min-height: 96px;
 }
 
 .dashboard-meal-image {
@@ -716,11 +718,23 @@ progress::-webkit-progress-value {
 }
 
 .dashboard-meal-card.small .dashboard-meal-image {
-  min-height: 100%;
+  width: 96px;
+  height: 96px;
+  min-height: 96px;
 }
 
 .dashboard-meal-card.small .dashboard-meal-image img {
-  min-height: 100%;
+  width: 96px;
+  height: 96px;
+  min-height: 0;
+  object-fit: cover;
+  object-position: center;
+}
+
+.dashboard-meal-card.small .dashboard-meal-copy {
+  min-height: 0;
+  align-content: center;
+  overflow: hidden;
 }
 
 .dashboard-meal-copy {
