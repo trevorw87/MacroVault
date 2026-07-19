@@ -46,13 +46,13 @@ Once the repo is pushed to GitHub:
 - Pantry expiry dates with use-soon alerts
 - Lunchbox Builder for weekly lunch planning
 - Kids screen with ratings and healthy stars
-- Browser `localStorage` persistence
+- Shared SQLite persistence with relational recipe and ingredient tables
+- Browser `localStorage` resilience backup
 - JSON export/import backup
 - PWA manifest and basic offline cache
 
 ## Next Steps
 
-- Add SQLite storage behind the same UI
-- Add recipe photo and URL import
+- Move recipe and ingredient UI writes fully onto the resource APIs
+- Add relational meal planning and shopping tables
 - Add user profiles for family members
-- Dockerize for the Home Assistant NUC
