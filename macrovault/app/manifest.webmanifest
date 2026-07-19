@@ -1,0 +1,17 @@
+{
+  "name": "MacroVault Healthy Family",
+  "short_name": "MacroVault",
+  "description": "Local-first family meal planning dashboard.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f8f1",
+  "theme_color": "#399b3f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

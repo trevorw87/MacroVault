@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#399b3f"/>
+  <circle cx="256" cy="230" r="118" fill="#e8f7e4"/>
+  <path d="M256 134c-38 58-76 72-76 126 0 45 34 80 76 80s76-35 76-80c0-54-38-68-76-126z" fill="#58b84a"/>
+  <path d="M256 332v62" stroke="#135f2f" stroke-width="28" stroke-linecap="round"/>
+  <text x="256" y="456" text-anchor="middle" font-family="Arial, sans-serif" font-size="76" font-weight="800" fill="#fff">MV</text>
+</svg>

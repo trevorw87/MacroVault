@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MacroVault</title>
+    <meta name="theme-color" content="#399b3f">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="styles.css?v=99">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Primary">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">HF</div>
+          <div>
+            <strong>Healthy Family</strong>
+            <span>MacroVault</span>
+          </div>
+        </div>
+        <nav class="nav-tabs" id="navTabs"></nav>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Family dashboard</p>
+            <h1 id="pageTitle">Dashboard</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="icon-button bell-button" id="seedButton" title="Reload sample data" type="button">!</button>
+            <div class="profile-avatar" aria-label="Ashley profile">A</div>
+            <button class="secondary-button" id="exportButton" type="button">Export full backup</button>
+            <button class="secondary-button" id="importButton" type="button">Import</button>
+            <input id="importFile" type="file" accept="application/json" hidden>
+            <button class="secondary-button" id="importRecipeButton" type="button">Import recipe</button>
+            <button class="primary-button" id="addRecipeButton" type="button">Add recipe</button>
+          </div>
+        </header>
+
+        <section class="view active" id="dashboardView" aria-labelledby="pageTitle">
+          <div class="family-dashboard">
+            <section class="dinner-card">
+              <div class="section-heading">
+                <h2>Today's Meals</h2>
+                <button class="text-button" data-tab="planner" type="button">Open planner</button>
+              </div>
+              <div class="today-meals" id="todayMeals"></div>
+            </section>
+
+            <section class="reset-strip">
+              <div class="card-icon calendar-icon">C</div>
+              <div>
+                <h2>Sunday Reset</h2>
+                <p>Plan your week in 5 minutes</p>
+              </div>
+              <button class="primary-button" data-tab="planner" type="button">Start reset</button>
+            </section>
+
+            <section class="kids-progress" data-tab="kids" title="Open family page">
+              <div class="section-heading">
+                <h2>Family Progress Today</h2>
+                <button class="text-button" data-tab="kids" type="button">Open family</button>
+              </div>
+              <div class="kid-grid" id="kidSummary"></div>
+            </section>
+
+            <section class="quick-actions" id="metricRow"></section>
+          </div>
+        </section>
+
+        <section class="view" id="recipesView" aria-labelledby="pageTitle">
+          <div class="toolbar">
+            <label class="search-box">
+              <span>Search</span>
+              <input id="recipeSearch" type="search" placeholder="Search recipes, tags, or ingredients">
+            </label>
+            <select id="tagFilter" aria-label="Filter by tag"></select>
+          </div>
+          <div class="recipe-grid" id="recipeGrid"></div>
+        </section>
+
+        <section class="view" id="ingredientsView" aria-labelledby="pageTitle">
+          <div class="toolbar">
+            <label class="search-box">
+              <span>Search</span>
+              <input id="ingredientSearch" type="search" placeholder="Search ingredient data">
+            </label>
+            <div class="toolbar-actions">
+              <button class="secondary-button" id="scanBarcodeButton" type="button">Scan barcode</button>
+              <button class="secondary-button" id="syncIngredientsButton" type="button">Sync from recipes</button>
+              <button class="secondary-button" id="updateGenericNutritionButton" type="button">Update nutrition</button>
+              <button class="primary-button" id="addIngredientButton" type="button">Add ingredient</button>
+            </div>
+          </div>
+          <section class="section-block">
+            <div class="section-heading">
+              <div>
+                <h2>Ingredient Data</h2>
+                <p class="muted">Typical nutrition values are editable estimates per common serving.</p>
+              </div>
+            </div>
+            <div class="ingredient-table" id="ingredientTable"></div>
+          </section>
+        </section>
+
+        <section class="view" id="plannerView" aria-labelledby="pageTitle">
+          <div class="planner-actions">
+            <label>
+              Calorie goal
+              <input id="dailyCalorieGoal" type="number" min="0" step="1" data-nutrition-goal="calories">
+            </label>
+            <label>
+              Protein goal
+              <input id="dailyProteinGoal" type="number" min="0" step="0.1" data-nutrition-goal="protein">
+            </label>
+            <button class="secondary-button" id="printWeekPlannerButton" type="button">Print week planner</button>
+          </div>
+          <div class="planner-grid" id="plannerGrid"></div>
+        </section>
+
+        <section class="view" id="shoppingView" aria-labelledby="pageTitle">
+          <section class="section-block">
+            <div class="section-heading">
+              <h2>Shopping list</h2>
+              <button class="secondary-button" id="clearCheckedButton" type="button">Clear bought</button>
+            </div>
+            <div class="shopping-list" id="shoppingList"></div>
+          </section>
+        </section>
+
+        <section class="view" id="kidsView" aria-labelledby="pageTitle">
+          <div class="kids-layout" id="kidsLayout"></div>
+        </section>
+
+        <section class="view" id="privateView" aria-labelledby="pageTitle">
+          <section class="private-layout">
+            <form class="section-block private-form" id="weightForm" novalidate>
+              <div class="section-heading">
+                <div>
+                  <h2>Weight tracking</h2>
+                  <p class="muted">Private local records stored only in this browser.</p>
+                </div>
+              </div>
+              <div class="person-switcher" id="privatePersonTabs" aria-label="Choose family member"></div>
+              <div class="inline-form">
+                <label>
+                  Date
+                  <input id="weightDate" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" required>
+                </label>
+                <label>
+                  Weight
+                  <input id="weightValue" type="number" min="0" step="0.1" placeholder="kg" required>
+                </label>
+                <button class="primary-button" id="saveWeightButton" type="submit" formnovalidate>Save weight</button>
+              </div>
+              <p class="muted" id="weightSaveStatus"></p>
+            </form>
+            <section class="section-block weight-chart-card">
+              <div class="section-heading">
+                <div>
+                  <h2>Trend</h2>
+                  <p class="muted" id="weightSummary">Add a weight entry to begin.</p>
+                </div>
+              </div>
+              <div class="weight-stats" id="weightStats"></div>
+              <div class="weight-chart" id="weightChart"></div>
+            </section>
+            <section class="section-block">
+              <div class="section-heading">
+                <h2>History</h2>
+              </div>
+              <div class="weight-history" id="weightHistory"></div>
+            </section>
+          </section>
+        </section>
+
+        <section class="view" id="siteView" aria-labelledby="pageTitle">
+          <section class="section-block image-storage-card">
+            <div class="section-heading">
+              <div>
+                <h2>Image storage</h2>
+                <p class="muted" id="imageStorageSummary">Uploaded images saved in this browser.</p>
+              </div>
+              <button class="secondary-button" id="cleanupImagesButton" type="button">Clean up images</button>
+            </div>
+            <div class="image-storage-grid" id="imageStorageGrid"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="recipeDialog">
+      <form method="dialog" class="recipe-form" id="recipeForm">
+        <div class="dialog-heading">
+          <h2 id="recipeDialogTitle">Add recipe</h2>
+          <button class="icon-button" value="cancel" type="submit" title="Close">X</button>
+        </div>
+        <input id="recipeId" type="hidden">
+        <div class="recipe-editor-top">
+          <div class="recipe-detail-fields">
+            <label>
+              Recipe name
+              <input id="recipeName" required>
+            </label>
+            <label>
+              Tags
+              <input id="recipeTags" placeholder="20 minutes, meal prep, freezer">
+            </label>
+            <label>
+              Planner categories
+              <div class="category-check-grid" id="recipeCategory"></div>
+            </label>
+            <label class="dialog-check">
+              <input id="recipePrepared" type="checkbox">
+              <span>In freezer / prepared</span>
+            </label>
+          </div>
+          <div class="recipe-image-fields">
+            <label>
+              Image URL
+              <input id="recipeImageUrl" type="url" placeholder="https://...">
+            </label>
+            <label>
+              Upload image
+              <input id="recipeImageFile" type="file" accept="image/*">
+            </label>
+            <button class="secondary-button" id="clearRecipeImageButton" type="button">Remove image</button>
+            <input id="recipeImageData" type="hidden">
+            <div class="recipe-image-preview" id="recipeImagePreview">No image selected</div>
+          </div>
+        </div>
+        <label>
+          Ingredients
+          <textarea id="recipeIngredients" rows="5" placeholder="One ingredient per line"></textarea>
+        </label>
+        <div class="recipe-ingredient-nutrition" id="recipeIngredientNutrition"></div>
+        <label>
+          Method
+          <textarea id="recipeMethod" rows="5" placeholder="Paste or write the method"></textarea>
+        </label>
+        <div class="form-grid">
+          <label>
+            Serves
+            <input id="recipeServings" type="number" min="1" step="1" value="1">
+          </label>
+          <label>
+            Calories per serve
+            <input id="recipeCalories" type="number" min="0" step="0.01" value="0">
+          </label>
+          <label>
+            Protein per serve
+            <input id="recipeProtein" type="number" min="0" step="0.01" value="25">
+          </label>
+          <label>
+            Carbs per serve
+            <input id="recipeCarbs" type="number" min="0" step="0.01" value="45">
+          </label>
+          <label>
+            Fat per serve
+            <input id="recipeFat" type="number" min="0" step="0.01" value="15">
+          </label>
+          <label>
+            Fibre per serve
+            <input id="recipeFibre" type="number" min="0" step="0.01" value="0">
+          </label>
+        </div>
+        <div class="nutrition-summary" id="recipeNutritionSummary"></div>
+        <div class="macro-helper">
+          <button class="secondary-button" id="estimateMacrosButton" type="button">Estimate from ingredients</button>
+          <span class="muted" id="macroEstimateNote">Estimates are approximate per serve.</span>
+        </div>
+        <menu>
+          <button class="secondary-button" value="cancel" type="submit">Cancel</button>
+          <button class="primary-button" id="saveRecipeButton" value="default" type="submit">Save recipe</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="ingredientDialog">
+      <form method="dialog" class="recipe-form" id="ingredientForm">
+        <div class="dialog-heading">
+          <h2 id="ingredientDialogTitle">Add ingredient</h2>
+          <button class="icon-button" value="cancel" type="submit" title="Close">X</button>
+        </div>
+        <input id="ingredientId" type="hidden">
+        <label>
+          Name
+          <input id="ingredientName" required>
+        </label>
+        <label>
+          Plural name
+          <input id="ingredientPlural" placeholder="Optional">
+        </label>
+        <label>
+          Description
+          <textarea id="ingredientDescription" rows="3" placeholder="Optional notes"></textarea>
+        </label>
+        <div class="barcode-field">
+          <label>
+            Barcode
+            <input id="ingredientBarcode" inputmode="numeric" placeholder="Scan or type barcode">
+          </label>
+          <button class="secondary-button" id="lookupIngredientBarcodeButton" type="button">Lookup barcode</button>
+        </div>
+        <div class="recipe-image-fields">
+          <label>
+            Image URL
+            <input id="ingredientImageUrl" type="url" placeholder="https://...">
+          </label>
+          <label>
+            Upload image
+            <input id="ingredientImageFile" type="file" accept="image/*">
+          </label>
+          <button class="secondary-button" id="clearIngredientImageButton" type="button">Remove image</button>
+          <input id="ingredientImageData" type="hidden">
+          <div class="recipe-image-preview" id="ingredientImagePreview">Using generic image</div>
+        </div>
+        <div class="nutrition-photo-tools">
+          <button class="secondary-button" id="scanNutritionLabelButton" type="button">Scan nutrition label</button>
+          <input class="visually-hidden-file" id="nutritionLabelPhotoInput" type="file" accept="image/*" capture="environment">
+          <span class="muted" id="nutritionLabelStatus">Use a clear photo of the nutrition panel to fill the fields below.</span>
+        </div>
+        <section class="nutrition-label-result" id="nutritionLabelResult" hidden></section>
+        <div class="form-grid">
+          <label>
+            Label
+            <input id="ingredientLabel" placeholder="Protein, Produce, Dairy...">
+          </label>
+          <label>
+            Nutrition amount
+            <input id="ingredientServingAmount" type="number" min="0" step="0.01" value="1">
+          </label>
+          <label>
+            Unit
+            <select id="ingredientServingUnit">
+              <option value="each">each</option>
+              <option value="g">g</option>
+              <option value="ml">ml</option>
+              <option value="cup">cup</option>
+              <option value="tbsp">tbsp</option>
+              <option value="tsp">tsp</option>
+            </select>
+          </label>
+          <label>
+            Calories
+            <input id="ingredientCalories" type="number" min="0" step="0.01" value="0">
+          </label>
+          <label>
+            Protein
+            <input id="ingredientProtein" type="number" min="0" step="0.01" value="0">
+          </label>
+          <label>
+            Carbs
+            <input id="ingredientCarbs" type="number" min="0" step="0.01" value="0">
+          </label>
+          <label>
+            Sugar
+            <input id="ingredientSugar" type="number" min="0" step="0.01" value="0">
+          </label>
+          <label>
+            Fibre
+            <input id="ingredientFibre" type="number" min="0" step="0.01" value="0">
+          </label>
+          <label>
+            Fat
+            <input id="ingredientFat" type="number" min="0" step="0.01" value="0">
+          </label>
+          <label class="dialog-check">
+            <input id="ingredientOnHand" type="checkbox">
+            On hand
+          </label>
+        </div>
+        <menu>
+          <button class="secondary-button" value="cancel" type="submit">Cancel</button>
+          <button class="primary-button" id="saveIngredientButton" value="default" type="submit">Save ingredient</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="barcodeDialog">
+      <form method="dialog" class="recipe-form barcode-form" id="barcodeForm">
+        <div class="dialog-heading">
+          <div>
+            <h2>Scan barcode</h2>
+            <p class="muted">Use live camera scanning, upload a barcode photo, or type the barcode number.</p>
+          </div>
+          <button class="icon-button" value="cancel" type="submit" title="Close">X</button>
+        </div>
+
+        <div class="barcode-tools">
+          <button class="secondary-button" id="startBarcodeCameraButton" type="button">Use camera</button>
+          <button class="secondary-button" id="takeBarcodePhotoButton" type="button">Upload photo</button>
+          <input class="visually-hidden-file" id="barcodePhotoInput" type="file" accept="image/*" capture="environment">
+        </div>
+
+        <div class="barcode-camera" id="barcodeCameraPanel" hidden>
+          <video id="barcodeVideo" playsinline muted></video>
+          <div class="barcode-frame" aria-hidden="true"></div>
+        </div>
+
+        <div class="barcode-field">
+          <label>
+            Barcode number
+            <input id="barcodeManualInput" inputmode="numeric" placeholder="e.g. 9300675053058">
+          </label>
+          <button class="primary-button" id="lookupBarcodeButton" type="button">Lookup</button>
+        </div>
+
+        <p class="muted" id="barcodeStatus">Barcode lookup uses Open Food Facts when online.</p>
+        <section class="barcode-result" id="barcodeResult" hidden></section>
+      </form>
+    </dialog>
+
+    <dialog id="recipeImportDialog">
+      <form method="dialog" class="recipe-form import-form" id="recipeImportForm">
+        <div class="dialog-heading">
+          <div>
+            <h2>Import recipe</h2>
+            <p class="muted">Paste a recipe URL, YouTube link, or the recipe text itself.</p>
+          </div>
+          <button class="icon-button" value="cancel" type="submit" title="Close">X</button>
+        </div>
+
+        <label>
+          Website or YouTube URL
+          <input id="recipeImportUrl" type="url" placeholder="https://www.delish.com/cooking/recipe-ideas/...">
+        </label>
+
+        <label>
+          Recipe text or video notes
+          <textarea id="recipeImportText" rows="8" placeholder="Paste ingredients and method here if the website blocks import."></textarea>
+        </label>
+
+        <div class="import-actions">
+          <button class="secondary-button" id="parseRecipeButton" type="button">Preview import</button>
+          <span class="muted" id="recipeImportStatus">Website imports depend on the source allowing browser access.</span>
+        </div>
+
+        <section class="import-preview" id="recipeImportPreview" hidden></section>
+
+        <menu>
+          <button class="secondary-button" value="cancel" type="submit">Cancel</button>
+          <button class="primary-button" id="saveImportedRecipeButton" value="default" type="submit" disabled>Save imported recipe</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>
+    <script src="app.js?v=99"></script>
+    <script>
+      if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+        navigator.serviceWorker.register("service-worker.js");
+      }
+    </script>
+  </body>
+</html>

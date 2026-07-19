@@ -1,0 +1,23 @@
+name: MacroVault
+version: "0.1.0"
+slug: macrovault
+description: Local-first family meal planning app for recipes, pantry, shopping lists, and weekly planning.
+url: https://github.com/trevorw87/macrovault
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+startup: application
+boot: auto
+init: false
+ingress: true
+ingress_port: 8099
+ingress_entry: /
+panel_icon: mdi:silverware-fork-knife
+panel_title: MacroVault
+panel_admin: false
+ports: {}
+options: {}
+schema: {}

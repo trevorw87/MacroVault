@@ -1,0 +1,4 @@
+#!/usr/bin/with-contenv bashio
+set -e
+
+exec nginx -g "daemon off;"
