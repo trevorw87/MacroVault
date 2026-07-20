@@ -10,6 +10,8 @@ Version 0.5.0 adds the `image_assets` table. Uploaded recipe and ingredient imag
 
 Version 0.8.0 adds a monotonically increasing state revision. Browser saves include the revision they loaded, and stale writes receive HTTP 409 instead of silently replacing changes from another device. The browser then asks which version to retain and keeps the local version in its resilience backup.
 
+Version 0.9.0 adds in-app household configuration. The Settings page controls the visible app and household names, profile identity, planner nutrition defaults, and the family-member roster. Member renames migrate linked exercise and weight records; members with weight history cannot be removed until those records are handled.
+
 - `GET /api/state` returns the current app state.
 - `PUT /api/state` saves the complete state. Pass `expectedRevision` to reject stale writes; successful responses include the new `revision`.
 - `PATCH /api/state` replaces non-resource state while preserving recipes and ingredients.

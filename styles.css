@@ -2992,11 +2992,13 @@ span.ingredient-usage,
   gap: 4px;
 }
 
+.kids-layout .kid-card.adult .habit-checks,
 .kids-layout .kid-card.trevor .habit-checks,
 .kids-layout .kid-card.ashley .habit-checks {
   gap: 5px;
 }
 
+.kids-layout .kid-card.adult .habit-row,
 .kids-layout .kid-card.trevor .habit-row,
 .kids-layout .kid-card.ashley .habit-row {
   grid-template-columns: 42px minmax(76px, 0.34fr) minmax(232px, 1fr);
@@ -3466,6 +3468,117 @@ dialog::backdrop {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 12px;
+}
+
+.settings-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-card {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.settings-field-grid.two-column {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-field-grid label,
+.settings-member-row label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.settings-member-list {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-member-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(110px, 0.55fr) minmax(120px, 0.55fr) minmax(220px, 1.4fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(18, 26, 45, 0.08);
+  border-radius: 16px;
+  background: var(--panel-soft);
+}
+
+.settings-remove-member {
+  min-height: 44px;
+  align-self: end;
+}
+
+.settings-save-bar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(18, 26, 45, 0.09);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 32px rgba(18, 26, 45, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.settings-save-bar p {
+  flex: 1;
+  margin: 0;
+}
+
+.error-text {
+  color: #b42318 !important;
+}
+
+@media (max-width: 980px) {
+  .settings-member-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-member-goal {
+    grid-column: 1 / -1;
+  }
+
+  .settings-remove-member {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 620px) {
+  .settings-field-grid,
+  .settings-field-grid.two-column,
+  .settings-member-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-member-goal {
+    grid-column: auto;
+  }
+
+  .settings-save-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-save-bar .primary-button {
+    width: 100%;
+  }
 }
 
 .barcode-review-grid {

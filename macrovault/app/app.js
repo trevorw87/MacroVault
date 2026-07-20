@@ -33,7 +33,8 @@ const tabs = [
   { id: "shopping", label: "Shopping", icon: "shopping" },
   { id: "kids", label: "Family", icon: "family" },
   { id: "private", label: "Private", icon: "private" },
-  { id: "site", label: "Site", icon: "storage" }
+  { id: "site", label: "Site", icon: "storage" },
+  { id: "settings", label: "Settings", icon: "settings" }
 ];
 
 const iconPaths = {
@@ -45,6 +46,7 @@ const iconPaths = {
   family: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2"/><path d="M3 20c0-4 2-7 6-7s6 3 6 7M15 15c3 0 5 2 5 5"/>',
   private: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
   storage: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.1 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2V9.6h.09A1.7 1.7 0 0 0 3.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 8 4.1a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V2h4v.09A1.7 1.7 0 0 0 14.5 3.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 18.9 8c.12.39.35.74.66 1 .3.25.69.4 1.1.4H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/>',
   heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/>'
 };
 
@@ -80,6 +82,19 @@ const defaultDailyNutritionGoals = {
   protein: 130
 };
 
+const defaultConfiguration = {
+  appName: "MacroVault",
+  householdName: "Healthy Family",
+  profileName: "Ashley"
+};
+
+const memberColorOptions = [
+  { value: "amelia", label: "Pink" },
+  { value: "spencer", label: "Blue" },
+  { value: "trevor", label: "Green" },
+  { value: "ashley", label: "Purple" }
+];
+
 const kidHabitTargets = [
   { id: "vegetables", label: "Vegetables", target: 5, icon: "veg" },
   { id: "fruit", label: "Fruit", target: 2, icon: "fruit" },
@@ -89,24 +104,24 @@ const kidHabitTargets = [
   { id: "exercise", label: "Exercise", target: 1, icon: "exercise" }
 ];
 
-const privatePeople = ["Ashley", "Trevor", "Spencer", "Amelia"];
-
-function habitTargetForPerson(name, habit) {
-  return habit.id === "water" && ["Trevor", "Ashley"].includes(name) ? 8 : habit.target;
+function habitTargetForPerson(name, habit, member = null) {
+  const adult = member?.role ? member.role === "adult" : ["Trevor", "Ashley"].includes(name);
+  return habit.id === "water" && adult ? 8 : habit.target;
 }
 
 function familyHabitTargetsForPerson(name) {
+  const member = state.kids?.[name];
   return kidHabitTargets.map((habit) => ({
     ...habit,
-    target: habitTargetForPerson(name, habit)
+    target: habitTargetForPerson(name, habit, member)
   }));
 }
 
 const defaultFamilyMembers = {
-  Amelia: { color: "amelia", goal: "Try one colourful vegetable", stars: 4, ratings: { "hidden-veg-pasta": 5, "pizza-wraps": 5 } },
-  Spencer: { color: "spencer", goal: "Help choose one snack food", stars: 3, ratings: { "taco-bowls": 4, "pizza-wraps": 5 } },
-  Trevor: { color: "trevor", goal: "Move your body today", stars: 0, ratings: {} },
-  Ashley: { color: "ashley", goal: "Take vitamins and hydrate", stars: 0, ratings: {} }
+  Amelia: { color: "amelia", role: "child", goal: "Try one colourful vegetable", stars: 4, ratings: { "hidden-veg-pasta": 5, "pizza-wraps": 5 } },
+  Spencer: { color: "spencer", role: "child", goal: "Help choose one snack food", stars: 3, ratings: { "taco-bowls": 4, "pizza-wraps": 5 } },
+  Trevor: { color: "trevor", role: "adult", goal: "Move your body today", stars: 0, ratings: {} },
+  Ashley: { color: "ashley", role: "adult", goal: "Take vitamins and hydrate", stars: 0, ratings: {} }
 };
 
 const categoryRules = [
@@ -350,6 +365,7 @@ const defaultRecipeCategoryById = {
 
 const sampleState = {
   activeTab: "dashboard",
+  configuration: structuredClone(defaultConfiguration),
   consumed: {},
   ingredients: [],
   privatePerson: "Ashley",
@@ -521,24 +537,38 @@ function todayDateKey() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-function emptyFamilyHabits(name) {
+function familyMemberNames(nextState = state) {
+  return Object.keys(nextState?.kids || {});
+}
+
+function primaryFamilyMember(nextState = state) {
+  const names = familyMemberNames(nextState);
+  return names.includes(nextState?.privatePerson) ? nextState.privatePerson : names[0] || "Household member";
+}
+
+function emptyFamilyHabits(name, member = null) {
   return Object.fromEntries(kidHabitTargets.map((habit) => [
     habit.id,
-    Array.from({ length: habitTargetForPerson(name, habit) }, () => false)
+    Array.from({ length: habitTargetForPerson(name, habit, member) }, () => false)
   ]));
 }
 
 function resetFamilyHabits(nextState) {
   Object.entries(nextState.kids || {}).forEach(([name, kid]) => {
-    kid.habits = emptyFamilyHabits(name);
+    kid.habits = emptyFamilyHabits(name, kid);
   });
 }
 
 function ensureHealthExerciseForToday(nextState = state) {
   const todayKey = todayDateKey();
-  if (nextState.healthExercise?.date === todayKey) return false;
-  nextState.healthExercise = { date: todayKey, Trevor: 0, Ashley: 0 };
-  return true;
+  const previous = nextState.healthExercise?.date === todayKey ? nextState.healthExercise : {};
+  const nextExercise = { date: todayKey };
+  familyMemberNames(nextState).forEach((name) => {
+    nextExercise[name] = Math.max(0, Number(previous[name]) || 0);
+  });
+  const changed = JSON.stringify(nextState.healthExercise || {}) !== JSON.stringify(nextExercise);
+  nextState.healthExercise = nextExercise;
+  return changed;
 }
 
 function ensureFamilyHabitsForToday(nextState = state) {
@@ -776,6 +806,13 @@ async function initializeStateFromStorage() {
 function normalizeState(nextState) {
   delete nextState.pantry;
   delete nextState.lunchboxes;
+  nextState.configuration = {
+    ...defaultConfiguration,
+    ...(nextState.configuration || {})
+  };
+  nextState.configuration.appName = String(nextState.configuration.appName || defaultConfiguration.appName).trim().slice(0, 40);
+  nextState.configuration.householdName = String(nextState.configuration.householdName || defaultConfiguration.householdName).trim().slice(0, 60);
+  nextState.configuration.profileName = String(nextState.configuration.profileName || defaultConfiguration.profileName).trim().slice(0, 40);
   nextState.imageLibrary ||= {};
   nextState.nutritionGoals = {
     ...defaultDailyNutritionGoals,
@@ -809,14 +846,26 @@ function normalizeState(nextState) {
   });
   syncIngredientsAndRecipeLinks(nextState);
   normalizeImageAssets(nextState);
+  nextState.kids = nextState.kids && typeof nextState.kids === "object" && Object.keys(nextState.kids).length
+    ? { ...nextState.kids }
+    : structuredClone(defaultFamilyMembers);
+  Object.entries(nextState.kids).forEach(([name, member], index) => {
+    member.role = member.role === "adult" || member.role === "child"
+      ? member.role
+      : (["Trevor", "Ashley"].includes(name) ? "adult" : "child");
+    member.color = memberColorOptions.some((option) => option.value === member.color)
+      ? member.color
+      : memberColorOptions[index % memberColorOptions.length].value;
+  });
   ensureHealthExerciseForToday(nextState);
-  if (!privatePeople.includes(nextState.privatePerson)) {
-    nextState.privatePerson = "Ashley";
+  const memberNames = familyMemberNames(nextState);
+  if (!memberNames.includes(nextState.privatePerson)) {
+    nextState.privatePerson = memberNames[0];
   }
   nextState.privateWeights = (nextState.privateWeights || [])
     .map((entry) => ({
       id: entry.id || `weight-${entry.date || todayDateKey()}-${Date.now().toString(36)}`,
-      person: privatePeople.includes(entry.person) ? entry.person : "Ashley",
+      person: memberNames.includes(entry.person) ? entry.person : nextState.privatePerson,
       date: normalizeWeightDate(entry.date),
       weight: Number(entry.weight) || 0
     }))
@@ -853,14 +902,13 @@ function normalizeState(nextState) {
       nextState.consumed[day][slot.id] = Boolean(nextState.consumed[day][slot.id]);
     });
   });
-  nextState.kids = { ...structuredClone(defaultFamilyMembers), ...(nextState.kids || {}) };
   ensureFamilyHabitsForToday(nextState);
   Object.entries(nextState.kids || {}).forEach(([name, kid]) => {
     kid.stars = Math.min(5, Math.max(0, Number(kid.stars) || 0));
     kid.goal = String(kid.goal || "");
     kid.habits ||= {};
     kidHabitTargets.forEach((habit) => {
-      const target = habitTargetForPerson(name, habit);
+      const target = habitTargetForPerson(name, habit, kid);
       kid.habits[habit.id] ||= Array.from({ length: target }, () => false);
       kid.habits[habit.id] = Array.from({ length: target }, (_, index) => Boolean(kid.habits[habit.id][index]));
     });
@@ -1979,6 +2027,20 @@ function renderNav() {
       <span>${tab.label}</span>
     </button>
   `).join("");
+}
+
+function applyConfigurationToLayout() {
+  const configuration = state.configuration || defaultConfiguration;
+  const appName = configuration.appName || defaultConfiguration.appName;
+  const householdName = configuration.householdName || defaultConfiguration.householdName;
+  const profileName = configuration.profileName || defaultConfiguration.profileName;
+  document.title = appName;
+  document.querySelector("#householdBrand").textContent = householdName;
+  document.querySelector("#appBrand").textContent = appName;
+  document.querySelector(".eyebrow").textContent = `${householdName} dashboard`;
+  const avatar = document.querySelector("#profileAvatar");
+  avatar.textContent = profileName.slice(0, 1).toUpperCase() || "H";
+  avatar.setAttribute("aria-label", `${profileName} profile`);
 }
 
 function renderLayout() {
@@ -3717,9 +3779,9 @@ function renderKids() {
     const habits = familyHabitTargetsForPerson(name);
     const completed = habits.reduce((sum, habit) => sum + (kid.habits?.[habit.id] || []).filter(Boolean).length, 0);
     const target = habits.reduce((sum, habit) => sum + habit.target, 0);
-    const canSyncExercise = ["Trevor", "Ashley"].includes(name);
+    const canSyncExercise = kid.role === "adult";
     return `
-      <article class="kid-card kid-habit-card ${safeCssToken(kid.color)}">
+      <article class="kid-card kid-habit-card ${safeCssToken(kid.color)} ${kid.role === "adult" ? "adult" : "child"}">
         <header class="kid-habit-header">
           <div>
             <h3>${escapeHtml(name)}</h3>
@@ -3803,11 +3865,12 @@ function renderSite() {
 function renderPrivate() {
   const dateInput = document.querySelector("#weightDate");
   if (dateInput && !dateInput.value) dateInput.value = displayWeightDate(todayDateKey());
-  const selectedPerson = privatePeople.includes(state.privatePerson) ? state.privatePerson : "Ashley";
+  const memberNames = familyMemberNames();
+  const selectedPerson = memberNames.includes(state.privatePerson) ? state.privatePerson : primaryFamilyMember();
   const entries = [...(state.privateWeights || [])]
-    .filter((entry) => (entry.person || "Ashley") === selectedPerson)
+    .filter((entry) => (entry.person || selectedPerson) === selectedPerson)
     .sort((a, b) => a.date.localeCompare(b.date));
-  document.querySelector("#privatePersonTabs").innerHTML = privatePeople.map((person) => `
+  document.querySelector("#privatePersonTabs").innerHTML = memberNames.map((person) => `
     <button class="person-tab ${person === selectedPerson ? "active" : ""}" data-private-person="${person}" type="button">${person}</button>
   `).join("");
   const chart = document.querySelector("#weightChart");
@@ -3910,7 +3973,8 @@ function normalizeWeightDate(value) {
 
 function saveWeightEntry() {
   const status = document.querySelector("#weightSaveStatus");
-  const person = privatePeople.includes(state.privatePerson) ? state.privatePerson : "Ashley";
+  const memberNames = familyMemberNames();
+  const person = memberNames.includes(state.privatePerson) ? state.privatePerson : primaryFamilyMember();
   const date = normalizeWeightDate(document.querySelector("#weightDate").value);
   const weight = Number(document.querySelector("#weightValue").value || 0);
   if (!date) {
@@ -3921,7 +3985,7 @@ function saveWeightEntry() {
     status.textContent = "Enter a weight above 0.";
     return;
   }
-  const existing = (state.privateWeights || []).find((entry) => entry.date === date && (entry.person || "Ashley") === person);
+  const existing = (state.privateWeights || []).find((entry) => entry.date === date && (entry.person || person) === person);
   if (existing) {
     existing.weight = weight;
   } else {
@@ -4042,6 +4106,133 @@ function printWeekPlanner() {
   printWindow.document.close();
 }
 
+function configurationMemberRow(name = "", member = {}, originalName = "") {
+  const role = member.role === "adult" ? "adult" : "child";
+  const color = memberColorOptions.some((option) => option.value === member.color) ? member.color : "trevor";
+  return `
+    <article class="settings-member-row" data-config-member-row data-original-name="${escapeHtml(originalName)}">
+      <label>
+        Name
+        <input data-config-member-name maxlength="40" value="${escapeHtml(name)}" required>
+      </label>
+      <label>
+        Role
+        <select data-config-member-role>
+          <option value="adult" ${role === "adult" ? "selected" : ""}>Adult</option>
+          <option value="child" ${role === "child" ? "selected" : ""}>Child</option>
+        </select>
+      </label>
+      <label>
+        Card colour
+        <select data-config-member-color>
+          ${memberColorOptions.map((option) => `<option value="${option.value}" ${color === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
+        </select>
+      </label>
+      <label class="settings-member-goal">
+        Daily encouragement
+        <input data-config-member-goal maxlength="100" value="${escapeHtml(member.goal || "")}" placeholder="A short family goal">
+      </label>
+      <button class="text-button danger-button settings-remove-member" data-remove-config-member type="button">Remove</button>
+    </article>
+  `;
+}
+
+function renderSettings() {
+  const configuration = state.configuration || defaultConfiguration;
+  const status = document.querySelector("#configurationStatus");
+  status.textContent = "";
+  status.classList.remove("error-text");
+  document.querySelector("#configAppName").value = configuration.appName;
+  document.querySelector("#configHouseholdName").value = configuration.householdName;
+  document.querySelector("#configProfileName").value = configuration.profileName;
+  document.querySelector("#configCalorieGoal").value = currentNutritionGoals().calories;
+  document.querySelector("#configProteinGoal").value = currentNutritionGoals().protein;
+  document.querySelector("#configMemberRows").innerHTML = Object.entries(state.kids || {})
+    .map(([name, member]) => configurationMemberRow(name, member, name))
+    .join("");
+}
+
+function configurationRows() {
+  return [...document.querySelectorAll("[data-config-member-row]")];
+}
+
+function configurationError(message) {
+  const status = document.querySelector("#configurationStatus");
+  status.textContent = message;
+  status.classList.add("error-text");
+  return false;
+}
+
+function saveConfiguration() {
+  const rows = configurationRows();
+  if (!rows.length) return configurationError("Add at least one family member.");
+  if (rows.length > 12) return configurationError("MacroVault supports up to 12 family members per household.");
+
+  const memberDrafts = rows.map((row) => ({
+    originalName: row.dataset.originalName || "",
+    name: row.querySelector("[data-config-member-name]").value.trim(),
+    role: row.querySelector("[data-config-member-role]").value,
+    color: row.querySelector("[data-config-member-color]").value,
+    goal: row.querySelector("[data-config-member-goal]").value.trim()
+  }));
+  if (memberDrafts.some((member) => !member.name)) return configurationError("Every family member needs a name.");
+  if (memberDrafts.some((member) => ["__proto__", "prototype", "constructor"].includes(member.name.toLowerCase()))) {
+    return configurationError("Choose a different family member name.");
+  }
+  const normalizedNames = memberDrafts.map((member) => member.name.toLocaleLowerCase());
+  if (new Set(normalizedNames).size !== normalizedNames.length) return configurationError("Family member names must be unique.");
+
+  const retainedOriginalNames = new Set(memberDrafts.map((member) => member.originalName).filter(Boolean));
+  const removedNames = familyMemberNames().filter((name) => !retainedOriginalNames.has(name));
+  const removedWithHistory = removedNames.filter((name) => (state.privateWeights || []).some((entry) => entry.person === name));
+  if (removedWithHistory.length) {
+    return configurationError(`Remove ${removedWithHistory.join(", ")}'s weight history before removing that family member.`);
+  }
+
+  const renameMap = new Map(memberDrafts.filter((member) => member.originalName).map((member) => [member.originalName, member.name]));
+  const nextMembers = Object.fromEntries(memberDrafts.map((draft) => {
+    const previous = state.kids?.[draft.originalName] || {};
+    return [draft.name, {
+      ...previous,
+      role: draft.role === "adult" ? "adult" : "child",
+      color: memberColorOptions.some((option) => option.value === draft.color) ? draft.color : "trevor",
+      goal: draft.goal,
+      stars: Number(previous.stars) || 0,
+      ratings: previous.ratings || {},
+      habits: previous.habits || {}
+    }];
+  }));
+
+  state.kids = nextMembers;
+  state.privateWeights = (state.privateWeights || []).map((entry) => ({
+    ...entry,
+    person: renameMap.get(entry.person) || entry.person
+  }));
+  state.privatePerson = renameMap.get(state.privatePerson) || (nextMembers[state.privatePerson] ? state.privatePerson : memberDrafts[0].name);
+  const previousExercise = state.healthExercise || {};
+  state.healthExercise = { date: previousExercise.date || todayDateKey() };
+  memberDrafts.forEach((member) => {
+    state.healthExercise[member.name] = Math.max(0, Number(previousExercise[member.originalName || member.name]) || 0);
+  });
+  state.configuration = {
+    appName: document.querySelector("#configAppName").value.trim(),
+    householdName: document.querySelector("#configHouseholdName").value.trim(),
+    profileName: document.querySelector("#configProfileName").value.trim()
+  };
+  state.nutritionGoals = {
+    calories: Math.max(1, Number(document.querySelector("#configCalorieGoal").value) || defaultDailyNutritionGoals.calories),
+    protein: Math.max(1, Number(document.querySelector("#configProteinGoal").value) || defaultDailyNutritionGoals.protein)
+  };
+  state = normalizeState(state);
+  saveState();
+  render();
+  const status = document.querySelector("#configurationStatus");
+  status.classList.remove("error-text");
+  status.textContent = "Configuration saved to MacroVault.";
+  showToast("Household configuration saved.", { type: "success" });
+  return true;
+}
+
 function renderActiveView() {
   const renderers = {
     dashboard: renderDashboard,
@@ -4051,13 +4242,15 @@ function renderActiveView() {
     shopping: renderShopping,
     kids: renderKids,
     private: renderPrivate,
-    site: renderSite
+    site: renderSite,
+    settings: renderSettings
   };
   renderers[state.activeTab]?.();
 }
 
 function render() {
   if (ensureFamilyHabitsForToday(state)) saveState();
+  applyConfigurationToLayout();
   renderNav();
   renderLayout();
   renderActiveView();
@@ -4110,6 +4303,16 @@ function renderGenericNutritionStatus() {
 document.addEventListener("click", async (event) => {
   const tabButton = event.target.closest("[data-tab]");
   if (tabButton) setTab(tabButton.dataset.tab);
+
+  const removeConfigMemberButton = event.target.closest("[data-remove-config-member]");
+  if (removeConfigMemberButton) {
+    if (configurationRows().length <= 1) {
+      showToast("A household needs at least one family member.", { type: "warning" });
+      return;
+    }
+    removeConfigMemberButton.closest("[data-config-member-row]")?.remove();
+    document.querySelector("#configurationStatus").textContent = "Save configuration to apply this removal.";
+  }
 
   const privatePersonButton = event.target.closest("[data-private-person]");
   if (privatePersonButton) {
@@ -4321,6 +4524,23 @@ document.querySelector("#dailyProteinGoal").addEventListener("change", (event) =
 });
 
 document.querySelector("#addRecipeButton").addEventListener("click", () => openRecipeDialog());
+document.querySelector("#addConfigMemberButton").addEventListener("click", () => {
+  const rows = configurationRows();
+  if (rows.length >= 12) {
+    showToast("MacroVault supports up to 12 family members.", { type: "warning" });
+    return;
+  }
+  document.querySelector("#configMemberRows").insertAdjacentHTML(
+    "beforeend",
+    configurationMemberRow("", { role: "child", color: memberColorOptions[rows.length % memberColorOptions.length].value }, "")
+  );
+  const nextRows = configurationRows();
+  nextRows[nextRows.length - 1].querySelector("[data-config-member-name]").focus();
+});
+document.querySelector("#configurationForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveConfiguration();
+});
 document.querySelector("#addIngredientButton").addEventListener("click", () => openIngredientDialog());
 document.querySelector("#syncIngredientsButton").addEventListener("click", syncIngredientsFromRecipes);
 document.querySelector("#updateGenericNutritionButton").addEventListener("click", updateIngredientsWithGenericNutrition);

@@ -46,7 +46,7 @@ function startServer() {
     const baseUrl = `http://127.0.0.1:${server.address().port}`;
     await page.goto(baseUrl, { waitUntil: "networkidle" });
     await page.waitForSelector("#navTabs .nav-button");
-    assert.equal(await page.locator("#navTabs .nav-button").count(), 8);
+    assert.equal(await page.locator("#navTabs .nav-button").count(), 9);
     assert.equal(await page.locator("#pageTitle").textContent(), "Dashboard");
 
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
@@ -71,12 +71,27 @@ function startServer() {
         servings: 1,
         macros: { protein: 0, carbs: 0, fat: 0 }
       });
+      saved.privateWeights = [{ id: "weight-migration-check", person: "Amelia", date: "2026-07-20", weight: 30 }];
       localStorage.setItem("macrovault.mvp.v1", JSON.stringify(saved));
     });
     await page.reload({ waitUntil: "networkidle" });
     assert.equal(await page.evaluate(() => window.__macroVaultXss), undefined);
     assert.equal(await page.locator('img[src="x"]').count(), 0);
     assert.ok((await page.locator("#recipesView").textContent()).includes("<img src=x"));
+
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.locator("#configAppName").fill("Family Table");
+    await page.locator("#configHouseholdName").fill("The Example Household");
+    await page.locator("#configProfileName").fill("Jordan");
+    await page.locator("[data-config-member-name]").first().fill("Avery");
+    await page.getByRole("button", { name: "Save configuration", exact: true }).click();
+    assert.equal(await page.locator("#appBrand").textContent(), "Family Table");
+    assert.equal(await page.locator("#householdBrand").textContent(), "The Example Household");
+    assert.equal(await page.locator("#profileAvatar").getAttribute("aria-label"), "Jordan profile");
+    const configured = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")));
+    assert.ok(configured.kids.Avery);
+    assert.equal(configured.kids.Amelia, undefined);
+    assert.equal(configured.privateWeights[0].person, "Avery");
     assert.deepEqual(pageErrors, []);
     console.log("Browser smoke and injection checks: PASS");
   } finally {

@@ -46,6 +46,7 @@ Once the repo is pushed to GitHub:
 - Ingredient on-hand status that removes foods from the shopping list
 - Family habit tracking, ratings, and healthy stars
 - Per-person weight history and charts
+- Household configuration for branding, profile identity, nutrition targets, and family members
 - Shared SQLite persistence with relational recipe and ingredient tables
 - Revision-based conflict detection for simultaneous devices
 - Browser `localStorage` resilience backup
@@ -58,6 +59,7 @@ Once the repo is pushed to GitHub:
 - Add relational meal planning and shopping tables
 - Add user profiles for family members
 - Expand browser coverage for camera, OCR, and service-worker upgrades
+- Add optional first-run onboarding for brand-new installations
 
 ## Test
 

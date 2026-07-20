@@ -6,7 +6,7 @@
     <title>MacroVault</title>
     <meta name="theme-color" content="#399b3f">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=114">
+    <link rel="stylesheet" href="styles.css?v=116">
   </head>
   <body>
     <div class="app-shell">
@@ -14,8 +14,8 @@
         <div class="brand">
           <div class="brand-mark" aria-hidden="true">HF</div>
           <div>
-            <strong>Healthy Family</strong>
-            <span>MacroVault</span>
+            <strong id="householdBrand">Healthy Family</strong>
+            <span id="appBrand">MacroVault</span>
           </div>
         </div>
         <nav class="nav-tabs" id="navTabs"></nav>
@@ -35,7 +35,7 @@
             <button class="icon-button" id="seedButton" aria-label="Reload sample data" title="Reload sample data" type="button">
               <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg>
             </button>
-            <div class="profile-avatar" aria-label="Ashley profile">A</div>
+            <div class="profile-avatar" id="profileAvatar" aria-label="Ashley profile">A</div>
             <div class="action-overflow" id="actionOverflow">
               <button class="secondary-button more-actions-button" id="moreActionsButton" type="button" aria-expanded="false" aria-controls="moreActionsMenu">
                 <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
@@ -203,6 +203,68 @@
             </div>
             <div class="image-storage-grid" id="imageStorageGrid"></div>
           </section>
+        </section>
+
+        <section class="view" id="settingsView" aria-labelledby="pageTitle">
+          <form class="settings-layout" id="configurationForm">
+            <section class="section-block settings-card">
+              <div class="section-heading">
+                <div>
+                  <h2>Household identity</h2>
+                  <p class="muted">Personalize the app for this installation.</p>
+                </div>
+              </div>
+              <div class="settings-field-grid">
+                <label>
+                  App name
+                  <input id="configAppName" maxlength="40" required>
+                </label>
+                <label>
+                  Household name
+                  <input id="configHouseholdName" maxlength="60" required>
+                </label>
+                <label>
+                  Profile display name
+                  <input id="configProfileName" maxlength="40" required>
+                </label>
+              </div>
+            </section>
+
+            <section class="section-block settings-card">
+              <div class="section-heading">
+                <div>
+                  <h2>Nutrition defaults</h2>
+                  <p class="muted">These targets appear in the weekly planner.</p>
+                </div>
+              </div>
+              <div class="settings-field-grid two-column">
+                <label>
+                  Daily calorie goal
+                  <input id="configCalorieGoal" type="number" min="1" max="20000" step="1" required>
+                </label>
+                <label>
+                  Daily protein goal (g)
+                  <input id="configProteinGoal" type="number" min="1" max="1000" step="0.1" required>
+                </label>
+              </div>
+            </section>
+
+            <section class="section-block settings-card settings-members-card">
+              <div class="section-heading">
+                <div>
+                  <h2>Family members</h2>
+                  <p class="muted">Names connect family habits, exercise, ratings, and weight history.</p>
+                </div>
+                <button class="secondary-button" id="addConfigMemberButton" type="button">Add member</button>
+              </div>
+              <div class="settings-member-list" id="configMemberRows"></div>
+            </section>
+
+            <section class="settings-save-bar">
+              <p class="muted" id="configurationStatus" role="status" aria-live="polite"></p>
+              <button class="primary-button" type="submit">Save configuration</button>
+            </section>
+          </form>
         </section>
       </main>
     </div>
@@ -504,6 +566,6 @@
     <script src="zxing-browser.min.js?v=107"></script>
     <script src="barcode-nutrition.js?v=114"></script>
     <script src="frontend-utils.js?v=115"></script>
-    <script src="app.js?v=115"></script>
+    <script src="app.js?v=116"></script>
   </body>
 </html>

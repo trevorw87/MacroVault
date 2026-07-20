@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+- Added a Settings page for app, household, profile, nutrition-goal, and family-member configuration.
+- Replaced hardcoded family-member behavior with configurable adult and child roles.
+- Migrated weight history, selected-person state, exercise data, habits, ratings, and goals when members are renamed.
+- Prevented removal of a family member while weight-history records still depend on that member.
+- Added responsive configuration layouts and browser coverage for configuration persistence and member migration.
+
 ## 0.8.0
 
 - Added revision-based optimistic concurrency so stale devices cannot silently overwrite newer Home Assistant data.
