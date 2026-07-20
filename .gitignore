@@ -1,4 +1,7 @@
 macrovault-home-assistant.zip
 .tmp-macrovault-data/
+.tmp-*/
+.pnpm-store/
+node_modules/
 __pycache__/
 *.pyc

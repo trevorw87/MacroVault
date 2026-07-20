@@ -8,8 +8,10 @@ Version 0.3.0 adds relational tables for recipes, ingredients, recipe ingredient
 
 Version 0.5.0 adds the `image_assets` table. Uploaded recipe and ingredient images are stored as SQLite BLOBs and served by `GET /api/images/{id}`. On first startup after upgrading, embedded images are automatically extracted from the live state and revision history. Browser storage retains only lightweight state and image metadata.
 
+Version 0.8.0 adds a monotonically increasing state revision. Browser saves include the revision they loaded, and stale writes receive HTTP 409 instead of silently replacing changes from another device. The browser then asks which version to retain and keeps the local version in its resilience backup.
+
 - `GET /api/state` returns the current app state.
-- `PUT /api/state` saves the complete state for backward compatibility and backup restoration.
+- `PUT /api/state` saves the complete state. Pass `expectedRevision` to reject stale writes; successful responses include the new `revision`.
 - `PATCH /api/state` replaces non-resource state while preserving recipes and ingredients.
 - `PUT /api/resources` transactionally replaces recipe and ingredient collections for imports and large changes.
 - `GET /api/schema` returns the schema version, row counts, and migration warnings.

@@ -17,10 +17,14 @@ mkdir -p /config/www/macrovault
 ```text
 index.html
 app.js
+frontend-utils.js
+barcode-nutrition.js
 styles.css
 service-worker.js
 manifest.webmanifest
 icon.svg
+zxing-browser.min.js
+ZXING-LICENSE.txt
 ```
 
 If you are using Studio Code Server, open `/config/www/macrovault` and upload or paste the files there.
@@ -51,7 +55,7 @@ That means:
 
 ## Next Step: Shared Server Data
 
-To make all devices share the same recipes, planner, pantry, and shopping list, add a small backend service with SQLite. The recommended architecture is:
+To make all devices share the same recipes, ingredients, planner, shopping list, family habits, and weight history, add a small backend service with SQLite. The recommended architecture is:
 
 ```text
 Browser app -> MacroVault API -> SQLite database on Home Assistant
@@ -68,6 +72,6 @@ Good hosting options:
 1. Host the current static app in `/config/www/macrovault`.
 2. Export a JSON backup from the current browser.
 3. Open the HA-hosted app and import the JSON backup.
-4. Confirm recipes, planner, pantry, shopping list, and lunchbox data.
+4. Confirm recipes, ingredients, planner, shopping list, family habits, and weight history.
 5. Decide whether shared multi-device storage is needed.
 6. If yes, add SQLite/API and migrate the local JSON state into the database.

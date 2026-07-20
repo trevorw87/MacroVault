@@ -104,7 +104,7 @@ class DatabaseSandbox:
         stored = server.read_state()
         self.assertEqual(stored["state"], state)
         status = server.schema_status()
-        self.assertEqual(status["version"], 2)
+        self.assertEqual(status["version"], 3)
         self.assertEqual(
             status["counts"],
             {"recipes": 1, "ingredients": 1, "recipeIngredients": 1, "tags": 2, "images": 0},
@@ -302,6 +302,35 @@ class ApiTestCase(DatabaseSandbox, unittest.TestCase):
         self.assertEqual(payload["state"]["recipes"][0]["name"], "Resource API Toast")
         self.assertEqual(payload["state"]["planner"]["2026-07-20"]["breakfast"], "recipe-toast")
 
+    def test_state_writes_reject_stale_revisions(self):
+        status, current = self.request("GET", "/api/state")
+        self.assertEqual(status, 200)
+        revision = current["revision"]
+
+        first = current["state"]
+        first["planner"] = {"Monday": {"dinner": "recipe-toast"}}
+        status, saved = self.request(
+            "PUT",
+            "/api/state",
+            {"state": first, "expectedRevision": revision},
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(saved["revision"], revision + 1)
+
+        stale = current["state"]
+        stale["planner"] = {"Tuesday": {"dinner": "recipe-toast"}}
+        status, conflict = self.request(
+            "PUT",
+            "/api/state",
+            {"state": stale, "expectedRevision": revision},
+        )
+        self.assertEqual(status, 409)
+        self.assertEqual(conflict["revision"], revision + 1)
+
+        stored = server.read_state()
+        self.assertIn("Monday", stored["state"]["planner"])
+        self.assertNotIn("Tuesday", stored["state"]["planner"])
+
     def test_image_asset_endpoint(self):
         state = sample_state()
         state["recipes"][0]["imageUrl"] = "image-asset:img-toast"
@@ -311,6 +340,8 @@ class ApiTestCase(DatabaseSandbox, unittest.TestCase):
         status, headers, data = self.raw_request("GET", "/api/images/img-toast")
         self.assertEqual(status, 200)
         self.assertEqual(headers["Content-Type"], "image/png")
+        self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+        self.assertIn("default-src 'self'", headers["Content-Security-Policy"])
         self.assertTrue(data.startswith(b"\x89PNG"))
 
         status, _, _ = self.raw_request("GET", "/api/images/missing")

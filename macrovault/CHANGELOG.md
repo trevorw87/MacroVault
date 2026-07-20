@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0
+
+- Added revision-based optimistic concurrency so stale devices cannot silently overwrite newer Home Assistant data.
+- Added an explicit sync-conflict choice and preserved the local version as a browser backup.
+- Hardened dynamic HTML, external URLs, image URLs, and server response headers.
+- Added frontend safety tests and a Playwright browser smoke and injection suite.
+- Extracted shared frontend safety utilities and automated add-on asset synchronization.
+- Corrected documentation for the features currently present in the app.
+
 ## 0.7.5
 
 - Added an editable recipe-source URL field directly below the method.

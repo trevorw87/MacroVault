@@ -1,11 +1,13 @@
-const CACHE_NAME = "macrovault-mvp-v114";
+const CACHE_NAME = "macrovault-mvp-v115";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./styles.css?v=114",
   "./app.js",
-  "./app.js?v=114",
+  "./app.js?v=115",
+  "./frontend-utils.js",
+  "./frontend-utils.js?v=115",
   "./barcode-nutrition.js",
   "./barcode-nutrition.js?v=114",
   "./zxing-browser.min.js",
@@ -35,8 +37,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
           return response;
         })
         .catch(() => caches.match(event.request))

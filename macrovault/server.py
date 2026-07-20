@@ -19,8 +19,15 @@ DATA_DIR = Path(os.environ.get("MACROVAULT_DATA_DIR", "/data")).resolve()
 DB_PATH = DATA_DIR / "macrovault.db"
 PORT = int(os.environ.get("MACROVAULT_PORT", "8099"))
 MAX_BODY_BYTES = 25 * 1024 * 1024
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 STATE_LOCK = threading.RLock()
+
+
+class StateConflictError(RuntimeError):
+    def __init__(self, revision, updated_at):
+        super().__init__("MacroVault changed on another device")
+        self.revision = revision
+        self.updated_at = updated_at
 
 
 class MacroVaultConnection(sqlite3.Connection):
@@ -205,6 +212,17 @@ def apply_schema_migrations(db):
         db.execute(
             "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
             (2, "server-managed image assets", utc_now()),
+        )
+    if 3 not in applied:
+        columns = {
+            row["name"]
+            for row in db.execute("PRAGMA table_info(app_state)").fetchall()
+        }
+        if "revision" not in columns:
+            db.execute("ALTER TABLE app_state ADD COLUMN revision INTEGER NOT NULL DEFAULT 1")
+        db.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
+            (3, "optimistic state revisions", utc_now()),
         )
 
 
@@ -510,7 +528,7 @@ def init_db():
 def read_state():
     with connect_db() as db:
         row = db.execute(
-            "SELECT state_json, created_at, updated_at FROM app_state WHERE id = ?",
+            "SELECT state_json, created_at, updated_at, revision FROM app_state WHERE id = ?",
             ("default",),
         ).fetchone()
     if not row:
@@ -519,33 +537,43 @@ def read_state():
         "state": json.loads(row["state_json"]),
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
+        "revision": row["revision"],
     }
 
 
-def write_state(state):
+def write_state(state, expected_revision=None):
     now = utc_now()
     with STATE_LOCK, connect_db() as db:
         state = json.loads(compact_json(state))
         store_state_image_assets(db, state, now)
         serialized = compact_json(state)
         current = db.execute(
-            "SELECT state_json, created_at FROM app_state WHERE id = ?",
+            "SELECT state_json, created_at, updated_at, revision FROM app_state WHERE id = ?",
             ("default",),
         ).fetchone()
+        if expected_revision is not None:
+            current_revision = current["revision"] if current else 0
+            if expected_revision != current_revision:
+                raise StateConflictError(
+                    current_revision,
+                    current["updated_at"] if current else None,
+                )
         if current:
+            revision = current["revision"] + 1
             db.execute(
                 "INSERT INTO state_revisions (state_id, state_json, created_at) VALUES (?, ?, ?)",
                 ("default", current["state_json"], now),
             )
             db.execute(
-                "UPDATE app_state SET state_json = ?, updated_at = ? WHERE id = ?",
-                (serialized, now, "default"),
+                "UPDATE app_state SET state_json = ?, updated_at = ?, revision = ? WHERE id = ?",
+                (serialized, now, revision, "default"),
             )
             created_at = current["created_at"]
         else:
+            revision = 1
             db.execute(
-                "INSERT INTO app_state (id, state_json, created_at, updated_at) VALUES (?, ?, ?, ?)",
-                ("default", serialized, now, now),
+                "INSERT INTO app_state (id, state_json, created_at, updated_at, revision) VALUES (?, ?, ?, ?, ?)",
+                ("default", serialized, now, now, revision),
             )
             created_at = now
         sync_state_projection(db, state, now)
@@ -561,7 +589,7 @@ def write_state(state):
             """,
             ("default",),
         )
-    return {"createdAt": created_at, "updatedAt": now}
+    return {"createdAt": created_at, "updatedAt": now, "revision": revision}
 
 
 def schema_status():
@@ -696,6 +724,23 @@ class MacroVaultHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print("%s - %s" % (self.address_string(), fmt % args), flush=True)
 
+    def end_headers(self):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; "
+            "script-src 'self' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob: https:; "
+            "connect-src 'self' https://world.openfoodfacts.org https://api.allorigins.win https://api.codetabs.com https://www.youtube.com https://cdn.jsdelivr.net; "
+            "worker-src 'self' blob: https://cdn.jsdelivr.net; "
+            "media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        )
+        super().end_headers()
+
     def send_json(self, status, payload):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -787,9 +832,22 @@ class MacroVaultHandler(BaseHTTPRequestHandler):
                 state = payload.get("state") if isinstance(payload, dict) else None
                 if not isinstance(state, dict):
                     raise ValueError("State must be an object")
-                metadata = write_state(state)
+                expected_revision = payload.get("expectedRevision")
+                if expected_revision is not None and (
+                    isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0
+                ):
+                    raise ValueError("Expected revision must be a non-negative integer")
+                metadata = write_state(state, expected_revision)
             except OverflowError as error:
                 self.send_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "message": str(error)})
+                return
+            except StateConflictError as error:
+                self.send_json(HTTPStatus.CONFLICT, {
+                    "ok": False,
+                    "message": str(error),
+                    "revision": error.revision,
+                    "updatedAt": error.updated_at,
+                })
                 return
             except (ValueError, sqlite3.IntegrityError) as error:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "message": str(error)})

@@ -1,6 +1,6 @@
 # MacroVault
 
-Local-first MVP for Ashley's family meal planning app.
+Local-first family meal planning app for Home Assistant.
 
 ## Run Locally
 
@@ -43,11 +43,11 @@ Once the repo is pushed to GitHub:
 - Estimate protein, carbs, and fat from recognized ingredients
 - Weekly dinner planner
 - Shopping list generated from planned meals and grouped by category
-- Pantry items that remove ingredients from the shopping list
-- Pantry expiry dates with use-soon alerts
-- Lunchbox Builder for weekly lunch planning
-- Kids screen with ratings and healthy stars
+- Ingredient on-hand status that removes foods from the shopping list
+- Family habit tracking, ratings, and healthy stars
+- Per-person weight history and charts
 - Shared SQLite persistence with relational recipe and ingredient tables
+- Revision-based conflict detection for simultaneous devices
 - Browser `localStorage` resilience backup
 - JSON export/import backup
 - Server-managed recipe and ingredient image storage
@@ -55,6 +55,29 @@ Once the repo is pushed to GitHub:
 
 ## Next Steps
 
-- Move recipe and ingredient UI writes fully onto the resource APIs
 - Add relational meal planning and shopping tables
 - Add user profiles for family members
+- Expand browser coverage for camera, OCR, and service-worker upgrades
+
+## Test
+
+Install development dependencies and run the unit and browser suites:
+
+```powershell
+pnpm install
+pnpm exec playwright install chromium
+pnpm test
+pnpm test:browser
+```
+
+Run the backend suite with Python:
+
+```powershell
+python -m unittest discover -s macrovault/tests -v
+```
+
+The Home Assistant add-on serves files from `macrovault/app`. After changing a root frontend asset, synchronize the packaged copy with:
+
+```powershell
+pnpm sync:addon
+```

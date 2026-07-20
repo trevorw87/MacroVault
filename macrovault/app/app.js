@@ -1,3 +1,4 @@
+const { escapeHtml, safeHttpUrl, safeImageUrl, safeCssToken } = MacroVaultUtils;
 const STORAGE_KEY = "macrovault.mvp.v1";
 const BACKUP_KEY = `${STORAGE_KEY}.backup`;
 const BACKUP_META_KEY = `${STORAGE_KEY}.backupMeta`;
@@ -8,13 +9,21 @@ const IMAGE_UPLOAD_MAX_SIDE = 520;
 const IMAGE_UPLOAD_QUALITY = 0.62;
 const TESSERACT_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
 const API_STATE_URL = "api/state";
-const API_RESOURCES_URL = "api/resources";
-const RESOURCE_SYNC_BATCH_THRESHOLD = 25;
 let lastSaveWarning = "";
 let serverStorageAvailable = false;
 let serverSaveTimer = null;
 let serverSaveInFlight = null;
-let serverResourceBaseline = null;
+let serverRevision = 0;
+let serverConflictInFlight = null;
+
+class ServerRequestError extends Error {
+  constructor(message, status, payload = null) {
+    super(message);
+    this.name = "ServerRequestError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
 
 const tabs = [
   { id: "dashboard", label: "Dashboard", icon: "dashboard" },
@@ -648,34 +657,8 @@ async function loadServerState() {
   const payload = await response.json();
   if (!payload?.state || typeof payload.state !== "object") return null;
   serverStorageAvailable = true;
-  serverResourceBaseline = resourceStateSnapshot(payload.state);
+  serverRevision = Number(payload.revision) || 0;
   return normalizeState({ ...structuredClone(sampleState), ...payload.state });
-}
-
-function resourceStateSnapshot(snapshot) {
-  return {
-    recipes: structuredClone(snapshot?.recipes || []),
-    ingredients: structuredClone(snapshot?.ingredients || [])
-  };
-}
-
-function stateMetadataSnapshot(snapshot) {
-  const metadata = structuredClone(snapshot || {});
-  delete metadata.recipes;
-  delete metadata.ingredients;
-  return metadata;
-}
-
-function resourceChanges(previousItems, nextItems) {
-  const previousById = new Map((previousItems || []).map((item) => [item.id, item]));
-  const nextById = new Map((nextItems || []).map((item) => [item.id, item]));
-  return {
-    removed: [...previousById.keys()].filter((id) => !nextById.has(id)),
-    changed: [...nextById.values()].filter((item) => {
-      const previous = previousById.get(item.id);
-      return !previous || JSON.stringify(previous) !== JSON.stringify(item);
-    })
-  };
 }
 
 async function requestServerJson(path, { method = "GET", body, acceptedStatuses = [] } = {}) {
@@ -687,58 +670,61 @@ async function requestServerJson(path, { method = "GET", body, acceptedStatuses 
     },
     body: body === undefined ? undefined : JSON.stringify(body)
   });
+  const payload = response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok && !acceptedStatuses.includes(response.status)) {
-    throw new Error(`MacroVault database request returned ${response.status}`);
+    throw new ServerRequestError(
+      payload?.message || `MacroVault database request returned ${response.status}`,
+      response.status,
+      payload
+    );
   }
-  return response.status === 204 ? null : response.json();
-}
-
-async function syncResourcesToServer(snapshot) {
-  const nextResources = resourceStateSnapshot(snapshot);
-  if (!serverResourceBaseline) {
-    await requestServerJson(API_RESOURCES_URL, { method: "PUT", body: nextResources });
-    return;
-  }
-
-  const recipeChanges = resourceChanges(serverResourceBaseline.recipes, nextResources.recipes);
-  const ingredientChanges = resourceChanges(serverResourceBaseline.ingredients, nextResources.ingredients);
-  const changeCount = recipeChanges.removed.length + recipeChanges.changed.length
-    + ingredientChanges.removed.length + ingredientChanges.changed.length;
-
-  if (changeCount > RESOURCE_SYNC_BATCH_THRESHOLD) {
-    await requestServerJson(API_RESOURCES_URL, { method: "PUT", body: nextResources });
-    return;
-  }
-
-  for (const id of recipeChanges.removed) {
-    await requestServerJson(`api/recipes/${encodeURIComponent(id)}`, { method: "DELETE", acceptedStatuses: [404] });
-  }
-  for (const id of ingredientChanges.removed) {
-    await requestServerJson(`api/ingredients/${encodeURIComponent(id)}`, { method: "DELETE", acceptedStatuses: [404] });
-  }
-  for (const ingredient of ingredientChanges.changed) {
-    await requestServerJson(`api/ingredients/${encodeURIComponent(ingredient.id)}`, {
-      method: "PUT",
-      body: { ingredient, position: nextResources.ingredients.findIndex((item) => item.id === ingredient.id) }
-    });
-  }
-  for (const recipe of recipeChanges.changed) {
-    await requestServerJson(`api/recipes/${encodeURIComponent(recipe.id)}`, {
-      method: "PUT",
-      body: { recipe, position: nextResources.recipes.findIndex((item) => item.id === recipe.id) }
-    });
-  }
+  return payload;
 }
 
 async function saveStateToServer(snapshot) {
-  await syncResourcesToServer(snapshot);
   const result = await requestServerJson(API_STATE_URL, {
-    method: "PATCH",
-    body: { state: stateMetadataSnapshot(snapshot) }
+    method: "PUT",
+    body: { state: snapshot, expectedRevision: serverRevision }
   });
-  serverResourceBaseline = resourceStateSnapshot(snapshot);
+  serverRevision = Number(result?.revision) || serverRevision;
   serverStorageAvailable = true;
   return result;
+}
+
+async function resolveServerConflict(localSnapshot) {
+  if (serverConflictInFlight) return serverConflictInFlight;
+  serverConflictInFlight = (async () => {
+    backupStateSnapshot(stateWithoutEmbeddedImageData(localSnapshot), "sync conflict");
+    const response = await requestServerJson(API_STATE_URL);
+    const remoteState = normalizeState({ ...structuredClone(sampleState), ...response.state });
+    serverRevision = Number(response.revision) || 0;
+    setSyncStatus("error", "Changes found on another device");
+    const keepLocal = await openUiDialog({
+      title: "Changes on another device",
+      message: "MacroVault stopped this save so newer data was not silently overwritten. Keep this device's version, or use the latest Home Assistant version? Your local version has been placed in the browser backup.",
+      confirmLabel: "Keep this device",
+      cancelLabel: "Use Home Assistant"
+    });
+    if (keepLocal) {
+      const saved = await requestServerJson(API_STATE_URL, {
+        method: "PUT",
+        body: { state: localSnapshot, expectedRevision: serverRevision }
+      });
+      serverRevision = Number(saved?.revision) || serverRevision;
+      setSyncStatus("saved", "Saved to Home Assistant");
+      showToast("This device's version was saved after resolving the conflict.", { type: "success" });
+      return;
+    }
+
+    state = remoteState;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateWithoutEmbeddedImageData(remoteState)));
+    render();
+    setSyncStatus("saved", "Using latest Home Assistant data");
+    showToast("Loaded the newer Home Assistant version. Your previous local version remains in the browser backup.");
+  })().finally(() => {
+    serverConflictInFlight = null;
+  });
+  return serverConflictInFlight;
 }
 
 function queueServerStateSave(snapshot) {
@@ -750,7 +736,11 @@ function queueServerStateSave(snapshot) {
       .catch(() => undefined)
       .then(() => saveStateToServer(serverSnapshot))
       .then(() => setSyncStatus("saved", "Saved to Home Assistant"))
-      .catch((error) => {
+      .catch(async (error) => {
+        if (error instanceof ServerRequestError && error.status === 409) {
+          await resolveServerConflict(serverSnapshot);
+          return;
+        }
         serverStorageAvailable = false;
         setSyncStatus("local", navigator.onLine ? "Saved in this browser" : "Offline — saved locally");
         console.warn("Unable to save MacroVault state to the server database", error);
@@ -774,7 +764,6 @@ async function initializeStateFromStorage() {
       return;
     }
     state = browserState;
-    serverResourceBaseline = { recipes: [], ingredients: [] };
     queueServerStateSave(state);
   } catch (error) {
     serverStorageAvailable = false;
@@ -828,7 +817,7 @@ function normalizeState(nextState) {
     .map((entry) => ({
       id: entry.id || `weight-${entry.date || todayDateKey()}-${Date.now().toString(36)}`,
       person: privatePeople.includes(entry.person) ? entry.person : "Ashley",
-      date: entry.date || todayDateKey(),
+      date: normalizeWeightDate(entry.date),
       weight: Number(entry.weight) || 0
     }))
     .filter((entry) => entry.date && entry.weight > 0)
@@ -867,6 +856,8 @@ function normalizeState(nextState) {
   nextState.kids = { ...structuredClone(defaultFamilyMembers), ...(nextState.kids || {}) };
   ensureFamilyHabitsForToday(nextState);
   Object.entries(nextState.kids || {}).forEach(([name, kid]) => {
+    kid.stars = Math.min(5, Math.max(0, Number(kid.stars) || 0));
+    kid.goal = String(kid.goal || "");
     kid.habits ||= {};
     kidHabitTargets.forEach((habit) => {
       const target = habitTargetForPerson(name, habit);
@@ -913,11 +904,11 @@ function storeImageAsset(nextState, imageUrl) {
 }
 
 function resolveImageUrl(imageUrl, nextState = state) {
-  if (!isImageAssetRef(imageUrl)) return imageUrl || "";
+  if (!isImageAssetRef(imageUrl)) return safeImageUrl(imageUrl);
   const id = imageAssetIdFromRef(imageUrl);
   const asset = nextState?.imageLibrary?.[id];
   if (!asset) return "";
-  return asset.data || `api/images/${encodeURIComponent(id)}`;
+  return safeImageUrl(asset.data || `api/images/${encodeURIComponent(id)}`);
 }
 
 function normalizeImageAssets(nextState = state) {
@@ -1008,23 +999,13 @@ function slugify(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "\"": "&quot;",
-    "'": "&#039;"
-  }[character]));
-}
-
 function recipeImageMarkup(recipe) {
   const imageUrl = resolveImageUrl(recipe.imageUrl);
   const fallback = recipeFallbackArtMarkup(recipe);
   if (imageUrl) {
     return `
       ${fallback}
-      <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(recipe.name)}" onerror="this.hidden=true">
+      <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(recipe.name)}" data-hide-on-error>
     `;
   }
   return fallback;
@@ -1398,13 +1379,13 @@ function ingredientUsageMarkup(ingredientId) {
   const recipes = ingredientUsageRecipes(ingredientId);
   if (!recipes.length) return `<span class="ingredient-usage muted-usage">0 recipe uses</span>`;
   if (recipes.length === 1) {
-    return `<button class="ingredient-usage" data-open-ingredient-recipe="${recipes[0].id}" type="button" title="Open ${escapeHtml(recipes[0].name)}">1 recipe use</button>`;
+    return `<button class="ingredient-usage" data-open-ingredient-recipe="${escapeHtml(recipes[0].id)}" type="button" title="Open ${escapeHtml(recipes[0].name)}">1 recipe use</button>`;
   }
   return `
     <details class="ingredient-usage-details">
       <summary>${recipes.length} recipe uses</summary>
       <div class="ingredient-usage-menu">
-        ${recipes.map((recipe) => `<button type="button" data-open-ingredient-recipe="${recipe.id}">${escapeHtml(recipe.name)}</button>`).join("")}
+        ${recipes.map((recipe) => `<button type="button" data-open-ingredient-recipe="${escapeHtml(recipe.id)}">${escapeHtml(recipe.name)}</button>`).join("")}
       </div>
     </details>
   `;
@@ -1447,7 +1428,7 @@ function mealThumbnailMarkup(recipe, label) {
     return `
       <span class="meal-thumb has-image meal-thumb-${recipeArtType(recipe)}">
         ${recipeFallbackArtMarkup(recipe)}
-        <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(recipe.name)}" onerror="this.hidden=true">
+        <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(recipe.name)}" data-hide-on-error>
       </span>
     `;
   }
@@ -2061,9 +2042,9 @@ function renderDashboard() {
     const imageUrl = resolveImageUrl(recipe?.imageUrl);
     return `
       <article class="dashboard-meal-card ${meal.size === "small" ? "small" : "main"} ${imageUrl ? "has-image" : ""}">
-        <button class="dashboard-meal-image" ${recipe ? `data-edit-recipe="${recipe.id}"` : `data-tab="planner"`} type="button" aria-label="${recipe ? `Open ${escapeHtml(recipe.name)}` : `Choose ${meal.label.toLowerCase()}`}">
+        <button class="dashboard-meal-image" ${recipe ? `data-edit-recipe="${escapeHtml(recipe.id)}"` : `data-tab="planner"`} type="button" aria-label="${recipe ? `Open ${escapeHtml(recipe.name)}` : `Choose ${meal.label.toLowerCase()}`}">
           ${recipe
-            ? `${recipeFallbackArtMarkup(recipe)}${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(recipe.name)}" onerror="this.hidden=true">` : ""}`
+            ? `${recipeFallbackArtMarkup(recipe)}${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(recipe.name)}" data-hide-on-error>` : ""}`
             : `<span>${meal.label.slice(0, 1)}</span>`}
         </button>
         <div class="dashboard-meal-copy">
@@ -2100,8 +2081,8 @@ function renderDashboard() {
     const clampedPercent = Math.min(100, Math.max(0, percent));
     const needleAngle = -76 + (clampedPercent * 1.52);
     return `
-      <article class="kid-card ${kid.color}" style="--progress-width: ${percent}%">
-        <h3>${name}</h3>
+      <article class="kid-card ${safeCssToken(kid.color)}" style="--progress-width: ${Math.min(100, Math.max(0, percent))}%">
+        <h3>${escapeHtml(name)}</h3>
         <div class="star-line">${[1, 2, 3, 4, 5].map((score) => `<span class="star ${score <= kid.stars ? "filled" : ""}"></span>`).join("")}</div>
         <div class="rev-gauge" aria-label="${completed} of ${target} healthy ticks today">
           <svg viewBox="0 0 140 86" role="img" aria-hidden="true">
@@ -2116,7 +2097,7 @@ function renderDashboard() {
             <span>ticks</span>
           </div>
         </div>
-        <p class="muted">${kid.goal}</p>
+        <p class="muted">${escapeHtml(kid.goal)}</p>
       </article>
     `;
   }).join("");
@@ -2128,21 +2109,22 @@ function recipeCard(recipe) {
   const perServe = recipeNutritionPerServing(recipe);
   const artType = recipeArtType(recipe);
   const imageUrl = resolveImageUrl(recipe.imageUrl);
+  const sourceUrl = safeHttpUrl(recipe.sourceUrl);
   return `
     <article class="recipe-card">
-      <div class="recipe-art recipe-art-${artType} ${imageUrl ? "has-image" : "has-fallback-art"}" data-edit-recipe="${recipe.id}" role="button" tabindex="0" aria-label="Open ${escapeHtml(recipe.name)}">
+      <div class="recipe-art recipe-art-${artType} ${imageUrl ? "has-image" : "has-fallback-art"}" data-edit-recipe="${escapeHtml(recipe.id)}" role="button" tabindex="0" aria-label="Open ${escapeHtml(recipe.name)}">
         ${recipeImageMarkup(recipe)}
-        <button class="image-edit-button" data-edit-recipe="${recipe.id}" type="button">Edit</button>
+        <button class="image-edit-button" data-edit-recipe="${escapeHtml(recipe.id)}" type="button">Edit</button>
       </div>
       <div class="recipe-body">
         <div class="recipe-title-row">
           <h3>${escapeHtml(recipe.name)}</h3>
-          <button class="favorite-button ${recipe.favourite ? "active" : ""}" data-favorite-recipe="${recipe.id}" aria-label="${recipe.favourite ? "Remove from favourites" : "Add to favourites"}" title="${recipe.favourite ? "Remove from favourites" : "Add to favourites"}" type="button">${iconMarkup("heart")}</button>
+          <button class="favorite-button ${recipe.favourite ? "active" : ""}" data-favorite-recipe="${escapeHtml(recipe.id)}" aria-label="${recipe.favourite ? "Remove from favourites" : "Add to favourites"}" title="${recipe.favourite ? "Remove from favourites" : "Add to favourites"}" type="button">${iconMarkup("heart")}</button>
         </div>
         <p class="muted">${escapeHtml(recipe.method)}</p>
-        ${recipe.sourceUrl ? `<a class="source-link" href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
+        ${sourceUrl ? `<a class="source-link" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
         <label class="recipe-prepared-toggle">
-          <input type="checkbox" ${recipe.prepared ? "checked" : ""} data-recipe-prepared="${recipe.id}">
+          <input type="checkbox" ${recipe.prepared ? "checked" : ""} data-recipe-prepared="${escapeHtml(recipe.id)}">
           <span>${recipe.prepared ? "In freezer / prepared" : "Not prepared"}</span>
         </label>
         <div class="tag-row">${tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
@@ -2161,8 +2143,8 @@ function recipeCard(recipe) {
           </div>
         </div>
         <div class="card-actions">
-          <button class="secondary-button" data-edit-recipe="${recipe.id}" type="button">Edit</button>
-          <button class="text-button danger-button" data-delete-recipe="${recipe.id}" type="button">Delete</button>
+          <button class="secondary-button" data-edit-recipe="${escapeHtml(recipe.id)}" type="button">Edit</button>
+          <button class="text-button danger-button" data-delete-recipe="${escapeHtml(recipe.id)}" type="button">Delete</button>
         </div>
       </div>
     </article>
@@ -2283,12 +2265,12 @@ function renderIngredients() {
               <span>${ingredient.nutrition.sodium || 0}mg sodium</span>
             </div>
             <label class="ingredient-onhand">
-              <input type="checkbox" ${ingredient.onHand ? "checked" : ""} data-ingredient-onhand="${ingredient.id}">
+              <input type="checkbox" ${ingredient.onHand ? "checked" : ""} data-ingredient-onhand="${escapeHtml(ingredient.id)}">
               <span>${ingredient.onHand ? "Yes" : "No"}</span>
             </label>
             <div class="ingredient-actions">
-              <button class="secondary-button" data-edit-ingredient="${ingredient.id}" type="button">Edit</button>
-              <button class="text-button danger-button" data-delete-ingredient="${ingredient.id}" type="button">Delete</button>
+              <button class="secondary-button" data-edit-ingredient="${escapeHtml(ingredient.id)}" type="button">Edit</button>
+              <button class="text-button danger-button" data-delete-ingredient="${escapeHtml(ingredient.id)}" type="button">Delete</button>
             </div>
           </article>
         `).join("")}
@@ -2375,7 +2357,7 @@ function renderPlanner() {
           const selectedNutrition = selectedRecipe
             ? `${formatPlannerNumber(caloriesPerServing(selectedRecipe), "kcal")} / ${formatPlannerNumber(macrosPerServing(selectedRecipe).protein, "protein")}`
             : "";
-          const options = recipesForSlot(slot).map((recipe) => `<option value="${recipe.id}" ${selected === recipe.id ? "selected" : ""}>${recipe.name} (${caloriesPerServing(recipe)} kcal / ${macrosPerServing(recipe).protein}g protein)</option>`).join("");
+          const options = recipesForSlot(slot).map((recipe) => `<option value="${escapeHtml(recipe.id)}" ${selected === recipe.id ? "selected" : ""}>${escapeHtml(recipe.name)} (${caloriesPerServing(recipe)} kcal / ${macrosPerServing(recipe).protein}g protein)</option>`).join("");
           const controlId = `planner-${slugify(day)}-${slot.id}`;
           return `
             <div class="planner-cell">
@@ -2385,7 +2367,7 @@ function renderPlanner() {
                 ${selectedNutrition ? `<span class="planner-recipe-nutrition">${escapeHtml(selectedNutrition)}</span>` : ""}
                 ${selectedRecipe ? `
                   <label class="recipe-prepared-toggle planner-prepared-toggle">
-                    <input type="checkbox" ${selectedRecipe.prepared ? "checked" : ""} data-recipe-prepared="${selectedRecipe.id}">
+                    <input type="checkbox" ${selectedRecipe.prepared ? "checked" : ""} data-recipe-prepared="${escapeHtml(selectedRecipe.id)}">
                     <span>${selectedRecipe.prepared ? "In freezer / prepared" : "Not prepared"}</span>
                   </label>
                 ` : ""}
@@ -2415,8 +2397,8 @@ function renderShopping() {
           const checked = state.bought.includes(item.name);
           return `
             <label class="check-row">
-              <input type="checkbox" data-bought="${item.name}" ${checked ? "checked" : ""}>
-              <span>${item.name}${item.amount ? ` - ${formatScaledNumber(item.amount)} ${item.unit}` : item.count > 1 ? ` x${item.count}` : ""}</span>
+              <input type="checkbox" data-bought="${escapeHtml(item.name)}" ${checked ? "checked" : ""}>
+              <span>${escapeHtml(item.name)}${item.amount ? ` - ${formatScaledNumber(item.amount)} ${escapeHtml(item.unit)}` : item.count > 1 ? ` x${item.count}` : ""}</span>
             </label>
           `;
         }).join("")}
@@ -3217,7 +3199,8 @@ function openRecipeImportDialog() {
 
 function parseUrl(value) {
   try {
-    return value ? new URL(value) : null;
+    const normalized = safeHttpUrl(value);
+    return normalized ? new URL(normalized) : null;
   } catch {
     return null;
   }
@@ -3525,6 +3508,7 @@ async function fetchYouTubeDraft(url, pastedText) {
 function previewImportedRecipe(recipe, message) {
   pendingImportedRecipe = recipe;
   const imageUrl = resolveImageUrl(recipe.imageUrl);
+  const sourceUrl = safeHttpUrl(recipe.sourceUrl);
   document.querySelector("#recipeImportStatus").textContent = message;
   document.querySelector("#saveImportedRecipeButton").disabled = false;
   document.querySelector("#recipeImportPreview").hidden = false;
@@ -3533,8 +3517,8 @@ function previewImportedRecipe(recipe, message) {
     ${imageUrl ? `<div class="import-preview-image"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(recipe.name)}"></div>` : ""}
     <div class="tag-row">${recipe.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
     <p class="muted import-source-row">
-      ${recipe.sourceUrl
-        ? `Source: <a class="import-source-link" href="${escapeHtml(recipe.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(recipe.sourceUrl)}</a>`
+      ${sourceUrl
+        ? `Source: <a class="import-source-link" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(sourceUrl)}</a>`
         : "No source URL"}
     </p>
     <div class="macro-row">
@@ -3735,10 +3719,10 @@ function renderKids() {
     const target = habits.reduce((sum, habit) => sum + habit.target, 0);
     const canSyncExercise = ["Trevor", "Ashley"].includes(name);
     return `
-      <article class="kid-card kid-habit-card ${kid.color}">
+      <article class="kid-card kid-habit-card ${safeCssToken(kid.color)}">
         <header class="kid-habit-header">
           <div>
-            <h3>${name}</h3>
+            <h3>${escapeHtml(name)}</h3>
             <p class="muted">${completed} / ${target} healthy ticks today</p>
           </div>
           <span class="kid-score-pill">${kid.stars} stars</span>
@@ -3751,15 +3735,15 @@ function renderKids() {
                 <strong>${habit.label}</strong>
                 <span>${(kid.habits?.[habit.id] || []).filter(Boolean).length} / ${habit.target}</span>
                 ${habit.id === "exercise" && canSyncExercise ? `
-                  <button class="health-sync-button" data-health-exercise="${name}" type="button">
-                    ${state.healthExercise?.[name] ? `Health app: ${state.healthExercise[name]} min` : "Link health app"}
+                  <button class="health-sync-button" data-health-exercise="${escapeHtml(name)}" type="button">
+                    ${Number(state.healthExercise?.[name]) > 0 ? `Health app: ${Number(state.healthExercise[name])} min` : "Link health app"}
                   </button>
                 ` : ""}
               </div>
-              <div class="habit-checks" aria-label="${habit.label} for ${name}">
+              <div class="habit-checks" aria-label="${escapeHtml(habit.label)} for ${escapeHtml(name)}">
                 ${Array.from({ length: habit.target }, (_, index) => `
                   <label class="habit-check">
-                    <input type="checkbox" ${kid.habits?.[habit.id]?.[index] ? "checked" : ""} data-kid-habit="${name}" data-habit="${habit.id}" data-habit-index="${index}">
+                    <input type="checkbox" ${kid.habits?.[habit.id]?.[index] ? "checked" : ""} data-kid-habit="${escapeHtml(name)}" data-habit="${escapeHtml(habit.id)}" data-habit-index="${index}">
                     <span></span>
                   </label>
                 `).join("")}
@@ -3796,16 +3780,16 @@ function renderImageStorage() {
     ` : ""}
     ${assets.length ? assets.map((asset) => `
     <article class="image-storage-item">
-      <a class="image-storage-thumb" href="${escapeHtml(asset.data)}" target="_blank" rel="noreferrer" title="Open uploaded image">
-        <img src="${escapeHtml(asset.data)}" alt="">
+      <a class="image-storage-thumb" href="${escapeHtml(resolveImageUrl(`${IMAGE_ASSET_PREFIX}${asset.id}`))}" target="_blank" rel="noreferrer" title="Open uploaded image">
+        <img src="${escapeHtml(resolveImageUrl(`${IMAGE_ASSET_PREFIX}${asset.id}`))}" alt="">
       </a>
       <div>
         <strong>${asset.sizeKb} KB</strong>
         <p class="muted">${asset.uses.length ? asset.uses.map((use) => `${escapeHtml(use.type)}: ${escapeHtml(use.name)}`).join(", ") : "Not used"}</p>
       </div>
       <div class="image-storage-actions">
-        <a class="secondary-button" href="${escapeHtml(asset.data)}" target="_blank" rel="noreferrer">Open</a>
-        <button class="text-button danger-button" data-remove-image-asset="${asset.id}" type="button">Remove</button>
+        <a class="secondary-button" href="${escapeHtml(resolveImageUrl(`${IMAGE_ASSET_PREFIX}${asset.id}`))}" target="_blank" rel="noreferrer">Open</a>
+        <button class="text-button danger-button" data-remove-image-asset="${escapeHtml(asset.id)}" type="button">Remove</button>
       </div>
     </article>
   `).join("") : `<p class="muted">No uploaded images to show.</p>`}
@@ -3904,7 +3888,7 @@ function renderPrivate() {
     <article class="weight-row">
       <strong>${displayWeightDate(entry.date)}</strong>
       <span>${entry.weight} kg</span>
-      <button class="text-button danger-button" data-delete-weight="${entry.id}" type="button">Delete</button>
+      <button class="text-button danger-button" data-delete-weight="${escapeHtml(entry.id)}" type="button">Delete</button>
     </article>
   `).join("");
 }
@@ -4237,6 +4221,18 @@ document.addEventListener("click", async (event) => {
     render();
   }
 });
+
+document.addEventListener("error", (event) => {
+  if (event.target instanceof HTMLImageElement && event.target.matches("[data-hide-on-error]")) {
+    event.target.hidden = true;
+  }
+}, true);
+
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("service-worker.js").catch((error) => {
+    console.warn("Unable to register MacroVault for offline use", error);
+  });
+}
 
 document.addEventListener("keydown", (event) => {
   const recipeImageButton = event.target.closest(".recipe-art[data-edit-recipe]");
