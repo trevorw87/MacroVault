@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1
+
+- Fixed the image-storage cleanup action so it reports whether unused uploads were removed.
+- Added the missing action for removing broken recipe and ingredient image links.
+- Prevented valid server-backed images from being incorrectly reported as missing.
+
 ## 0.9.0
 
 - Added a Settings page for app, household, profile, nutrition-goal, and family-member configuration.

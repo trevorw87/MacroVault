@@ -1010,8 +1010,27 @@ function imageStorageSummary(nextState = state) {
 function missingImageAssetUsages(nextState = state) {
   const library = nextState.imageLibrary || {};
   return Object.entries(imageAssetUsages(nextState))
-    .filter(([id]) => !library[id]?.data)
+    // Server-backed assets intentionally contain metadata only. A reference is
+    // broken only when its asset is absent from the library altogether.
+    .filter(([id]) => !library[id])
     .flatMap(([id, uses]) => uses.map((use) => ({ id, ...use })));
+}
+
+function removeBrokenImageReferences(nextState = state) {
+  const brokenIds = new Set(missingImageAssetUsages(nextState).map((asset) => asset.id));
+  if (!brokenIds.size) return 0;
+  let removed = 0;
+  nextState.recipes = (nextState.recipes || []).map((recipe) => {
+    if (!brokenIds.has(imageAssetIdFromRef(recipe.imageUrl))) return recipe;
+    removed += 1;
+    return { ...recipe, imageUrl: "" };
+  });
+  nextState.ingredients = (nextState.ingredients || []).map((ingredient) => {
+    if (!brokenIds.has(imageAssetIdFromRef(ingredient.imageUrl))) return ingredient;
+    removed += 1;
+    return { ...ingredient, imageUrl: "" };
+  });
+  return removed;
 }
 
 function saveState({ skipBackup = false } = {}) {
@@ -4376,9 +4395,35 @@ document.addEventListener("click", async (event) => {
 
   const cleanupImagesButton = event.target.closest("#cleanupImagesButton");
   if (cleanupImagesButton) {
+    const previousCount = Object.keys(state.imageLibrary || {}).length;
     normalizeImageAssets(state);
-    saveState();
+    const removedCount = previousCount - Object.keys(state.imageLibrary || {}).length;
+    if (!saveState()) {
+      showToast("Image cleanup could not be saved.", { type: "error" });
+      return;
+    }
     render();
+    showToast(removedCount
+      ? `Removed ${removedCount} unused uploaded image${removedCount === 1 ? "" : "s"}.`
+      : "Image storage is already clean.", { type: "success" });
+  }
+
+  const removeBrokenImagesButton = event.target.closest("#removeBrokenImagesButton");
+  if (removeBrokenImagesButton) {
+    const previousState = structuredClone(state);
+    const removedCount = removeBrokenImageReferences(state);
+    if (!removedCount) {
+      render();
+      showToast("No broken image links were found.", { type: "success" });
+      return;
+    }
+    if (!saveState()) {
+      state = previousState;
+      showToast("Broken image links could not be removed.", { type: "error" });
+      return;
+    }
+    render();
+    showToast(`Removed ${removedCount} broken image link${removedCount === 1 ? "" : "s"}.`, { type: "success" });
   }
 
   const removeImageAssetButton = event.target.closest("[data-remove-image-asset]");
