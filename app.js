@@ -1,4 +1,4 @@
-const { escapeHtml, safeHttpUrl, safeImageUrl, safeCssToken } = MacroVaultUtils;
+const { escapeHtml, safeHttpUrl, safeImageUrl, safeCssToken, stripIngredientBullet } = MacroVaultUtils;
 const STORAGE_KEY = "macrovault.mvp.v1";
 const BACKUP_KEY = `${STORAGE_KEY}.backup`;
 const BACKUP_META_KEY = `${STORAGE_KEY}.backupMeta`;
@@ -104,6 +104,19 @@ const kidHabitTargets = [
   { id: "exercise", label: "Exercise", target: 1, icon: "exercise" }
 ];
 
+const childRoutineTargets = [
+  { id: "makeBed", label: "Make bed", target: 1, icon: "bed" },
+  { id: "brushTeethMorning", label: "Brush teeth (morning)", target: 1, icon: "teeth" },
+  { id: "showerBath", label: "Shower / bath", target: 1, icon: "bath" },
+  { id: "brushTeethNight", label: "Brush teeth (night)", target: 1, icon: "teeth" },
+  { id: "goodnightStory", label: "Goodnight story", target: 1, icon: "story" }
+];
+
+function habitDefinitionsForMember(name, member = null) {
+  const child = member?.role ? member.role === "child" : ["Amelia", "Spencer"].includes(name);
+  return child ? [...kidHabitTargets, ...childRoutineTargets] : kidHabitTargets;
+}
+
 function habitTargetForPerson(name, habit, member = null) {
   const adult = member?.role ? member.role === "adult" : ["Trevor", "Ashley"].includes(name);
   return habit.id === "water" && adult ? 8 : habit.target;
@@ -111,7 +124,7 @@ function habitTargetForPerson(name, habit, member = null) {
 
 function familyHabitTargetsForPerson(name) {
   const member = state.kids?.[name];
-  return kidHabitTargets.map((habit) => ({
+  return habitDefinitionsForMember(name, member).map((habit) => ({
     ...habit,
     target: habitTargetForPerson(name, habit, member)
   }));
@@ -548,7 +561,7 @@ function primaryFamilyMember(nextState = state) {
 }
 
 function emptyFamilyHabits(name, member = null) {
-  return Object.fromEntries(kidHabitTargets.map((habit) => [
+  return Object.fromEntries(habitDefinitionsForMember(name, member).map((habit) => [
     habit.id,
     Array.from({ length: habitTargetForPerson(name, habit, member) }, () => false)
   ]));
@@ -891,15 +904,18 @@ function normalizeState(nextState) {
       nextState.planner[day].afterTreatDrink = nextState.planner[day].afterDinnerDrink;
     }
     mealPlanSlots.forEach((slot) => {
-      nextState.planner[day][slot.id] ||= "";
-      if (slot.category === "morningSnack" || slot.category === "afternoonSnack" || slot.category === "afterDinnerTreat") {
-        const legacySnackId = legacySnackNameToId[String(nextState.planner[day][slot.id]).toLowerCase()];
-        if (legacySnackId) nextState.planner[day][slot.id] = legacySnackId;
-      }
-      const plannedRecipe = nextState.recipes.find((recipe) => recipe.id === nextState.planner[day][slot.id]);
-      if (plannedRecipe && !recipeBelongsToCategory(plannedRecipe, slot.category)) {
-        nextState.planner[day][slot.id] = "";
-      }
+      const storedRecipeIds = Array.isArray(nextState.planner[day][slot.id])
+        ? nextState.planner[day][slot.id]
+        : nextState.planner[day][slot.id] ? [nextState.planner[day][slot.id]] : [];
+      nextState.planner[day][slot.id] = [...new Set(storedRecipeIds
+        .map((recipeId) => {
+          if (!["morningSnack", "afternoonSnack", "afterDinnerTreat"].includes(slot.category)) return String(recipeId || "");
+          return legacySnackNameToId[String(recipeId || "").toLowerCase()] || String(recipeId || "");
+        })
+        .filter((recipeId) => {
+          const plannedRecipe = nextState.recipes.find((recipe) => recipe.id === recipeId);
+          return plannedRecipe && recipeBelongsToCategory(plannedRecipe, slot.category);
+        }))];
     });
   });
   nextState.consumed ||= {};
@@ -914,7 +930,7 @@ function normalizeState(nextState) {
     kid.stars = Math.min(5, Math.max(0, Number(kid.stars) || 0));
     kid.goal = String(kid.goal || "");
     kid.habits ||= {};
-    kidHabitTargets.forEach((habit) => {
+    habitDefinitionsForMember(name, kid).forEach((habit) => {
       const target = habitTargetForPerson(name, habit, kid);
       kid.habits[habit.id] ||= Array.from({ length: target }, () => false);
       kid.habits[habit.id] = Array.from({ length: target }, (_, index) => Boolean(kid.habits[habit.id][index]));
@@ -1108,6 +1124,19 @@ function recipeById(id) {
   return (state.recipes || []).find((recipe) => recipe.id === id);
 }
 
+function plannerRecipeIds(day, slotId, nextState = state) {
+  const stored = nextState.planner?.[day]?.[slotId];
+  return (Array.isArray(stored) ? stored : stored ? [stored] : [])
+    .map((recipeId) => String(recipeId || ""))
+    .filter(Boolean);
+}
+
+function plannerRecipes(day, slot, nextState = state) {
+  return plannerRecipeIds(day, slot.id, nextState)
+    .map((recipeId) => (nextState.recipes || []).find((recipe) => recipe.id === recipeId))
+    .filter(Boolean);
+}
+
 function ingredientById(id) {
   return (state.ingredients || []).find((ingredient) => ingredient.id === id);
 }
@@ -1189,7 +1218,7 @@ function parseQuantityNumber(value) {
 }
 
 function parseIngredientLine(line) {
-  const original = String(line || "").trim();
+  const original = stripIngredientBullet(line);
   const quantityMatch = original.match(/^((?:\d+(?:\.\d+)?|\d+\/\d+|[¼½¾⅓⅔⅛⅜⅝⅞])(?:\s+(?:\d+\/\d+|[¼½¾⅓⅔⅛⅜⅝⅞]))?)\s*(?:x\s*)?([a-zA-Z]+)?\.?\s+(.+)$/);
   if (!quantityMatch) {
     return {
@@ -1219,7 +1248,7 @@ function normalizeRecipeIngredientQuantities(recipe) {
   const servings = Math.max(1, Number(recipe.servings) || 1);
   return {
     ...recipe,
-    ingredients: ingredients.map((line) => String(line || "").trim()).filter(Boolean),
+    ingredients: ingredients.map(stripIngredientBullet).filter(Boolean),
     ingredientRefs: ingredients.map((line, index) => {
       const parsed = parseIngredientLine(line);
       const existingRef = recipe.ingredientRefs?.[index] || {};
@@ -1968,15 +1997,13 @@ function ingredientsForServing(recipe) {
 }
 
 function mealSlotCalories(day, slot) {
-  const value = state.planner?.[day]?.[slot.id] || "";
-  if (!value) return 0;
-  return caloriesPerServing(recipeById(value));
+  return roundNutrition(plannerRecipes(day, slot)
+    .reduce((sum, recipe) => sum + caloriesPerServing(recipe), 0));
 }
 
 function mealSlotProtein(day, slot) {
-  const value = state.planner?.[day]?.[slot.id] || "";
-  if (!value) return 0;
-  return macrosPerServing(recipeById(value)).protein;
+  return roundNutrition(plannerRecipes(day, slot)
+    .reduce((sum, recipe) => sum + macrosPerServing(recipe).protein, 0));
 }
 
 function plannedCaloriesForDay(day) {
@@ -2078,7 +2105,7 @@ function renderLayout() {
 function getShoppingItems() {
   const plannedRecipes = days
     .flatMap((day) => mealPlanSlots
-      .map((slot) => recipeById(state.planner?.[day]?.[slot.id])))
+      .flatMap((slot) => plannerRecipes(day, slot)))
     .filter(Boolean);
   const counts = new Map();
 
@@ -2154,8 +2181,13 @@ function renderDashboard() {
     { id: "eveningSnack", label: "After Dinner Treat", size: "small" }
   ];
   document.querySelector("#todayMeals").innerHTML = dashboardMeals.map((meal) => {
-    const recipe = recipeById(state.planner?.[today]?.[meal.id]);
+    const slot = mealPlanSlots.find((item) => item.id === meal.id) || meal;
+    const recipes = plannerRecipes(today, slot);
+    const recipe = recipes[0];
     const imageUrl = resolveImageUrl(recipe?.imageUrl);
+    const mealName = recipes.map((item) => item.name).join(" + ");
+    const mealCalories = recipes.reduce((sum, item) => sum + caloriesPerServing(item), 0);
+    const mealProtein = recipes.reduce((sum, item) => sum + macrosPerServing(item).protein, 0);
     return `
       <article class="dashboard-meal-card ${meal.size === "small" ? "small" : "main"} ${imageUrl ? "has-image" : ""}">
         <button class="dashboard-meal-image" ${recipe ? `data-edit-recipe="${escapeHtml(recipe.id)}"` : `data-tab="planner"`} type="button" aria-label="${recipe ? `Open ${escapeHtml(recipe.name)}` : `Choose ${meal.label.toLowerCase()}`}">
@@ -2165,14 +2197,14 @@ function renderDashboard() {
         </button>
         <div class="dashboard-meal-copy">
           <span>${meal.label}</span>
-          <strong>${recipe ? escapeHtml(recipe.name) : `Choose ${meal.label.toLowerCase()}`}</strong>
-          <p>${recipe ? `${caloriesPerServing(recipe)} kcal / ${macrosPerServing(recipe).protein}g protein` : `Plan ${meal.label.toLowerCase()} for ${today}.`}</p>
+          <strong>${recipes.length ? escapeHtml(mealName) : `Choose ${meal.label.toLowerCase()}`}</strong>
+          <p>${recipes.length ? `${roundNutrition(mealCalories)} kcal / ${roundNutrition(mealProtein)}g protein${recipes.length > 1 ? ` · ${recipes.length} dishes` : ""}` : `Plan ${meal.label.toLowerCase()} for ${today}.`}</p>
         </div>
       </article>
     `;
   }).join("");
 
-  const plannedCount = days.filter((day) => mealPlanSlots.some((slot) => state.planner?.[day]?.[slot.id])).length;
+  const plannedCount = days.filter((day) => mealPlanSlots.some((slot) => plannerRecipeIds(day, slot.id).length)).length;
   const shoppingCount = getShoppingItems().length;
   const shoppingCounter = document.querySelector("#shoppingCount");
   if (shoppingCounter) shoppingCounter.textContent = shoppingCount;
@@ -2260,6 +2292,7 @@ function recipeCard(recipe) {
         </div>
         <div class="card-actions">
           <button class="secondary-button" data-edit-recipe="${escapeHtml(recipe.id)}" type="button">Edit</button>
+          <button class="secondary-button" data-duplicate-recipe="${escapeHtml(recipe.id)}" type="button" aria-label="Duplicate ${escapeHtml(recipe.name)}">Duplicate</button>
           <button class="text-button danger-button" data-delete-recipe="${escapeHtml(recipe.id)}" type="button">Delete</button>
         </div>
       </div>
@@ -2467,31 +2500,40 @@ function renderPlanner() {
           ${slot.timing ? `<small>${slot.timing}</small>` : ""}
         </div>
         ${days.map((day) => {
-          const selected = state.planner?.[day]?.[slot.id] || "";
-          const selectedRecipe = recipeById(selected);
-          const selectedTitle = selectedRecipe?.name || `Choose ${slot.label.toLowerCase()}`;
-          const selectedNutrition = selectedRecipe
-            ? `${formatPlannerNumber(caloriesPerServing(selectedRecipe), "kcal")} / ${formatPlannerNumber(macrosPerServing(selectedRecipe).protein, "protein")}`
-            : "";
-          const options = recipesForSlot(slot).map((recipe) => `<option value="${escapeHtml(recipe.id)}" ${selected === recipe.id ? "selected" : ""}>${escapeHtml(recipe.name)} (${caloriesPerServing(recipe)} kcal / ${macrosPerServing(recipe).protein}g protein)</option>`).join("");
+          const selectedIds = plannerRecipeIds(day, slot.id);
+          const selectedRecipes = plannerRecipes(day, slot);
+          const options = recipesForSlot(slot)
+            .filter((recipe) => !selectedIds.includes(recipe.id))
+            .map((recipe) => `<option value="${escapeHtml(recipe.id)}">${escapeHtml(recipe.name)} (${caloriesPerServing(recipe)} kcal / ${macrosPerServing(recipe).protein}g protein)</option>`)
+            .join("");
           const controlId = `planner-${slugify(day)}-${slot.id}`;
           return `
             <div class="planner-cell">
-              ${mealThumbnailMarkup(selectedRecipe, slot.label)}
-              <div class="planner-meal-pick">
-                <strong>${escapeHtml(selectedTitle)}</strong>
-                ${selectedNutrition ? `<span class="planner-recipe-nutrition">${escapeHtml(selectedNutrition)}</span>` : ""}
-                ${selectedRecipe ? `
-                  <label class="recipe-prepared-toggle planner-prepared-toggle">
-                    <input type="checkbox" ${selectedRecipe.prepared ? "checked" : ""} data-recipe-prepared="${escapeHtml(selectedRecipe.id)}">
-                    <span>${selectedRecipe.prepared ? "In freezer / prepared" : "Not prepared"}</span>
-                  </label>
-                ` : ""}
-                <select id="${controlId}" aria-label="${day} ${slot.label}" data-planner-day="${day}" data-planner-slot="${slot.id}">
-                  <option value="">Choose ${slot.label.toLowerCase()}</option>
-                  ${options}
-                </select>
+              <div class="planner-dish-list">
+                ${selectedRecipes.length ? selectedRecipes.map((recipe) => `
+                  <article class="planner-dish">
+                    ${mealThumbnailMarkup(recipe, slot.label)}
+                    <div class="planner-meal-pick">
+                      <strong>${escapeHtml(recipe.name)}</strong>
+                      <span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} / ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>
+                      <label class="recipe-prepared-toggle planner-prepared-toggle">
+                        <input type="checkbox" ${recipe.prepared ? "checked" : ""} data-recipe-prepared="${escapeHtml(recipe.id)}">
+                        <span>${recipe.prepared ? "In freezer / prepared" : "Not prepared"}</span>
+                      </label>
+                    </div>
+                    <button class="planner-remove-dish" data-remove-planner-recipe="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" type="button" aria-label="Remove ${escapeHtml(recipe.name)} from ${day} ${slot.label}" title="Remove dish">×</button>
+                  </article>
+                `).join("") : `
+                  <div class="planner-empty-dish">
+                    ${mealThumbnailMarkup(null, slot.label)}
+                    <strong>Choose ${slot.label.toLowerCase()}</strong>
+                  </div>
+                `}
               </div>
+              <select id="${controlId}" aria-label="Add another dish to ${day} ${slot.label}" data-planner-add-day="${day}" data-planner-add-slot="${slot.id}" ${options ? "" : "disabled"}>
+                <option value="">${selectedRecipes.length ? "Add another dish" : `Choose ${slot.label.toLowerCase()}`}</option>
+                ${options}
+              </select>
             </div>
           `;
         }).join("")}
@@ -3024,7 +3066,7 @@ async function lookupBarcode(value, { skipExisting = false, editingIngredient = 
 }
 
 function recipeIngredientLinesFromForm() {
-  return document.querySelector("#recipeIngredients").value.split("\n").map((item) => item.trim()).filter(Boolean);
+  return document.querySelector("#recipeIngredients").value.split("\n").map(stripIngredientBullet).filter(Boolean);
 }
 
 function recipeIngredientDataFromForm() {
@@ -3546,7 +3588,8 @@ function parsePastedRecipe(text, fallbackName = "Imported Recipe") {
   const name = lines[0] && !/ingredients?|method|directions?|instructions?/i.test(lines[0]) ? lines[0] : fallbackName;
   const ingredientLines = lines
     .slice(ingredientStart >= 0 ? ingredientStart + 1 : 1, methodStart >= 0 ? methodStart : Math.min(lines.length, 12))
-    .filter((line) => !/(method|directions?|instructions?|preparation)/i.test(line));
+    .filter((line) => !/(method|directions?|instructions?|preparation)/i.test(line))
+    .map(stripIngredientBullet);
   const methodLines = methodStart >= 0 ? lines.slice(methodStart + 1) : lines.slice(Math.min(lines.length, 12));
   const parsed = {
     name,
@@ -3623,6 +3666,11 @@ async function fetchYouTubeDraft(url, pastedText) {
 }
 
 function previewImportedRecipe(recipe, message) {
+  recipe = {
+    ...recipe,
+    ingredients: [recipe.ingredients || []].flat().map(stripIngredientBullet).filter(Boolean),
+    originalIngredients: [recipe.originalIngredients || []].flat().map(stripIngredientBullet).filter(Boolean)
+  };
   pendingImportedRecipe = recipe;
   const imageUrl = resolveImageUrl(recipe.imageUrl);
   const sourceUrl = safeHttpUrl(recipe.sourceUrl);
@@ -3771,7 +3819,7 @@ async function deleteRecipe(recipeId) {
   days.forEach((day) => {
     mealPlanSlots
       .forEach((slot) => {
-        if (state.planner?.[day]?.[slot.id] === recipeId) state.planner[day][slot.id] = "";
+        state.planner[day][slot.id] = plannerRecipeIds(day, slot.id).filter((plannedId) => plannedId !== recipeId);
       });
   });
   Object.values(state.kids).forEach((kid) => {
@@ -3781,6 +3829,39 @@ async function deleteRecipe(recipeId) {
   saveState();
   render();
   showToast(`${recipe.name} deleted.`, { type: "success" });
+}
+
+function duplicateRecipe(recipeId) {
+  const sourceRecipe = recipeById(recipeId);
+  if (!sourceRecipe) return;
+  const existingNames = new Set((state.recipes || []).map((recipe) => recipe.name.toLocaleLowerCase()));
+  const baseName = `${sourceRecipe.name} Copy`;
+  let copyName = baseName;
+  let copyNumber = 2;
+  while (existingNames.has(copyName.toLocaleLowerCase())) {
+    copyName = `${baseName} ${copyNumber}`;
+    copyNumber += 1;
+  }
+  const previousState = structuredClone(state);
+  const copy = {
+    ...structuredClone(sourceRecipe),
+    id: `${slugify(copyName)}-${Date.now().toString(36)}`,
+    name: copyName,
+    favourite: false,
+    prepared: false
+  };
+  state.recipes.unshift(copy);
+  syncIngredientsAndRecipeLinks(state);
+  if (!saveState()) {
+    state = previousState;
+    showToast("Could not duplicate this recipe. Browser storage may be full.", { type: "error" });
+    return;
+  }
+  document.querySelector("#recipeSearch").value = "";
+  document.querySelector("#tagFilter").value = "all";
+  render();
+  openRecipeDialog(recipeById(copy.id));
+  showToast(`${sourceRecipe.name} duplicated. Rename and edit the copy.`, { type: "success" });
 }
 
 function blobToDataUrl(blob) {
@@ -4105,7 +4186,7 @@ function saveWeightGoal() {
 
 function printWeekPlanner() {
   const printDays = days;
-  const hasPlannedWeek = printDays.some((day) => mealPlanSlots.some((slot) => state.planner?.[day]?.[slot.id]));
+  const hasPlannedWeek = printDays.some((day) => mealPlanSlots.some((slot) => plannerRecipeIds(day, slot.id).length));
 
   if (!hasPlannedWeek) {
     showToast("Add meals to the planner first, then print the weekly planner.", { type: "warning" });
@@ -4139,14 +4220,19 @@ function printWeekPlanner() {
         ${slot.timing ? `<small>${escapeHtml(slot.timing)}</small>` : ""}
       </th>
       ${printDays.map((day) => {
-        const recipe = recipeById(state.planner?.[day]?.[slot.id]);
+        const recipes = plannerRecipes(day, slot);
+        const recipe = recipes[0];
+        const calories = recipes.reduce((sum, item) => sum + caloriesPerServing(item), 0);
+        const protein = recipes.reduce((sum, item) => sum + macrosPerServing(item).protein, 0);
         return `
           <td>
             <div class="meal-print-cell">
               ${printMealImage(recipe, slot.label)}
               <div class="meal-print-text">
-                <strong>${escapeHtml(recipe?.name || "Not planned")}</strong>
-                ${recipe ? `<span>${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} / ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}</span>` : "<span>&nbsp;</span>"}
+                ${recipes.length
+                  ? recipes.map((item) => `<strong>${escapeHtml(item.name)}</strong>`).join("")
+                  : "<strong>Not planned</strong>"}
+                ${recipes.length ? `<span>${formatPlannerNumber(calories, "kcal")} / ${formatPlannerNumber(protein, "protein")}</span>` : "<span>&nbsp;</span>"}
               </div>
             </div>
           </td>
@@ -4426,11 +4512,27 @@ document.addEventListener("click", async (event) => {
   const printWeekButton = event.target.closest("#printWeekPlannerButton");
   if (printWeekButton) printWeekPlanner();
 
+  const removePlannerRecipeButton = event.target.closest("[data-remove-planner-recipe]");
+  if (removePlannerRecipeButton) {
+    const { plannerDay, plannerSlot, removePlannerRecipe } = removePlannerRecipeButton.dataset;
+    state.planner[plannerDay] ||= {};
+    state.planner[plannerDay][plannerSlot] = plannerRecipeIds(plannerDay, plannerSlot)
+      .filter((recipeId) => recipeId !== removePlannerRecipe);
+    state.consumed[plannerDay] ||= {};
+    if (!state.planner[plannerDay][plannerSlot].length) state.consumed[plannerDay][plannerSlot] = false;
+    state.bought = [];
+    saveState();
+    render();
+  }
+
   const editButton = event.target.closest("[data-edit-recipe]");
   if (editButton) {
     const recipe = recipeById(editButton.dataset.editRecipe);
     if (recipe) openRecipeDialog(recipe);
   }
+
+  const duplicateRecipeButton = event.target.closest("[data-duplicate-recipe]");
+  if (duplicateRecipeButton) duplicateRecipe(duplicateRecipeButton.dataset.duplicateRecipe);
 
   const openIngredientRecipeButton = event.target.closest("[data-open-ingredient-recipe]");
   if (openIngredientRecipeButton) {
@@ -4574,15 +4676,15 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("change", (event) => {
-  const plannerSelect = event.target.closest("[data-planner-day]");
+  const plannerSelect = event.target.closest("[data-planner-add-day]");
   if (plannerSelect) {
-    const { plannerDay, plannerSlot } = plannerSelect.dataset;
+    const { plannerAddDay: plannerDay, plannerAddSlot: plannerSlot } = plannerSelect.dataset;
     state.planner[plannerDay] ||= {};
-    state.planner[plannerDay][plannerSlot] = plannerSelect.value;
+    state.planner[plannerDay][plannerSlot] = [...new Set([
+      ...plannerRecipeIds(plannerDay, plannerSlot),
+      plannerSelect.value
+    ].filter(Boolean))];
     state.consumed[plannerDay] ||= {};
-    if (!plannerSelect.value) {
-      state.consumed[plannerDay][plannerSlot] = false;
-    }
     state.bought = [];
     saveState();
     render();
@@ -4870,6 +4972,7 @@ recipeForm.addEventListener("submit", async (event) => {
     recipeDialog.close();
     return;
   }
+
   event.preventDefault();
 
   const name = document.querySelector("#recipeName").value.trim();

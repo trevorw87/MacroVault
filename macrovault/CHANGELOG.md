@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.3
+
+- Added child-only routines for making the bed, morning and night tooth brushing, showering or bathing, and a goodnight story.
+- Removed common bullet and numbered-list markers from imported ingredient lines.
+- Added multiple dishes per planner meal with combined nutrition, shopping, dashboard, and print output.
+- Added full recipe duplication for quickly creating flavour and ingredient variations.
+
 ## 0.9.2
 
 - Fixed child family cards collapsing and habit controls overflowing at responsive widths.

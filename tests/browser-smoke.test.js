@@ -57,10 +57,45 @@ function startServer() {
     assert.ok(await page.locator("#recipeDialog").evaluate((element) => element.open));
     await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
 
+    const sourceRecipe = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).recipes.find((recipe) => recipe.id === "lemon-salmon"));
+    await page.getByRole("button", { name: "Duplicate Lemon Garlic Salmon", exact: true }).click();
+    assert.ok(await page.locator("#recipeDialog").evaluate((element) => element.open));
+    assert.equal(await page.locator("#recipeName").inputValue(), "Lemon Garlic Salmon Copy");
+    const duplicatedRecipe = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).recipes.find((recipe) => recipe.name === "Lemon Garlic Salmon Copy"));
+    assert.notEqual(duplicatedRecipe.id, sourceRecipe.id);
+    assert.deepEqual(duplicatedRecipe.ingredients, sourceRecipe.ingredients);
+    assert.deepEqual(duplicatedRecipe.ingredientRefs, sourceRecipe.ingredientRefs);
+    assert.equal(duplicatedRecipe.method, sourceRecipe.method);
+    assert.equal(duplicatedRecipe.imageUrl, sourceRecipe.imageUrl);
+    assert.equal(duplicatedRecipe.prepared, false);
+    assert.equal(duplicatedRecipe.favourite, false);
+    await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
+
     await page.getByRole("button", { name: "Family", exact: true }).click();
     const familyCardWidths = await page.locator("#kidsLayout .kid-habit-card").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().width));
     assert.ok(familyCardWidths.every((width) => width > 300));
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390);
+    const ameliaHabits = page.locator("#kidsLayout .kid-habit-card").filter({ has: page.getByRole("heading", { name: "Amelia", exact: true }) });
+    const ashleyHabits = page.locator("#kidsLayout .kid-habit-card").filter({ has: page.getByRole("heading", { name: "Ashley", exact: true }) });
+    assert.equal(await ameliaHabits.locator(".habit-row").count(), 11);
+    assert.equal(await ashleyHabits.locator(".habit-row").count(), 6);
+    assert.match(await ameliaHabits.textContent(), /Make bed/);
+    assert.match(await ameliaHabits.textContent(), /Brush teeth \(morning\)/);
+    assert.match(await ameliaHabits.textContent(), /Brush teeth \(night\)/);
+    assert.match(await ameliaHabits.textContent(), /Shower \/ bath/);
+    assert.match(await ameliaHabits.textContent(), /Goodnight story/);
+
+    await page.getByRole("button", { name: "Planner", exact: true }).click();
+    await page.getByLabel("Add another dish to Sunday Dinner", { exact: true }).selectOption("lemon-salmon");
+    const sundayDinnerIds = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).planner.Sunday.dinner);
+    assert.deepEqual(sundayDinnerIds, ["slow-cooker-beef", "lemon-salmon"]);
+    const sundayDinnerCell = page.getByLabel("Add another dish to Sunday Dinner", { exact: true }).locator("..");
+    assert.match(await sundayDinnerCell.textContent(), /Slow Cooker Beef Ragu/);
+    assert.match(await sundayDinnerCell.textContent(), /Lemon Garlic Salmon/);
+    await page.getByRole("button", { name: "Shopping", exact: true }).click();
+    const multiDishShoppingText = await page.locator("#shoppingList").textContent();
+    assert.match(multiDishShoppingText, /salmon/i);
+    assert.match(multiDishShoppingText, /beef/i);
 
     await page.evaluate(() => {
       const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));

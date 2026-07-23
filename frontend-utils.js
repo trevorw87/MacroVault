@@ -34,5 +34,11 @@
     return /^[a-z][a-z0-9_-]{0,48}$/.test(token) ? token : fallback;
   }
 
-  return { escapeHtml, safeHttpUrl, safeImageUrl, safeCssToken };
+  function stripIngredientBullet(value) {
+    return String(value ?? "")
+      .replace(/^\s*(?:(?:[•●◦○▪▫■□‣⁃·∙⋅]+|[-*]+)\s*|\(?\d{1,2}[.)]\s+)/u, "")
+      .trim();
+  }
+
+  return { escapeHtml, safeHttpUrl, safeImageUrl, safeCssToken, stripIngredientBullet };
 });
