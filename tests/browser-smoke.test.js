@@ -92,6 +92,36 @@ function startServer() {
     assert.ok(configured.kids.Avery);
     assert.equal(configured.kids.Amelia, undefined);
     assert.equal(configured.privateWeights[0].person, "Avery");
+
+    await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));
+      saved.recipes[0].imageUrl = "image-asset:missing-test";
+      saved.recipes[1].imageUrl = "image-asset:server-backed-test";
+      saved.imageLibrary = {
+        "server-backed-test": {
+          id: "server-backed-test",
+          contentType: "image/png",
+          sizeBytes: 1234,
+          createdAt: "2026-07-23"
+        }
+      };
+      localStorage.setItem("macrovault.mvp.v1", JSON.stringify(saved));
+    });
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Site", exact: true }).click();
+    const imageStorageText = await page.locator("#imageStorageGrid").textContent();
+    const imageWarningText = await page.locator(".image-storage-warning").textContent();
+    const imageRecipeNames = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).recipes.slice(0, 2).map((recipe) => recipe.name));
+    assert.match(imageStorageText, /1 uploaded image reference missing stored data/);
+    assert.ok(imageStorageText.includes(`Recipe: ${imageRecipeNames[0]}`));
+    assert.ok(!imageWarningText.includes(`Recipe: ${imageRecipeNames[1]}`));
+    await page.getByRole("button", { name: "Remove broken image links", exact: true }).click();
+    assert.equal(await page.getByRole("button", { name: "Remove broken image links", exact: true }).count(), 0);
+    const cleaned = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")));
+    assert.equal(cleaned.recipes[0].imageUrl, "");
+    assert.equal(cleaned.recipes[1].imageUrl, "image-asset:server-backed-test");
+    await page.getByRole("button", { name: "Clean up images", exact: true }).click();
+    await page.getByText("Image storage is already clean.", { exact: true }).waitFor();
     assert.deepEqual(pageErrors, []);
     console.log("Browser smoke and injection checks: PASS");
   } finally {
