@@ -369,6 +369,7 @@ const sampleState = {
   consumed: {},
   ingredients: [],
   privatePerson: "Ashley",
+  privateWeightGoals: {},
   privateWeights: [],
   bought: [],
   planner: {
@@ -862,6 +863,12 @@ function normalizeState(nextState) {
   if (!memberNames.includes(nextState.privatePerson)) {
     nextState.privatePerson = memberNames[0];
   }
+  const savedWeightGoals = nextState.privateWeightGoals && typeof nextState.privateWeightGoals === "object"
+    ? nextState.privateWeightGoals
+    : {};
+  nextState.privateWeightGoals = Object.fromEntries(memberNames
+    .map((name) => [name, Math.round((Number(savedWeightGoals[name]) || 0) * 10) / 10])
+    .filter(([, goal]) => goal > 0));
   nextState.privateWeights = (nextState.privateWeights || [])
     .map((entry) => ({
       id: entry.id || `weight-${entry.date || todayDateKey()}-${Date.now().toString(36)}`,
@@ -2083,21 +2090,49 @@ function getShoppingItems() {
       const usedAmount = Number(ref?.usedAmount) || 0;
       const usedUnit = ref?.usedUnit || "";
       const perServeAmount = usedAmount ? usedAmount / recipeServings(recipe) : 0;
-      const key = usedAmount ? `${linkedIngredient?.id || cleanIngredientName(ingredient)}-${usedUnit}` : ingredient;
+      const name = linkedIngredient?.name || cleanIngredientName(ingredient) || ingredient;
+      const key = linkedIngredient?.id || ingredientKey(name) || name.toLowerCase();
       const existing = counts.get(key) || {
-        name: linkedIngredient?.name || cleanIngredientName(ingredient) || ingredient,
+        name,
         count: 0,
-        amount: 0,
-        unit: usedUnit,
+        quantities: [],
         category: categoryForIngredient(linkedIngredient?.name || ingredient)
       };
       existing.count += 1;
-      existing.amount += perServeAmount;
+      if (perServeAmount) {
+        const unit = usedUnit || "each";
+        const base = unitBaseFactor(unit);
+        const quantity = existing.quantities.find((item) => item.group === base.group);
+        if (quantity) {
+          quantity.baseAmount += perServeAmount * base.factor;
+        } else {
+          existing.quantities.push({
+            group: base.group,
+            baseAmount: perServeAmount * base.factor,
+            unit,
+            factor: base.factor
+          });
+        }
+      }
       counts.set(key, existing);
     });
   });
 
-  return [...counts.values()];
+  return [...counts.values()].map((item) => ({
+    ...item,
+    quantities: item.quantities.map((quantity) => ({
+      amount: quantity.baseAmount / quantity.factor,
+      unit: quantity.unit
+    }))
+  }));
+}
+
+function shoppingItemQuantityLabel(item) {
+  const quantities = (item.quantities || [])
+    .filter((quantity) => Number(quantity.amount) > 0)
+    .map((quantity) => `${formatScaledNumber(quantity.amount)} ${quantity.unit}`);
+  if (quantities.length) return quantities.join(" + ");
+  return item.count > 1 ? `x${item.count}` : "";
 }
 
 function groupShoppingItems(items) {
@@ -2476,10 +2511,11 @@ function renderShopping() {
         <h3>${category}</h3>
         ${grouped[category].map((item) => {
           const checked = state.bought.includes(item.name);
+          const quantityLabel = shoppingItemQuantityLabel(item);
           return `
             <label class="check-row">
               <input type="checkbox" data-bought="${escapeHtml(item.name)}" ${checked ? "checked" : ""}>
-              <span>${escapeHtml(item.name)}${item.amount ? ` - ${formatScaledNumber(item.amount)} ${escapeHtml(item.unit)}` : item.count > 1 ? ` x${item.count}` : ""}</span>
+              <span>${escapeHtml(item.name)}${quantityLabel ? ` - ${escapeHtml(quantityLabel)}` : ""}</span>
             </label>
           `;
         }).join("")}
@@ -3886,6 +3922,8 @@ function renderPrivate() {
   if (dateInput && !dateInput.value) dateInput.value = displayWeightDate(todayDateKey());
   const memberNames = familyMemberNames();
   const selectedPerson = memberNames.includes(state.privatePerson) ? state.privatePerson : primaryFamilyMember();
+  const targetWeight = Number(state.privateWeightGoals?.[selectedPerson]) || 0;
+  document.querySelector("#weightGoalValue").value = targetWeight || "";
   const entries = [...(state.privateWeights || [])]
     .filter((entry) => (entry.person || selectedPerson) === selectedPerson)
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -3905,6 +3943,13 @@ function renderPrivate() {
         <strong>--</strong>
         <p>No entries saved for ${selectedPerson} yet.</p>
       </article>
+      ${targetWeight ? `
+        <article class="weight-stat-card target">
+          <span>Target weight</span>
+          <strong>${targetWeight} kg</strong>
+          <p>Saved for ${selectedPerson}</p>
+        </article>
+      ` : ""}
     `;
     chart.innerHTML = `<div class="empty-chart">No weight data yet</div>`;
     history.innerHTML = `<p class="muted">No entries saved for ${selectedPerson}.</p>`;
@@ -3931,12 +3976,19 @@ function renderPrivate() {
       <strong>${change >= 0 ? "+" : ""}${change} kg</strong>
       <p>${entries.length} ${selectedPerson} entr${entries.length === 1 ? "y" : "ies"}</p>
     </article>
+    ${targetWeight ? `
+      <article class="weight-stat-card target">
+        <span>Target weight</span>
+        <strong>${targetWeight} kg</strong>
+        <p>${formatScaledNumber(Math.abs(latest.weight - targetWeight))} kg from latest</p>
+      </article>
+    ` : ""}
   `;
 
   const width = 720;
   const height = 260;
   const pad = 34;
-  const weights = entries.map((entry) => entry.weight);
+  const weights = [...entries.map((entry) => entry.weight), ...(targetWeight ? [targetWeight] : [])];
   const minWeight = Math.min(...weights);
   const maxWeight = Math.max(...weights);
   const range = Math.max(1, maxWeight - minWeight);
@@ -3958,6 +4010,11 @@ function renderPrivate() {
       </defs>
       <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" class="chart-axis"></line>
       <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" class="chart-axis"></line>
+      ${targetWeight ? (() => {
+        const targetY = height - pad - ((targetWeight - minWeight) / range) * (height - pad * 2);
+        return `<line x1="${pad}" y1="${targetY}" x2="${width - pad}" y2="${targetY}" class="weight-target-line"></line>
+          <text x="${width - pad}" y="${Math.max(14, targetY - 7)}" text-anchor="end" class="weight-target-label">Target ${targetWeight} kg</text>`;
+      })() : ""}
       <polygon points="${area}" class="weight-area"></polygon>
       <polyline points="${polyline}" class="weight-line"></polyline>
       ${points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="6"><title>${displayWeightDate(point.date)}: ${point.weight} kg</title></circle>`).join("")}
@@ -4020,6 +4077,28 @@ function saveWeightEntry() {
   document.querySelector("#weightDate").value = displayWeightDate(date);
   document.querySelector("#weightValue").value = "";
   status.textContent = `Saved ${weight} kg for ${person} on ${displayWeightDate(date)}.`;
+  saveState();
+  render();
+}
+
+function saveWeightGoal() {
+  const status = document.querySelector("#weightGoalStatus");
+  const memberNames = familyMemberNames();
+  const person = memberNames.includes(state.privatePerson) ? state.privatePerson : primaryFamilyMember();
+  const rawValue = document.querySelector("#weightGoalValue").value.trim();
+  state.privateWeightGoals ||= {};
+  if (!rawValue) {
+    delete state.privateWeightGoals[person];
+    status.textContent = `Cleared the target weight for ${person}.`;
+  } else {
+    const target = Math.round(Number(rawValue) * 10) / 10;
+    if (!Number.isFinite(target) || target <= 0) {
+      status.textContent = "Enter a target weight above 0.";
+      return;
+    }
+    state.privateWeightGoals[person] = target;
+    status.textContent = `Saved a ${target} kg target for ${person}.`;
+  }
   saveState();
   render();
 }
@@ -4227,6 +4306,10 @@ function saveConfiguration() {
     ...entry,
     person: renameMap.get(entry.person) || entry.person
   }));
+  const previousWeightGoals = state.privateWeightGoals || {};
+  state.privateWeightGoals = Object.fromEntries(memberDrafts
+    .map((member) => [member.name, Number(previousWeightGoals[member.originalName || member.name]) || 0])
+    .filter(([, goal]) => goal > 0));
   state.privatePerson = renameMap.get(state.privatePerson) || (nextMembers[state.privatePerson] ? state.privatePerson : memberDrafts[0].name);
   const previousExercise = state.healthExercise || {};
   state.healthExercise = { date: previousExercise.date || todayDateKey() };
@@ -4783,7 +4866,10 @@ document.querySelector("#clearCheckedButton").addEventListener("click", () => {
 });
 
 recipeForm.addEventListener("submit", async (event) => {
-  if (event.submitter?.value === "cancel") return;
+  if (event.submitter?.value === "cancel") {
+    recipeDialog.close();
+    return;
+  }
   event.preventDefault();
 
   const name = document.querySelector("#recipeName").value.trim();
@@ -4886,7 +4972,10 @@ recipeForm.addEventListener("submit", async (event) => {
 });
 
 ingredientForm.addEventListener("submit", (event) => {
-  if (event.submitter?.value === "cancel") return;
+  if (event.submitter?.value === "cancel") {
+    ingredientDialog.close();
+    return;
+  }
   event.preventDefault();
 
   const ingredientId = document.querySelector("#ingredientId").value;
@@ -4942,9 +5031,13 @@ document.querySelector("#saveWeightButton").addEventListener("click", (event) =>
   event.preventDefault();
   saveWeightEntry();
 });
+document.querySelector("#saveWeightGoalButton").addEventListener("click", saveWeightGoal);
 
 recipeImportForm.addEventListener("submit", async (event) => {
-  if (event.submitter?.value === "cancel") return;
+  if (event.submitter?.value === "cancel") {
+    recipeImportDialog.close();
+    return;
+  }
   event.preventDefault();
   await saveImportedRecipe();
 });

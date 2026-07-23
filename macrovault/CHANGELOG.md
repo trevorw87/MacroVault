@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.2
+
+- Fixed child family cards collapsing and habit controls overflowing at responsive widths.
+- Consolidated duplicate shopping ingredients while preserving quantities from different unit groups.
+- Added per-person target weights with progress summaries and a target line on the weight chart.
+- Fixed recipe editor cancel controls when required fields are empty.
+
 ## 0.9.1
 
 - Fixed the image-storage cleanup action so it reports whether unused uploads were removed.

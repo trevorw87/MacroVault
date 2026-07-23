@@ -57,6 +57,53 @@ function startServer() {
     assert.ok(await page.locator("#recipeDialog").evaluate((element) => element.open));
     await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
 
+    await page.getByRole("button", { name: "Family", exact: true }).click();
+    const familyCardWidths = await page.locator("#kidsLayout .kid-habit-card").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().width));
+    assert.ok(familyCardWidths.every((width) => width > 300));
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390);
+
+    await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));
+      saved.ingredients.push({
+        id: "shopping-dedupe-cornflour",
+        name: "Cornflour",
+        label: "Staples",
+        serving: { amount: 100, unit: "g" },
+        nutrition: {},
+        onHand: false
+      });
+      saved.recipes.push({
+        id: "shopping-dedupe-recipe",
+        name: "Shopping dedupe check",
+        category: "dinner",
+        categories: ["dinner"],
+        tags: [],
+        ingredients: ["25 g Cornflour", "2 Cornflour"],
+        ingredientRefs: [
+          { ingredientId: "shopping-dedupe-cornflour", usedAmount: 25, usedUnit: "g" },
+          { ingredientId: "shopping-dedupe-cornflour", usedAmount: 2, usedUnit: "each" }
+        ],
+        method: "Test",
+        servings: 2,
+        macros: { protein: 0, carbs: 0, fat: 0 }
+      });
+      saved.planner = { Sunday: { dinner: "shopping-dedupe-recipe" } };
+      localStorage.setItem("macrovault.mvp.v1", JSON.stringify(saved));
+    });
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Shopping", exact: true }).click();
+    const cornflourRows = page.locator("#shoppingList .check-row").filter({ hasText: "Cornflour" });
+    assert.equal(await cornflourRows.count(), 1);
+    assert.match(await cornflourRows.textContent(), /12\.5 g \+ 1 each/);
+
+    await page.getByRole("button", { name: "Private", exact: true }).click();
+    await page.getByRole("button", { name: "Ashley", exact: true }).click();
+    await page.locator("#weightGoalValue").fill("72.5");
+    await page.getByRole("button", { name: "Save target", exact: true }).click();
+    const weightGoalState = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).privateWeightGoals);
+    assert.equal(weightGoalState.Ashley, 72.5);
+    assert.match(await page.locator("#weightStats").textContent(), /Target weight\s*72\.5 kg/);
+
     await page.evaluate(() => {
       const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));
       saved.activeTab = "recipes";

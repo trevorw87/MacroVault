@@ -451,13 +451,13 @@ menu {
   background: rgba(57, 155, 63, 0.12);
 }
 
-.parent {
+.person.parent {
   width: 116px;
   height: 138px;
   bottom: 18px;
 }
 
-.child {
+.person.child {
   width: 88px;
   height: 102px;
   bottom: 16px;
@@ -2625,7 +2625,7 @@ span.ingredient-usage,
 }
 
 .kids-layout {
-  grid-template-columns: minmax(330px, 0.86fr) minmax(330px, 0.86fr) minmax(430px, 1.14fr) minmax(430px, 1.14fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
   width: 100%;
   max-width: 100%;
@@ -2807,6 +2807,19 @@ span.ingredient-usage,
   align-self: start;
 }
 
+.weight-goal-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  max-width: 500px;
+  margin-bottom: 8px;
+}
+
+.weight-goal-form + #weightGoalStatus {
+  margin: 0 0 18px;
+}
+
 .person-switcher {
   display: flex;
   flex-wrap: wrap;
@@ -2836,7 +2849,7 @@ span.ingredient-usage,
 
 .weight-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -2870,6 +2883,10 @@ span.ingredient-usage,
 
 .weight-stat-card.primary {
   background: linear-gradient(135deg, #eef8ff, #f2ffe9);
+}
+
+.weight-stat-card.target {
+  background: linear-gradient(135deg, #f5f0ff, #fff8e8);
 }
 
 .weight-chart {
@@ -3001,15 +3018,31 @@ span.ingredient-usage,
 .kids-layout .kid-card.adult .habit-row,
 .kids-layout .kid-card.trevor .habit-row,
 .kids-layout .kid-card.ashley .habit-row {
-  grid-template-columns: 42px minmax(76px, 0.34fr) minmax(232px, 1fr);
+  grid-template-columns: 42px minmax(76px, 0.34fr) minmax(0, 1fr);
+}
+
+.weight-target-line {
+  stroke: #7b5bd1;
+  stroke-width: 3;
+  stroke-dasharray: 9 7;
+}
+
+.weight-chart .weight-target-label {
+  fill: #6941c6;
+  font-weight: 900;
 }
 
 .habit-check {
+  position: relative;
   display: inline-flex;
 }
 
 .habit-check input {
   position: absolute;
+  inset: 0;
+  width: 24px;
+  height: 24px;
+  margin: 0;
   opacity: 0;
   pointer-events: none;
 }
