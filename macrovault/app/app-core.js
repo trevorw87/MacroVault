@@ -873,11 +873,6 @@ function normalizeState(nextState) {
     nextState.activeTab = "dashboard";
   }
   nextState.recipes = [...(nextState.recipes || [])];
-  defaultRecipeSeeds.forEach((defaultRecipe) => {
-    if (!nextState.recipes.some((recipe) => recipe.id === defaultRecipe.id)) {
-      nextState.recipes.push(structuredClone(defaultRecipe));
-    }
-  });
   nextState.recipes = nextState.recipes.map((recipe) => {
     const normalizedRecipe = normalizeRecipeIngredientQuantities(recipe);
     return {

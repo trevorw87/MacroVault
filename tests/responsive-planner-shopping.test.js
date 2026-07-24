@@ -177,11 +177,17 @@ function startServer() {
     const mondayServingInput = page.getByLabel("People eating Lemon Garlic Salmon on Monday", { exact: true });
     assert.equal(await mondayServingInput.inputValue(), "4");
     assert.equal(Math.round(await mondayServingInput.locator("xpath=ancestor::article[1]").locator(".meal-thumb").evaluate((element) => element.getBoundingClientRect().width)), 90);
+    const nutritionPerServe = await mondayServingInput.locator("xpath=ancestor::article[1]").locator(".planner-recipe-nutrition").textContent();
+    assert.match(nutritionPerServe, /kcal \/ serve/);
     await mondayServingInput.fill("6");
     await mondayServingInput.dispatchEvent("change");
     assert.equal(
       await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).plannerServings.Monday.dinner["lemon-salmon"]),
       6
+    );
+    assert.equal(
+      await page.getByLabel("People eating Lemon Garlic Salmon on Monday", { exact: true }).locator("xpath=ancestor::article[1]").locator(".planner-recipe-nutrition").textContent(),
+      nutritionPerServe
     );
 
     const expectedShoppingNames = await page.evaluate(() => {

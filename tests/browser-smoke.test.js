@@ -95,6 +95,18 @@ function startServer() {
     assert.equal(duplicatedRecipe.favourite, false);
     await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
 
+    const builtInRecipeCard = page.locator(".recipe-card").filter({ has: page.getByRole("heading", { name: "Chicken Traybake", exact: true }) });
+    await builtInRecipeCard.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.locator("#uiDialog").getByRole("button", { name: "Delete recipe", exact: true }).click();
+    assert.equal(await page.getByRole("heading", { name: "Chicken Traybake", exact: true }).count(), 0);
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Recipes", exact: true }).click();
+    assert.equal(await page.getByRole("heading", { name: "Chicken Traybake", exact: true }).count(), 0);
+    assert.equal(
+      await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).recipes.some((recipe) => recipe.id === "chicken-traybake")),
+      false
+    );
+
     await page.getByRole("button", { name: "More", exact: true }).click();
     await page.getByRole("button", { name: "Import recipe", exact: true }).click();
     await page.locator("#recipeImportUrl").fill("https://recipes.example.test/pasta");
@@ -301,6 +313,7 @@ function startServer() {
     await page.getByText("Sample data reloaded.", { exact: true }).waitFor();
     const resetState = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")));
     assert.equal(resetState.configuration.appName, "MacroVault");
+    assert.equal(resetState.recipes.some((recipe) => recipe.id === "chicken-traybake"), true);
     assert.equal(await page.locator("#pageTitle").textContent(), "Dashboard");
     assert.deepEqual(pageErrors, []);
     console.log("Browser smoke and injection checks: PASS");

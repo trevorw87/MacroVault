@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.10
+
+- Kept deleted built-in recipes removed across reloads and Home Assistant synchronization.
+- Limited sample-recipe restoration to new installations and the explicit sample-data reset.
+- Changed planner nutrition badges to show calories and protein per serve regardless of the people count.
+- Added browser coverage for persistent deletion, sample reset restoration, and per-serve nutrition labels.
+
 ## 0.9.9
 
 - Enlarged planner meal thumbnails to make recipe images easier to recognize.

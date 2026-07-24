@@ -380,14 +380,12 @@ function plannerCellMarkup(day, slot) {
       <div class="planner-dish-list">
         ${selectedRecipes.length ? selectedRecipes.map((recipe) => {
           const servings = plannerServingCount(day, slot.id, recipe.id);
-          const scaledCalories = caloriesPerServing(recipe) * servings;
-          const scaledProtein = macrosPerServing(recipe).protein * servings;
           return `
           <article class="planner-dish">
             ${mealThumbnailMarkup(recipe, slot.label)}
             <div class="planner-meal-pick">
               <strong>${escapeHtml(recipe.name)}</strong>
-              <span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(scaledCalories, "kcal")} / ${formatPlannerNumber(scaledProtein, "protein")}`)}</span>
+              <span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} / serve · ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>
               <label class="planner-serving-control">
                 <span>People eating</span>
                 <span class="planner-serving-stepper">
