@@ -12,6 +12,8 @@ Version 0.8.0 adds a monotonically increasing state revision. Browser saves incl
 
 Version 0.9.0 adds in-app household configuration. The Settings page controls the visible app and household names, profile identity, planner nutrition defaults, and the family-member roster. Member renames migrate linked exercise and weight records; members with weight history cannot be removed until those records are handled.
 
+Schema version 4 adds authoritative `planner_entries` and `shopping_checks` tables. Existing `planner` and `bought` values migrate automatically out of the live state document on startup. `GET /api/state` hydrates these tables back into the existing frontend state shape, and revision snapshots continue to contain the complete state for rollback.
+
 - `GET /api/state` returns the current app state.
 - `PUT /api/state` saves the complete state. Pass `expectedRevision` to reject stale writes; successful responses include the new `revision`.
 - `PATCH /api/state` replaces non-resource state while preserving recipes and ingredients.
@@ -22,6 +24,7 @@ Version 0.9.0 adds in-app household configuration. The Settings page controls th
 - `GET|POST /api/ingredients` lists or creates ingredients.
 - `GET|PUT|DELETE /api/ingredients/{id}` reads, updates, or deletes an ingredient.
 - `GET /api/images/{id}` serves a stored image asset.
+- `POST /api/import/recipe` securely fetches a public recipe URL through the add-on and returns a structured review draft.
 - The browser still keeps a local backup in `localStorage` for resilience.
 
 ## Home Assistant Sidebar

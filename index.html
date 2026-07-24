@@ -6,7 +6,7 @@
     <title>MacroVault</title>
     <meta name="theme-color" content="#399b3f">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=120">
+    <link rel="stylesheet" href="styles.css?v=124">
   </head>
   <body>
     <div class="app-shell">
@@ -148,6 +148,20 @@
 
         <section class="view" id="kidsView" aria-labelledby="pageTitle">
           <div class="kids-layout" id="kidsLayout"></div>
+          <section class="section-block family-rewards-panel" aria-labelledby="familyRewardsTitle">
+            <div class="section-heading family-rewards-heading">
+              <div>
+                <h2 id="familyRewardsTitle">Monthly reward chart</h2>
+                <p class="muted">Children earn one star when every habit is completed that day. Select an earlier month to review it.</p>
+              </div>
+              <div class="reward-month-controls" aria-label="Choose reward chart month">
+                <button class="icon-button" id="previousRewardMonth" type="button" aria-label="Previous reward month">&#8249;</button>
+                <input id="rewardMonth" type="month" aria-label="Reward chart month">
+                <button class="icon-button" id="nextRewardMonth" type="button" aria-label="Next reward month">&#8250;</button>
+              </div>
+            </div>
+            <div class="family-reward-charts" id="familyRewardCharts"></div>
+          </section>
         </section>
 
         <section class="view" id="privateView" aria-labelledby="pageTitle">
@@ -559,7 +573,7 @@
 
         <div class="import-actions">
           <button class="secondary-button" id="parseRecipeButton" type="button">Preview import</button>
-          <span class="muted" id="recipeImportStatus">Website imports depend on the source allowing browser access.</span>
+          <span class="muted" id="recipeImportStatus">Website recipes are imported securely through Home Assistant.</span>
         </div>
 
         <section class="import-preview" id="recipeImportPreview" hidden></section>
@@ -574,6 +588,6 @@
     <script src="zxing-browser.min.js?v=107"></script>
     <script src="barcode-nutrition.js?v=114"></script>
     <script src="frontend-utils.js?v=116"></script>
-    <script src="app.js?v=121"></script>
+    <script src="app.js?v=124"></script>
   </body>
 </html>

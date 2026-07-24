@@ -551,6 +551,14 @@ function todayDateKey() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+function currentMonthKey() {
+  return todayDateKey().slice(0, 7);
+}
+
+function normalizedMonthKey(value) {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(String(value || "")) ? String(value) : currentMonthKey();
+}
+
 function familyMemberNames(nextState = state) {
   return Object.keys(nextState?.kids || {});
 }
@@ -570,6 +578,29 @@ function emptyFamilyHabits(name, member = null) {
 function resetFamilyHabits(nextState) {
   Object.entries(nextState.kids || {}).forEach(([name, kid]) => {
     kid.habits = emptyFamilyHabits(name, kid);
+  });
+}
+
+function familyHabitProgress(nextState, name) {
+  const member = nextState.kids?.[name];
+  if (!member) return { completed: 0, target: 0, earned: false };
+  const habits = habitDefinitionsForMember(name, member);
+  const completed = habits.reduce((sum, habit) => sum + (member.habits?.[habit.id] || []).filter(Boolean).length, 0);
+  const target = habits.reduce((sum, habit) => sum + habitTargetForPerson(name, habit, member), 0);
+  return { completed, target, earned: target > 0 && completed >= target };
+}
+
+function recordFamilyHabitDay(nextState, dateKey, { force = false } = {}) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey || ""))) return;
+  nextState.familyHabitHistory ||= {};
+  nextState.familyHabitHistory[dateKey] ||= {};
+  Object.entries(nextState.kids || {}).forEach(([name, member]) => {
+    if (member.role !== "child") return;
+    if (nextState.familyHabitHistory[dateKey][name]?.manual && !force) return;
+    nextState.familyHabitHistory[dateKey][name] = {
+      ...familyHabitProgress(nextState, name),
+      manual: false
+    };
   });
 }
 
@@ -593,6 +624,7 @@ function ensureFamilyHabitsForToday(nextState = state) {
     return false;
   }
   if (nextState.familyHabitDate === todayKey) return false;
+  recordFamilyHabitDay(nextState, nextState.familyHabitDate);
   nextState.familyHabitDate = todayKey;
   resetFamilyHabits(nextState);
   ensureHealthExerciseForToday(nextState);
@@ -871,6 +903,13 @@ function normalizeState(nextState) {
       ? member.color
       : memberColorOptions[index % memberColorOptions.length].value;
   });
+  nextState.familyHabitHistory = nextState.familyHabitHistory && typeof nextState.familyHabitHistory === "object"
+    ? nextState.familyHabitHistory
+    : {};
+  nextState.familyRewards = nextState.familyRewards && typeof nextState.familyRewards === "object"
+    ? nextState.familyRewards
+    : {};
+  nextState.rewardChartMonth = normalizedMonthKey(nextState.rewardChartMonth);
   ensureHealthExerciseForToday(nextState);
   const memberNames = familyMemberNames(nextState);
   if (!memberNames.includes(nextState.privatePerson)) {
@@ -936,6 +975,18 @@ function normalizeState(nextState) {
       kid.habits[habit.id] = Array.from({ length: target }, (_, index) => Boolean(kid.habits[habit.id][index]));
     });
   });
+  Object.entries(nextState.kids || {}).forEach(([name, kid]) => {
+    if (kid.role !== "child") return;
+    const reward = nextState.familyRewards[name] || {};
+    nextState.familyRewards[name] = {
+      monthlyTarget: Math.min(31, Math.max(1, Number(reward.monthlyTarget) || 20)),
+      reward: String(reward.reward || "").trim().slice(0, 80)
+    };
+  });
+  Object.keys(nextState.familyRewards).forEach((name) => {
+    if (nextState.kids?.[name]?.role !== "child") delete nextState.familyRewards[name];
+  });
+  recordFamilyHabitDay(nextState, todayDateKey());
   delete nextState.calories;
   return nextState;
 }
@@ -2467,6 +2518,44 @@ function updateIngredientsWithGenericNutrition() {
   showToast(`Updated generic nutrition for ${changed} ingredient${changed === 1 ? "" : "s"}.`, { type: "success" });
 }
 
+function convertPlannerToMobile(plannerGrid) {
+  const table = plannerGrid.querySelector(".planner-table");
+  if (!table) return;
+  const tableChildren = [...table.children];
+  const headings = tableChildren.slice(1, days.length + 1);
+  const slotRows = mealPlanSlots.map((slot, slotIndex) => {
+    const rowStart = days.length + 1 + (slotIndex * (days.length + 1));
+    return {
+      slot,
+      label: tableChildren[rowStart],
+      cells: tableChildren.slice(rowStart + 1, rowStart + 1 + days.length)
+    };
+  });
+  const mobile = document.createElement("div");
+  mobile.className = "planner-mobile";
+  const today = days[new Date().getDay()];
+  days.forEach((day, dayIndex) => {
+    const details = document.createElement("details");
+    details.className = "planner-mobile-day";
+    details.dataset.plannerMobileDay = day;
+    details.open = day === today;
+    const summary = document.createElement("summary");
+    summary.append(headings[dayIndex]);
+    details.append(summary);
+    const slots = document.createElement("div");
+    slots.className = "planner-mobile-slots";
+    slotRows.forEach(({ label, cells }) => {
+      const section = document.createElement("section");
+      section.className = "planner-mobile-slot";
+      section.append(label.cloneNode(true), cells[dayIndex]);
+      slots.append(section);
+    });
+    details.append(slots);
+    mobile.append(details);
+  });
+  plannerGrid.replaceChildren(mobile);
+}
+
 function renderPlanner() {
   const goals = currentNutritionGoals();
   const calorieGoalInput = document.querySelector("#dailyCalorieGoal");
@@ -2475,6 +2564,7 @@ function renderPlanner() {
   if (proteinGoalInput && document.activeElement !== proteinGoalInput) proteinGoalInput.value = goals.protein;
 
   document.querySelector("#plannerGrid").innerHTML = `
+    <p class="planner-scroll-hint">Swipe or scroll sideways to see every day.</p>
     <div class="planner-table">
       <div class="planner-corner">Meal</div>
       ${days.map((day) => {
@@ -2540,6 +2630,9 @@ function renderPlanner() {
       `).join("")}
     </div>
   `;
+  if (window.matchMedia("(max-width: 760px)").matches) {
+    convertPlannerToMobile(document.querySelector("#plannerGrid"));
+  }
 }
 
 function renderShopping() {
@@ -3349,7 +3442,7 @@ function openRecipeImportDialog() {
   pendingImportedRecipe = null;
   document.querySelector("#recipeImportUrl").value = "";
   document.querySelector("#recipeImportText").value = "";
-  document.querySelector("#recipeImportStatus").textContent = "Website imports depend on the source allowing browser access.";
+  document.querySelector("#recipeImportStatus").textContent = "Website recipes are imported securely through Home Assistant.";
   document.querySelector("#recipeImportPreview").hidden = true;
   document.querySelector("#recipeImportPreview").innerHTML = "";
   document.querySelector("#saveImportedRecipeButton").disabled = true;
@@ -3382,205 +3475,6 @@ function titleFromUrl(url) {
   return cleaned ? cleaned.replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Imported Recipe";
 }
 
-function normalizeInstruction(instruction) {
-  if (typeof instruction === "string") return instruction;
-  if (Array.isArray(instruction)) return instruction.map(normalizeInstruction).filter(Boolean).join("\n");
-  if (instruction?.text) return instruction.text;
-  if (instruction?.itemListElement) return normalizeInstruction(instruction.itemListElement);
-  return "";
-}
-
-function recipeImageFromSchema(image) {
-  if (!image) return "";
-  const firstImage = Array.isArray(image) ? image[0] : image;
-  if (typeof firstImage === "string") return firstImage;
-  return firstImage.url || firstImage.contentUrl || "";
-}
-
-function findRecipeSchema(value) {
-  if (!value) return null;
-  if (Array.isArray(value)) {
-    return value.map(findRecipeSchema).find(Boolean) || null;
-  }
-  if (typeof value !== "object") return null;
-  const type = value["@type"];
-  const types = Array.isArray(type) ? type : [type];
-  if (types.some((item) => String(item).toLowerCase() === "recipe")) return value;
-  if (value["@graph"]) return findRecipeSchema(value["@graph"]);
-  if (value.mainEntity) return findRecipeSchema(value.mainEntity);
-  return null;
-}
-
-function parseRecipeJsonLd(documentText) {
-  const doc = new DOMParser().parseFromString(documentText, "text/html");
-  const scripts = [...doc.querySelectorAll('script[type="application/ld+json"]')];
-  for (const script of scripts) {
-    try {
-      const recipe = findRecipeSchema(JSON.parse(script.textContent));
-      if (!recipe) continue;
-      const parsed = {
-        name: recipe.name || doc.querySelector("title")?.textContent || "Imported Recipe",
-        category: "dinner",
-        tags: ["imported", "website"],
-        ingredients: recipe.recipeIngredient || [],
-        method: normalizeInstruction(recipe.recipeInstructions) || recipe.description || "Review the source link and add the method.",
-        servings: parseServings(recipe.recipeYield),
-        macros: {
-          protein: Number.parseInt(recipe.nutrition?.proteinContent, 10) || 0,
-          carbs: Number.parseInt(recipe.nutrition?.carbohydrateContent, 10) || 0,
-          fat: Number.parseInt(recipe.nutrition?.fatContent, 10) || 0
-        },
-        calories: Number.parseInt(recipe.nutrition?.calories, 10) || Number.parseInt(recipe.nutrition?.caloriesContent, 10) || 0,
-        imageUrl: recipeImageFromSchema(recipe.image),
-        sourceUrl: doc.querySelector('link[rel="canonical"]')?.href || ""
-      };
-      parsed.macros = hasMeaningfulMacros(parsed.macros) ? parsed.macros : estimateMacrosFromIngredients(parsed.ingredients);
-      parsed.calories = parsed.calories || caloriesFromMacros(parsed.macros);
-      return parsed;
-    } catch {
-      // Keep trying other JSON-LD blocks.
-    }
-  }
-  return null;
-}
-
-function decodeHtmlText(value) {
-  const textarea = document.createElement("textarea");
-  textarea.innerHTML = value || "";
-  return textarea.value
-    .replace(/\s+/g, " ")
-    .replace(/\s+([,.;:!?])/g, "$1")
-    .trim();
-}
-
-function textFromHtmlFragment(fragment) {
-  return decodeHtmlText(String(fragment || "").replace(/<[^>]+>/g, " "));
-}
-
-function extractHtmlItemsByClass(html, className) {
-  const items = [];
-  const pattern = new RegExp(`<([a-z0-9-]+)([^>]*class=["'][^"']*${className}[^"']*["'][^>]*)>([\\s\\S]*?)<\\/\\1>`, "gi");
-  let match;
-  while ((match = pattern.exec(html))) {
-    const text = textFromHtmlFragment(match[3]);
-    if (text) items.push(text);
-  }
-  return [...new Set(items)];
-}
-
-function extractHtmlTitle(html, fallbackName) {
-  const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-  if (h1) return textFromHtmlFragment(h1[1]) || fallbackName;
-  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  if (title) return (textFromHtmlFragment(title[1]).split(" - ")[0] || fallbackName).trim();
-  return fallbackName;
-}
-
-function bbcFocacciaFallback(url) {
-  if (!/(^|\.)bbc\.co\.uk$/i.test(url.hostname) || !/focaccia_with_garlic_and_35777/i.test(url.pathname)) {
-    return null;
-  }
-  const ingredients = [
-    "500g strong white flour, plus extra for dusting",
-    "7g sachet instant yeast",
-    "1 tsp salt",
-    "oil, for greasing",
-    "2 tbsp extra virgin olive oil, plus extra to serve",
-    "3 rosemary branches, needles picked and chopped",
-    "2 large garlic cloves, sliced",
-    "1 tsp flaked sea salt",
-    "freshly ground black pepper"
-  ];
-  const method = [
-    "Place the flour, yeast and salt in a large bowl. Gradually add warm water and mix until a soft dough forms.",
-    "Knead on a lightly floured surface for about 10 minutes, until smooth and elastic.",
-    "Put the dough in an oiled bowl, cover and leave to rise for about 1 hour, or until doubled in size.",
-    "Oil a baking tray, spread the dough into it, then press dimples into the surface with your fingers.",
-    "Drizzle over olive oil, then scatter with rosemary, garlic, flaked sea salt and black pepper.",
-    "Leave to prove for 35-45 minutes. Heat the oven to 240C/220C Fan/Gas 8.",
-    "Bake for about 15 minutes, or until golden. Drizzle with a little more olive oil and cut into squares."
-  ].join("\n");
-  const parsed = {
-    name: "Focaccia with garlic and rosemary",
-    category: "dinner",
-    tags: ["imported", "website", "bbc", "bread"],
-    ingredients,
-    method,
-    servings: 12,
-    calories: 0,
-    macros: estimateMacrosFromIngredients(ingredients),
-    imageUrl: "",
-    sourceUrl: url.href
-  };
-  parsed.calories = caloriesFromMacros(parsed.macros);
-  return parsed;
-}
-
-function parseWebsiteRecipeHtml(html, url) {
-  const fallbackName = titleFromUrl(url);
-  const ingredientClasses = [
-    "recipe-ingredients__list-item",
-    "recipe-ingredients__list-item-text",
-    "recipe-ingredients__ingredient",
-    "ingredients-list__item"
-  ];
-  const methodClasses = [
-    "recipe-method__list-item",
-    "recipe-method__list-item-text",
-    "method__list-item",
-    "preparation-step"
-  ];
-  const ingredients = ingredientClasses.flatMap((className) => extractHtmlItemsByClass(html, className));
-  const methodItems = methodClasses.flatMap((className) => extractHtmlItemsByClass(html, className));
-  if (!ingredients.length && !methodItems.length) return bbcFocacciaFallback(url);
-
-  const parsedIngredients = ingredients.length ? [...new Set(ingredients)] : ["Review imported source and add ingredients"];
-  const method = methodItems.length ? [...new Set(methodItems)].join("\n") : "Review the source link and add the method.";
-  const parsed = {
-    name: extractHtmlTitle(html, fallbackName),
-    category: "dinner",
-    tags: ["imported", "website"],
-    ingredients: parsedIngredients,
-    method,
-    servings: parseServings(html.match(/serves\s+(\d+)/i)?.[1]) || 1,
-    calories: 0,
-    macros: estimateMacrosFromIngredients(parsedIngredients),
-    imageUrl: "",
-    sourceUrl: url.href
-  };
-  parsed.calories = caloriesFromMacros(parsed.macros);
-  return parsed;
-}
-
-async function fetchWebsiteText(url) {
-  const targets = [
-    url.href,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url.href)}`,
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url.href)}`
-  ];
-  try {
-    return await Promise.any(targets.map(async (target) => {
-      const response = await fetchWithTimeout(target, {}, 7500);
-      if (!response.ok) throw new Error(`Website returned ${response.status}.`);
-      const text = await response.text();
-      if (!text || text.length <= 200) throw new Error("Website returned an empty recipe page.");
-      return text;
-    }));
-  } catch (error) {
-    throw error?.errors?.[0] || error || new Error("Website import was blocked.");
-  }
-}
-
-async function fetchWithTimeout(url, options = {}, timeoutMs = 6500) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 function parsePastedRecipe(text, fallbackName = "Imported Recipe") {
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const ingredientStart = lines.findIndex((line) => /ingredients?/i.test(line));
@@ -3607,62 +3501,12 @@ function parsePastedRecipe(text, fallbackName = "Imported Recipe") {
 }
 
 async function fetchWebsiteRecipe(url) {
-  const html = await fetchWebsiteText(url);
-  const parsed = parseRecipeJsonLd(html) || parseWebsiteRecipeHtml(html, url);
-  if (!parsed) throw new Error("No recipe schema found on this page.");
-  return { ...parsed, sourceUrl: url.href };
-}
-
-async function fetchYouTubeDraft(url, pastedText) {
-  let title = titleFromUrl(url);
-  let thumbnailUrl = "";
-  try {
-      const oembedUrl = `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url.href)}`;
-      const response = await fetchWithTimeout(oembedUrl, {}, 6500);
-    if (response.ok) {
-      const data = await response.json();
-      title = data.title || title;
-      thumbnailUrl = data.thumbnail_url || "";
-      if (!pastedText) {
-        return {
-          name: title,
-          category: "dinner",
-          tags: ["imported", "youtube", "needs notes"],
-          ingredients: ["Paste the video description or transcript to extract ingredients"],
-          method: "YouTube video imported as a source-linked draft. Add notes, transcript, or description to complete the recipe.",
-          servings: 1,
-          calories: 0,
-          macros: { protein: 0, carbs: 0, fat: 0 },
-          imageUrl: thumbnailUrl,
-          sourceUrl: url.href
-        };
-      }
-    }
-  } catch {
-    // YouTube oEmbed is a best-effort enhancement.
-  }
-
-  const parsed = pastedText
-    ? parsePastedRecipe(pastedText, title)
-    : {
-        name: title,
-        category: "dinner",
-        tags: ["imported", "youtube", "needs notes"],
-        ingredients: ["Paste the video description or transcript to extract ingredients"],
-        method: "YouTube video imported as a source-linked draft. Add notes, transcript, or description to complete the recipe.",
-        servings: 1,
-        calories: 0,
-        macros: { protein: 0, carbs: 0, fat: 0 }
-      };
-
-  return {
-    ...parsed,
-    name: parsed.name === "Imported Recipe" ? title : parsed.name,
-    tags: [...new Set([...(parsed.tags || []), "youtube"])],
-    category: recipeCategory(parsed),
-    imageUrl: parsed.imageUrl || thumbnailUrl,
-    sourceUrl: url.href
-  };
+  const result = await requestServerJson("api/import/recipe", {
+    method: "POST",
+    body: { url: url.href }
+  });
+  if (!result?.recipe) throw new Error("Home Assistant did not return a recipe draft.");
+  return result;
 }
 
 function previewImportedRecipe(recipe, message) {
@@ -3719,28 +3563,29 @@ async function previewRecipeImport() {
   try {
     let recipe;
     let message;
-    if (url && isYouTubeUrl(url)) {
-      recipe = await fetchYouTubeDraft(url, pastedText);
-      message = pastedText ? "Built a YouTube recipe draft from your pasted notes." : "Created a YouTube source-linked draft. Paste notes to fill ingredients and method.";
-    } else if (url) {
+    if (url) {
       try {
-        recipe = await fetchWebsiteRecipe(url);
-        message = "Imported structured recipe data from the website.";
+        const imported = await fetchWebsiteRecipe(url);
+        recipe = imported.recipe;
+        message = imported.message || "Imported structured recipe data through Home Assistant.";
+        if (isYouTubeUrl(url) && pastedText) {
+          const pasted = parsePastedRecipe(pastedText, recipe.name);
+          recipe = {
+            ...recipe,
+            ...pasted,
+            name: pasted.name === "Imported Recipe" ? recipe.name : pasted.name,
+            tags: [...new Set([...(recipe.tags || []), ...(pasted.tags || []), "youtube"])],
+            imageUrl: recipe.imageUrl || "",
+            sourceUrl: recipe.sourceUrl || url.href
+          };
+          message = "Built a YouTube recipe draft from server details and your pasted notes.";
+        }
       } catch (error) {
-        recipe = pastedText
-          ? { ...parsePastedRecipe(pastedText, titleFromUrl(url)), sourceUrl: url.href, tags: ["imported", "website", "pasted"] }
-          : {
-              name: titleFromUrl(url),
-              category: "dinner",
-              tags: ["imported", "website", "needs notes"],
-              ingredients: ["Paste the recipe text to extract ingredients"],
-              method: `Website import was blocked or no recipe schema was available. Source: ${url.href}`,
-              servings: 1,
-              calories: 0,
-              macros: { protein: 0, carbs: 0, fat: 0 },
-              sourceUrl: url.href
-            };
-        message = `Could not read the page directly. Created an editable draft instead.`;
+        if (!pastedText) {
+          throw new Error(`${error.message || "Home Assistant could not import this page."} You can paste the recipe text instead.`);
+        }
+        recipe = { ...parsePastedRecipe(pastedText, titleFromUrl(url)), sourceUrl: url.href, tags: ["imported", "website", "pasted"] };
+        message = "The website could not be read, so an editable draft was built from your pasted text.";
       }
     } else if (pastedText) {
       recipe = parsePastedRecipe(pastedText);
@@ -3910,6 +3755,85 @@ function importState(file) {
   reader.readAsText(file);
 }
 
+function rewardMonthDate(monthKey) {
+  const [year, month] = normalizedMonthKey(monthKey).split("-").map(Number);
+  return new Date(year, month - 1, 1);
+}
+
+function shiftedRewardMonth(monthKey, offset) {
+  const date = rewardMonthDate(monthKey);
+  date.setMonth(date.getMonth() + offset);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function renderFamilyRewards() {
+  const container = document.querySelector("#familyRewardCharts");
+  const monthInput = document.querySelector("#rewardMonth");
+  if (!container || !monthInput) return;
+  const monthKey = normalizedMonthKey(state.rewardChartMonth);
+  state.rewardChartMonth = monthKey;
+  monthInput.value = monthKey;
+  monthInput.max = currentMonthKey();
+  document.querySelector("#nextRewardMonth").disabled = monthKey >= currentMonthKey();
+  const monthDate = rewardMonthDate(monthKey);
+  const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+  const leadingBlanks = monthDate.getDay();
+  const childEntries = Object.entries(state.kids || {}).filter(([, member]) => member.role === "child");
+  if (!childEntries.length) {
+    container.innerHTML = '<p class="empty-state">Add a child in Settings to use monthly rewards.</p>';
+    return;
+  }
+  container.innerHTML = childEntries.map(([name, member]) => {
+    const settings = state.familyRewards[name] || { monthlyTarget: 20, reward: "" };
+    const dates = Array.from({ length: daysInMonth }, (_, index) => `${monthKey}-${String(index + 1).padStart(2, "0")}`);
+    const starsEarned = dates.filter((dateKey) => state.familyHabitHistory?.[dateKey]?.[name]?.earned).length;
+    const target = settings.monthlyTarget;
+    const remaining = Math.max(0, target - starsEarned);
+    const rewardText = settings.reward || "your chosen reward";
+    return `
+      <article class="family-reward-card ${safeCssToken(member.color)}" data-family-reward-card="${escapeHtml(name)}">
+        <header class="reward-card-header">
+          <div>
+            <h3>${escapeHtml(name)}</h3>
+            <p><strong>${starsEarned} of ${target} stars earned</strong></p>
+          </div>
+          <span class="reward-star-total" aria-label="${starsEarned} stars">★ ${starsEarned}</span>
+        </header>
+        <div class="reward-progress" role="progressbar" aria-label="${escapeHtml(name)} monthly reward progress" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${Math.min(starsEarned, target)}">
+          <span style="width: ${Math.min(100, (starsEarned / target) * 100)}%"></span>
+        </div>
+        <p class="reward-status">${remaining ? `${remaining} more star${remaining === 1 ? "" : "s"} to ${escapeHtml(rewardText)}.` : `Target reached: ${escapeHtml(rewardText)}!`}</p>
+        <div class="reward-settings">
+          <label>Monthly target<input data-reward-target type="number" min="1" max="31" value="${target}"></label>
+          <label>Reward<input data-reward-name maxlength="80" value="${escapeHtml(settings.reward)}" placeholder="e.g. Movie night"></label>
+          <button class="secondary-button" data-save-family-reward="${escapeHtml(name)}" type="button">Save reward</button>
+        </div>
+        <div class="reward-calendar" aria-label="${escapeHtml(name)} reward calendar">
+          ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => `<span class="reward-weekday">${day}</span>`).join("")}
+          ${Array.from({ length: leadingBlanks }, () => '<span class="reward-day blank" aria-hidden="true"></span>').join("")}
+          ${dates.map((dateKey, index) => {
+            const history = state.familyHabitHistory?.[dateKey]?.[name];
+            const dayTarget = Math.max(0, Number(history?.target) || familyHabitProgress(state, name).target);
+            const completed = Math.min(dayTarget, Math.max(0, Number(history?.completed) || 0));
+            const earned = Boolean(history?.earned);
+            const isFuture = dateKey > todayDateKey();
+            const isToday = dateKey === todayDateKey();
+            const canCorrect = !isFuture && !isToday;
+            const label = earned ? "Star earned" : `${completed} of ${dayTarget} habits`;
+            return `<button class="reward-day ${earned ? "earned" : completed ? "partial" : ""} ${isToday ? "today" : ""}" type="button"
+              data-reward-person="${escapeHtml(name)}" data-reward-date="${dateKey}" ${canCorrect ? "" : "disabled"}
+              aria-label="${escapeHtml(`${name}, ${dateKey}: ${label}${canCorrect ? ". Select to correct this day." : ""}`)}">
+              <span class="reward-day-number">${index + 1}</span>
+              <strong>${earned ? "★" : completed ? `${completed}/${dayTarget}` : ""}</strong>
+            </button>`;
+          }).join("")}
+        </div>
+        <p class="reward-correction-note">Parents can select a past day to add or remove a completion star.</p>
+      </article>
+    `;
+  }).join("");
+}
+
 function renderKids() {
   document.querySelector("#kidsLayout").innerHTML = Object.entries(state.kids).map(([name, kid]) => {
     const habits = familyHabitTargetsForPerson(name);
@@ -3952,6 +3876,7 @@ function renderKids() {
       </article>
     `;
   }).join("");
+  renderFamilyRewards();
 }
 
 function renderImageStorage() {
@@ -4397,6 +4322,17 @@ function saveConfiguration() {
     .map((member) => [member.name, Number(previousWeightGoals[member.originalName || member.name]) || 0])
     .filter(([, goal]) => goal > 0));
   state.privatePerson = renameMap.get(state.privatePerson) || (nextMembers[state.privatePerson] ? state.privatePerson : memberDrafts[0].name);
+  const previousRewards = state.familyRewards || {};
+  state.familyRewards = Object.fromEntries(memberDrafts.map((member) => [
+    member.name,
+    previousRewards[member.originalName || member.name] || { monthlyTarget: 20, reward: "" }
+  ]));
+  state.familyHabitHistory = Object.fromEntries(Object.entries(state.familyHabitHistory || {}).map(([dateKey, history]) => [
+    dateKey,
+    Object.fromEntries(memberDrafts
+      .map((member) => [member.name, history?.[member.originalName || member.name]])
+      .filter(([, entry]) => entry))
+  ]));
   const previousExercise = state.healthExercise || {};
   state.healthExercise = { date: previousExercise.date || todayDateKey() };
   memberDrafts.forEach((member) => {
@@ -4489,6 +4425,68 @@ function renderGenericNutritionStatus() {
 }
 
 document.addEventListener("click", async (event) => {
+  const previousRewardMonth = event.target.closest("#previousRewardMonth");
+  if (previousRewardMonth) {
+    state.rewardChartMonth = shiftedRewardMonth(state.rewardChartMonth, -1);
+    saveState();
+    renderFamilyRewards();
+    return;
+  }
+
+  const nextRewardMonth = event.target.closest("#nextRewardMonth");
+  if (nextRewardMonth && !nextRewardMonth.disabled) {
+    state.rewardChartMonth = shiftedRewardMonth(state.rewardChartMonth, 1);
+    if (state.rewardChartMonth > currentMonthKey()) state.rewardChartMonth = currentMonthKey();
+    saveState();
+    renderFamilyRewards();
+    return;
+  }
+
+  const saveFamilyRewardButton = event.target.closest("[data-save-family-reward]");
+  if (saveFamilyRewardButton) {
+    const name = saveFamilyRewardButton.dataset.saveFamilyReward;
+    const card = saveFamilyRewardButton.closest("[data-family-reward-card]");
+    if (!card || state.kids?.[name]?.role !== "child") return;
+    state.familyRewards[name] = {
+      monthlyTarget: Math.min(31, Math.max(1, Number(card.querySelector("[data-reward-target]").value) || 20)),
+      reward: card.querySelector("[data-reward-name]").value.trim().slice(0, 80)
+    };
+    saveState();
+    renderFamilyRewards();
+    showToast(`${name}'s reward target saved.`, { type: "success" });
+    return;
+  }
+
+  const rewardDayButton = event.target.closest("[data-reward-date][data-reward-person]");
+  if (rewardDayButton && !rewardDayButton.disabled) {
+    const { rewardDate: dateKey, rewardPerson: name } = rewardDayButton.dataset;
+    if (state.kids?.[name]?.role !== "child" || dateKey >= todayDateKey()) return;
+    const existing = state.familyHabitHistory?.[dateKey]?.[name];
+    const earned = Boolean(existing?.earned);
+    const confirmed = await openUiDialog({
+      title: earned ? "Remove this reward star?" : "Mark this day complete?",
+      message: earned
+        ? `${name}'s star for ${dateKey} will be removed.`
+        : `${name} will receive a completion star for ${dateKey}.`,
+      confirmLabel: earned ? "Remove star" : "Mark complete",
+      tone: earned ? "danger" : "default"
+    });
+    if (!confirmed) return;
+    const target = Math.max(1, Number(existing?.target) || familyHabitProgress(state, name).target);
+    state.familyHabitHistory ||= {};
+    state.familyHabitHistory[dateKey] ||= {};
+    state.familyHabitHistory[dateKey][name] = {
+      completed: earned ? 0 : target,
+      target,
+      earned: !earned,
+      manual: true
+    };
+    saveState();
+    renderFamilyRewards();
+    showToast(`${name}'s ${dateKey} reward record updated.`, { type: "success" });
+    return;
+  }
+
   const tabButton = event.target.closest("[data-tab]");
   if (tabButton) setTab(tabButton.dataset.tab);
 
@@ -4676,6 +4674,15 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  const rewardMonthInput = event.target.closest("#rewardMonth");
+  if (rewardMonthInput) {
+    state.rewardChartMonth = normalizedMonthKey(rewardMonthInput.value);
+    if (state.rewardChartMonth > currentMonthKey()) state.rewardChartMonth = currentMonthKey();
+    saveState();
+    renderFamilyRewards();
+    return;
+  }
+
   const plannerSelect = event.target.closest("[data-planner-add-day]");
   if (plannerSelect) {
     const { plannerAddDay: plannerDay, plannerAddSlot: plannerSlot } = plannerSelect.dataset;
@@ -4731,6 +4738,7 @@ document.addEventListener("change", (event) => {
     state.kids[kidHabit].habits ||= {};
     state.kids[kidHabit].habits[habit] ||= [];
     state.kids[kidHabit].habits[habit][Number(habitIndex)] = habitInput.checked;
+    recordFamilyHabitDay(state, todayDateKey(), { force: true });
     saveState();
     render();
   }
@@ -5188,4 +5196,8 @@ window.addEventListener("offline", () => setSyncStatus("local", "Offline — sav
 window.addEventListener("online", () => {
   setSyncStatus("saving", "Reconnecting…");
   queueServerStateSave(state);
+});
+
+window.matchMedia("(max-width: 760px)").addEventListener("change", () => {
+  if (state?.activeTab === "planner") renderPlanner();
 });

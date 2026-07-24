@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
 import base64
 import binascii
+import ipaddress
 import json
 import mimetypes
 import os
+import re
+import socket
 import sqlite3
 import threading
 import uuid
 from datetime import datetime, timezone
+from html import unescape
+from html.parser import HTMLParser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote, unquote, urljoin, urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 APP_DIR = Path(os.environ.get("MACROVAULT_APP_DIR", "/app")).resolve()
@@ -19,7 +26,9 @@ DATA_DIR = Path(os.environ.get("MACROVAULT_DATA_DIR", "/data")).resolve()
 DB_PATH = DATA_DIR / "macrovault.db"
 PORT = int(os.environ.get("MACROVAULT_PORT", "8099"))
 MAX_BODY_BYTES = 25 * 1024 * 1024
-SCHEMA_VERSION = 3
+MAX_RECIPE_PAGE_BYTES = 2 * 1024 * 1024
+RECIPE_FETCH_TIMEOUT = 12
+SCHEMA_VERSION = 4
 STATE_LOCK = threading.RLock()
 
 
@@ -28,6 +37,14 @@ class StateConflictError(RuntimeError):
         super().__init__("MacroVault changed on another device")
         self.revision = revision
         self.updated_at = updated_at
+
+
+class UnsafeImportUrlError(ValueError):
+    pass
+
+
+class RecipeImportError(RuntimeError):
+    pass
 
 
 class MacroVaultConnection(sqlite3.Connection):
@@ -53,6 +70,261 @@ def number(value, default=0):
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def validate_external_url(value):
+    parsed = urlparse(str(value or "").strip())
+    if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+        raise UnsafeImportUrlError("Enter a public HTTP or HTTPS recipe URL.")
+    hostname = parsed.hostname.rstrip(".").lower()
+    if hostname == "localhost" or hostname.endswith((".localhost", ".local", ".internal")):
+        raise UnsafeImportUrlError("Private or local network URLs cannot be imported.")
+    try:
+        addresses = socket.getaddrinfo(hostname, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)
+    except socket.gaierror as error:
+        raise RecipeImportError("The recipe website could not be found.") from error
+    if not addresses:
+        raise RecipeImportError("The recipe website could not be found.")
+    for address in addresses:
+        ip = ipaddress.ip_address(address[4][0].split("%", 1)[0])
+        if not ip.is_global:
+            raise UnsafeImportUrlError("Private or local network URLs cannot be imported.")
+    return parsed.geturl()
+
+
+class SafeRecipeRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, request, file_pointer, code, message, headers, new_url):
+        validate_external_url(new_url)
+        return super().redirect_request(request, file_pointer, code, message, headers, new_url)
+
+
+def fetch_external_text(url):
+    safe_url = validate_external_url(url)
+    request = Request(
+        safe_url,
+        headers={
+            "Accept": "text/html,application/xhtml+xml;q=0.9,application/json;q=0.5",
+            "Accept-Language": "en-GB,en;q=0.8",
+            "User-Agent": "Mozilla/5.0 (compatible; MacroVaultRecipeImporter/1.0; +https://github.com/trevorw87/macrovault)",
+        },
+    )
+    try:
+        with build_opener(SafeRecipeRedirectHandler()).open(request, timeout=RECIPE_FETCH_TIMEOUT) as response:
+            content_type = str(response.headers.get_content_type() or "").lower()
+            if content_type not in ("text/html", "application/xhtml+xml", "application/json", "text/plain"):
+                raise RecipeImportError("The URL did not return a recipe webpage.")
+            body = response.read(MAX_RECIPE_PAGE_BYTES + 1)
+            if len(body) > MAX_RECIPE_PAGE_BYTES:
+                raise OverflowError("The recipe webpage is too large to import safely.")
+            charset = response.headers.get_content_charset() or "utf-8"
+            text = body.decode(charset, errors="replace")
+            if len(text.strip()) < 100:
+                raise RecipeImportError("The recipe website returned an empty page.")
+            return text, response.geturl()
+    except HTTPError as error:
+        raise RecipeImportError(f"The recipe website returned HTTP {error.code}.") from error
+    except URLError as error:
+        raise RecipeImportError("The recipe website could not be reached from Home Assistant.") from error
+    except TimeoutError as error:
+        raise RecipeImportError("The recipe website took too long to respond.") from error
+
+
+class RecipePageParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.json_ld = []
+        self.title_parts = []
+        self.canonical = ""
+        self._script_parts = None
+        self._in_title = False
+
+    def handle_starttag(self, tag, attrs):
+        attributes = {str(key).lower(): value for key, value in attrs}
+        if tag.lower() == "script" and str(attributes.get("type") or "").lower().split(";", 1)[0].strip() == "application/ld+json":
+            self._script_parts = []
+        elif tag.lower() == "title":
+            self._in_title = True
+        elif tag.lower() == "link" and "canonical" in str(attributes.get("rel") or "").lower().split():
+            self.canonical = str(attributes.get("href") or "").strip()
+
+    def handle_endtag(self, tag):
+        if tag.lower() == "script" and self._script_parts is not None:
+            self.json_ld.append("".join(self._script_parts))
+            self._script_parts = None
+        elif tag.lower() == "title":
+            self._in_title = False
+
+    def handle_data(self, data):
+        if self._script_parts is not None:
+            self._script_parts.append(data)
+        elif self._in_title:
+            self.title_parts.append(data)
+
+
+def find_recipe_schema(value):
+    if isinstance(value, list):
+        for item in value:
+            recipe = find_recipe_schema(item)
+            if recipe:
+                return recipe
+        return None
+    if not isinstance(value, dict):
+        return None
+    schema_type = value.get("@type")
+    types = schema_type if isinstance(schema_type, list) else [schema_type]
+    if any(str(item or "").casefold() == "recipe" for item in types):
+        return value
+    for key in ("@graph", "mainEntity", "mainEntityOfPage", "itemListElement"):
+        recipe = find_recipe_schema(value.get(key))
+        if recipe:
+            return recipe
+    return None
+
+
+def instruction_text(value):
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        return "\n".join(filter(None, (instruction_text(item) for item in value)))
+    if isinstance(value, dict):
+        return instruction_text(value.get("text") or value.get("itemListElement") or value.get("steps"))
+    return ""
+
+
+def first_image_url(value):
+    image = value[0] if isinstance(value, list) and value else value
+    if isinstance(image, str):
+        return image.strip()
+    if isinstance(image, dict):
+        return str(image.get("url") or image.get("contentUrl") or "").strip()
+    return ""
+
+
+def numeric_text(value):
+    match = re.search(r"-?\d+(?:[.,]\d+)?", str(value or ""))
+    return float(match.group(0).replace(",", ".")) if match else 0
+
+
+def serving_count(value):
+    if isinstance(value, list):
+        value = value[0] if value else ""
+    count = numeric_text(value)
+    return max(1, int(count or 1))
+
+
+def clean_html_text(value):
+    text = re.sub(r"<[^>]+>", " ", str(value or ""))
+    return re.sub(r"\s+", " ", unescape(text)).strip()
+
+
+def absolute_http_url(base_url, value):
+    if not str(value or "").strip():
+        return ""
+    resolved = urljoin(base_url, str(value).strip())
+    return resolved if urlparse(resolved).scheme in ("http", "https") else ""
+
+
+def html_items_by_class(html, class_name):
+    pattern = re.compile(
+        rf"<([a-z0-9-]+)([^>]*class=[\"'][^\"']*\b{re.escape(class_name)}\b[^\"']*[\"'][^>]*)>([\s\S]*?)</\1>",
+        re.IGNORECASE,
+    )
+    return list(dict.fromkeys(filter(None, (clean_html_text(match.group(3)) for match in pattern.finditer(html)))))
+
+
+def parse_recipe_page(html, source_url):
+    parser = RecipePageParser()
+    parser.feed(html)
+    recipe_schema = None
+    for block in parser.json_ld:
+        try:
+            cleaned_block = block.strip().removeprefix("<!--").removesuffix("-->").strip().removesuffix(";")
+            recipe_schema = find_recipe_schema(json.loads(cleaned_block))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        if recipe_schema:
+            break
+    source = absolute_http_url(source_url, parser.canonical) or source_url
+    if recipe_schema:
+        nutrition = recipe_schema.get("nutrition") if isinstance(recipe_schema.get("nutrition"), dict) else {}
+        ingredients = recipe_schema.get("recipeIngredient") or recipe_schema.get("ingredients") or []
+        if isinstance(ingredients, str):
+            ingredients = [ingredients]
+        ingredients = [str(item).strip() for item in ingredients if str(item).strip()]
+        macros = {
+            "protein": numeric_text(nutrition.get("proteinContent")),
+            "carbs": numeric_text(nutrition.get("carbohydrateContent")),
+            "fat": numeric_text(nutrition.get("fatContent")),
+        }
+        calories = numeric_text(nutrition.get("calories") or nutrition.get("caloriesContent"))
+        if not calories:
+            calories = round((macros["protein"] * 4) + (macros["carbs"] * 4) + (macros["fat"] * 9))
+        return {
+            "name": str(recipe_schema.get("name") or "").strip() or clean_html_text("".join(parser.title_parts)) or "Imported Recipe",
+            "category": "dinner",
+            "tags": ["imported", "website"],
+            "ingredients": ingredients or ["Review imported source and add ingredients"],
+            "method": instruction_text(recipe_schema.get("recipeInstructions")) or str(recipe_schema.get("description") or "").strip() or "Review the source link and add the method.",
+            "servings": serving_count(recipe_schema.get("recipeYield")),
+            "macros": macros,
+            "calories": calories,
+            "imageUrl": absolute_http_url(source_url, first_image_url(recipe_schema.get("image"))),
+            "sourceUrl": source,
+        }
+
+    ingredient_classes = (
+        "recipe-ingredients__list-item", "recipe-ingredients__list-item-text",
+        "recipe-ingredients__ingredient", "ingredients-list__item",
+    )
+    method_classes = (
+        "recipe-method__list-item", "recipe-method__list-item-text",
+        "method__list-item", "preparation-step",
+    )
+    ingredients = list(dict.fromkeys(item for class_name in ingredient_classes for item in html_items_by_class(html, class_name)))
+    methods = list(dict.fromkeys(item for class_name in method_classes for item in html_items_by_class(html, class_name)))
+    if not ingredients and not methods:
+        raise RecipeImportError("No structured recipe data was found on this page.")
+    title_match = re.search(r"<h1[^>]*>([\s\S]*?)</h1>", html, re.IGNORECASE)
+    title = clean_html_text(title_match.group(1)) if title_match else clean_html_text("".join(parser.title_parts))
+    return {
+        "name": title or "Imported Recipe",
+        "category": "dinner",
+        "tags": ["imported", "website"],
+        "ingredients": ingredients or ["Review imported source and add ingredients"],
+        "method": "\n".join(methods) if methods else "Review the source link and add the method.",
+        "servings": serving_count(re.search(r"serves\s+(\d+)", html, re.IGNORECASE).group(1) if re.search(r"serves\s+(\d+)", html, re.IGNORECASE) else 1),
+        "macros": {"protein": 0, "carbs": 0, "fat": 0},
+        "calories": 0,
+        "imageUrl": "",
+        "sourceUrl": source,
+    }
+
+
+def import_recipe_from_url(url):
+    parsed = urlparse(str(url or "").strip())
+    hostname = str(parsed.hostname or "").lower()
+    if hostname == "youtu.be" or hostname.endswith(".youtube.com"):
+        validate_external_url(url)
+        oembed_url = f"https://www.youtube.com/oembed?format=json&url={quote(parsed.geturl(), safe='')}"
+        text, _ = fetch_external_text(oembed_url)
+        try:
+            metadata = json.loads(text)
+        except json.JSONDecodeError as error:
+            raise RecipeImportError("YouTube did not return usable video details.") from error
+        return {
+            "name": str(metadata.get("title") or "Imported YouTube recipe").strip(),
+            "category": "dinner",
+            "tags": ["imported", "youtube", "needs notes"],
+            "ingredients": ["Paste the video description or transcript to extract ingredients"],
+            "method": "YouTube video imported as a source-linked draft. Add notes, transcript, or description to complete the recipe.",
+            "servings": 1,
+            "calories": 0,
+            "macros": {"protein": 0, "carbs": 0, "fat": 0},
+            "imageUrl": str(metadata.get("thumbnail_url") or ""),
+            "sourceUrl": parsed.geturl(),
+        }
+    html, final_url = fetch_external_text(url)
+    return parse_recipe_page(html, final_url)
 
 
 def connect_db():
@@ -224,6 +496,37 @@ def apply_schema_migrations(db):
             "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
             (3, "optimistic state revisions", utc_now()),
         )
+    if 4 not in applied:
+        db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS planner_entries (
+                day_key TEXT NOT NULL,
+                slot_id TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                recipe_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (day_key, slot_id, position)
+            );
+            CREATE INDEX IF NOT EXISTS planner_entries_recipe_idx
+                ON planner_entries(recipe_id);
+            CREATE INDEX IF NOT EXISTS planner_entries_day_idx
+                ON planner_entries(day_key, slot_id, position);
+
+            CREATE TABLE IF NOT EXISTS shopping_checks (
+                item_name TEXT PRIMARY KEY,
+                position INTEGER NOT NULL,
+                checked_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS shopping_checks_position_idx
+                ON shopping_checks(position);
+            """
+        )
+        db.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
+            (4, "relational planner and shopping state", utc_now()),
+        )
 
 
 def decode_image_data_url(value):
@@ -307,6 +610,97 @@ def add_projection_warning(db, code, record_id, details, detected_at):
         """,
         (code, record_id, compact_json(details), detected_at),
     )
+
+
+def state_document_without_relational_data(state):
+    document = dict(state or {})
+    document.pop("planner", None)
+    document.pop("bought", None)
+    return document
+
+
+def relational_state(db):
+    planner = {}
+    for row in db.execute(
+        "SELECT day_key, slot_id, recipe_id FROM planner_entries ORDER BY day_key, slot_id, position"
+    ).fetchall():
+        planner.setdefault(row["day_key"], {}).setdefault(row["slot_id"], []).append(row["recipe_id"])
+    bought = [
+        row["item_name"]
+        for row in db.execute("SELECT item_name FROM shopping_checks ORDER BY position, item_name").fetchall()
+    ]
+    return {"planner": planner, "bought": bought}
+
+
+def hydrate_relational_state(db, document):
+    state = dict(document or {})
+    state.update(relational_state(db))
+    return state
+
+
+def sync_planner_and_shopping(db, state, recipe_ids, now):
+    if "planner" in state:
+        planner_created = {
+            (row["day_key"], row["slot_id"], row["recipe_id"]): row["created_at"]
+            for row in db.execute(
+                "SELECT day_key, slot_id, recipe_id, created_at FROM planner_entries"
+            ).fetchall()
+        }
+        db.execute("DELETE FROM planner_entries")
+        planner = state.get("planner") if isinstance(state.get("planner"), dict) else {}
+        for day_key, day_plan in planner.items():
+            if not isinstance(day_plan, dict):
+                add_projection_warning(db, "invalid_planner_day", str(day_key), {}, now)
+                continue
+            for slot_id, selected in day_plan.items():
+                selected_ids = selected if isinstance(selected, list) else [selected]
+                seen_ids = set()
+                position = 0
+                for selected_id in selected_ids:
+                    recipe_id = str(selected_id or "").strip()
+                    if not recipe_id or recipe_id in seen_ids:
+                        continue
+                    seen_ids.add(recipe_id)
+                    if recipe_id not in recipe_ids:
+                        add_projection_warning(
+                            db,
+                            "dangling_planner_recipe",
+                            f"{day_key}:{slot_id}:{recipe_id}",
+                            {"day": str(day_key), "slot": str(slot_id), "recipeId": recipe_id},
+                            now,
+                        )
+                        continue
+                    created_at = planner_created.get((str(day_key), str(slot_id), recipe_id), now)
+                    db.execute(
+                        """
+                        INSERT INTO planner_entries
+                            (day_key, slot_id, position, recipe_id, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        (str(day_key), str(slot_id), position, recipe_id, created_at, now),
+                    )
+                    position += 1
+
+    if "bought" in state:
+        checked_at = {
+            row["item_name"]: row["checked_at"]
+            for row in db.execute("SELECT item_name, checked_at FROM shopping_checks").fetchall()
+        }
+        db.execute("DELETE FROM shopping_checks")
+        bought = state.get("bought") if isinstance(state.get("bought"), list) else []
+        seen_items = set()
+        for position, value in enumerate(bought):
+            item_name = str(value or "").strip()
+            if not item_name or item_name in seen_items:
+                continue
+            seen_items.add(item_name)
+            db.execute(
+                """
+                INSERT INTO shopping_checks (item_name, position, checked_at, updated_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (item_name, position, checked_at.get(item_name, now), now),
+            )
 
 
 def sync_state_projection(db, state, now=None):
@@ -498,6 +892,8 @@ def sync_state_projection(db, state, now=None):
                 (recipe_id, tag_row["id"], tag_position),
             )
 
+    sync_planner_and_shopping(db, state, recipe_ids, now)
+
 
 def init_db():
     with STATE_LOCK, connect_db() as db:
@@ -518,35 +914,40 @@ def init_db():
                 )
             state = json.loads(row["state_json"])
             store_state_image_assets(db, state)
+            sync_state_projection(db, state)
+            document = state_document_without_relational_data(state)
             db.execute(
                 "UPDATE app_state SET state_json = ? WHERE id = ?",
-                (compact_json(state), "default"),
+                (compact_json(document), "default"),
             )
-            sync_state_projection(db, state)
 
 
 def read_state():
     with connect_db() as db:
+        db.execute("BEGIN")
         row = db.execute(
             "SELECT state_json, created_at, updated_at, revision FROM app_state WHERE id = ?",
             ("default",),
         ).fetchone()
-    if not row:
-        return None
-    return {
-        "state": json.loads(row["state_json"]),
-        "createdAt": row["created_at"],
-        "updatedAt": row["updated_at"],
-        "revision": row["revision"],
-    }
+        if not row:
+            return None
+        state = hydrate_relational_state(db, json.loads(row["state_json"]))
+        return {
+            "state": state,
+            "createdAt": row["created_at"],
+            "updatedAt": row["updated_at"],
+            "revision": row["revision"],
+        }
 
 
 def write_state(state, expected_revision=None):
     now = utc_now()
     with STATE_LOCK, connect_db() as db:
         state = json.loads(compact_json(state))
+        state.setdefault("planner", {})
+        state.setdefault("bought", [])
         store_state_image_assets(db, state, now)
-        serialized = compact_json(state)
+        serialized = compact_json(state_document_without_relational_data(state))
         current = db.execute(
             "SELECT state_json, created_at, updated_at, revision FROM app_state WHERE id = ?",
             ("default",),
@@ -560,9 +961,10 @@ def write_state(state, expected_revision=None):
                 )
         if current:
             revision = current["revision"] + 1
+            previous_state = hydrate_relational_state(db, json.loads(current["state_json"]))
             db.execute(
                 "INSERT INTO state_revisions (state_id, state_json, created_at) VALUES (?, ?, ?)",
-                ("default", current["state_json"], now),
+                ("default", compact_json(previous_state), now),
             )
             db.execute(
                 "UPDATE app_state SET state_json = ?, updated_at = ?, revision = ? WHERE id = ?",
@@ -601,6 +1003,8 @@ def schema_status():
             "recipeIngredients": db.execute("SELECT COUNT(*) AS count FROM recipe_ingredients").fetchone()["count"],
             "tags": db.execute("SELECT COUNT(*) AS count FROM tags").fetchone()["count"],
             "images": db.execute("SELECT COUNT(*) AS count FROM image_assets").fetchone()["count"],
+            "plannerEntries": db.execute("SELECT COUNT(*) AS count FROM planner_entries").fetchone()["count"],
+            "shoppingChecks": db.execute("SELECT COUNT(*) AS count FROM shopping_checks").fetchone()["count"],
         }
         warnings = [
             {
@@ -677,8 +1081,10 @@ def mutate_resource(resource, operation, resource_id, item=None, position=None):
             else:
                 for day in (state.get("planner") or {}).values():
                     if isinstance(day, dict):
-                        for slot, planned_id in day.items():
-                            if planned_id == resource_id:
+                        for slot, planned in day.items():
+                            if isinstance(planned, list):
+                                day[slot] = [planned_id for planned_id in planned if planned_id != resource_id]
+                            elif planned == resource_id:
                                 day[slot] = ""
         write_state(state)
     return None if operation == "delete" else item
@@ -710,6 +1116,8 @@ def replace_state_metadata(metadata):
         merged = dict(metadata)
         merged["recipes"] = current.get("recipes") or []
         merged["ingredients"] = current.get("ingredients") or []
+        merged["planner"] = metadata.get("planner", current.get("planner") or {})
+        merged["bought"] = metadata.get("bought", current.get("bought") or [])
         return write_state(merged)
 
 
@@ -735,7 +1143,7 @@ class MacroVaultHandler(BaseHTTPRequestHandler):
             "script-src 'self' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: blob: https:; "
-            "connect-src 'self' https://world.openfoodfacts.org https://api.allorigins.win https://api.codetabs.com https://www.youtube.com https://cdn.jsdelivr.net; "
+            "connect-src 'self' https://world.openfoodfacts.org https://cdn.jsdelivr.net; "
             "worker-src 'self' blob: https://cdn.jsdelivr.net; "
             "media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
         )
@@ -818,11 +1226,40 @@ class MacroVaultHandler(BaseHTTPRequestHandler):
         self.serve_static(parsed.path)
 
     def do_POST(self):
-        resource_path = parse_resource_path(urlparse(self.path).path)
+        parsed_path = urlparse(self.path).path
+        if parsed_path == "/api/import/recipe":
+            self.handle_recipe_import()
+            return
+        resource_path = parse_resource_path(parsed_path)
         if not resource_path or resource_path[1] is not None:
             self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "message": "Not found"})
             return
         self.handle_resource_write("create", resource_path[0], None)
+
+    def handle_recipe_import(self):
+        try:
+            payload = self.read_json_body()
+            url = payload.get("url") if isinstance(payload, dict) else None
+            if not str(url or "").strip():
+                raise ValueError("Recipe URL is required.")
+            recipe = import_recipe_from_url(url)
+        except OverflowError as error:
+            self.send_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "message": str(error)})
+            return
+        except UnsafeImportUrlError as error:
+            self.send_json(HTTPStatus.FORBIDDEN, {"ok": False, "message": str(error)})
+            return
+        except ValueError as error:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "message": str(error)})
+            return
+        except RecipeImportError as error:
+            self.send_json(HTTPStatus.UNPROCESSABLE_ENTITY, {"ok": False, "message": str(error)})
+            return
+        self.send_json(HTTPStatus.OK, {
+            "ok": True,
+            "recipe": recipe,
+            "message": "Imported structured recipe data through Home Assistant.",
+        })
 
     def do_PUT(self):
         parsed_path = urlparse(self.path).path

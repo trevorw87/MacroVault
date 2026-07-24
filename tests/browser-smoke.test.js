@@ -41,9 +41,33 @@ function startServer() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   const pageErrors = [];
+  let importedRecipeUrl = "";
   page.on("pageerror", (error) => pageErrors.push(error.message));
   try {
     const baseUrl = `http://127.0.0.1:${server.address().port}`;
+    await page.route("**/api/import/recipe", async (route) => {
+      importedRecipeUrl = route.request().postDataJSON().url;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          message: "Imported structured recipe data through Home Assistant.",
+          recipe: {
+            name: "Server Imported Pasta",
+            category: "dinner",
+            tags: ["imported", "website"],
+            ingredients: ["200 g pasta", "1 lemon"],
+            method: "Boil pasta, then add lemon.",
+            servings: 2,
+            calories: 420,
+            macros: { protein: 12, carbs: 70, fat: 8 },
+            imageUrl: "",
+            sourceUrl: "https://recipes.example.test/pasta"
+          }
+        })
+      });
+    });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
     await page.waitForSelector("#navTabs .nav-button");
     assert.equal(await page.locator("#navTabs .nav-button").count(), 9);
@@ -71,6 +95,16 @@ function startServer() {
     assert.equal(duplicatedRecipe.favourite, false);
     await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
 
+    await page.getByRole("button", { name: "More", exact: true }).click();
+    await page.getByRole("button", { name: "Import recipe", exact: true }).click();
+    await page.locator("#recipeImportUrl").fill("https://recipes.example.test/pasta");
+    await page.getByRole("button", { name: "Preview import", exact: true }).click();
+    await page.locator("#recipeImportPreview").waitFor({ state: "visible" });
+    assert.equal(importedRecipeUrl, "https://recipes.example.test/pasta");
+    assert.match(await page.locator("#recipeImportPreview").textContent(), /Server Imported Pasta/);
+    assert.match(await page.locator("#recipeImportStatus").textContent(), /through Home Assistant/);
+    await page.locator("#recipeImportDialog").getByRole("button", { name: "Cancel", exact: true }).click();
+
     await page.getByRole("button", { name: "Family", exact: true }).click();
     const familyCardWidths = await page.locator("#kidsLayout .kid-habit-card").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().width));
     assert.ok(familyCardWidths.every((width) => width > 300));
@@ -84,8 +118,48 @@ function startServer() {
     assert.match(await ameliaHabits.textContent(), /Brush teeth \(night\)/);
     assert.match(await ameliaHabits.textContent(), /Shower \/ bath/);
     assert.match(await ameliaHabits.textContent(), /Goodnight story/);
+    assert.equal(await page.locator("#familyRewardCharts .family-reward-card").count(), 2);
+    assert.equal(await page.locator("#familyRewardCharts").getByRole("heading", { name: "Ashley", exact: true }).count(), 0);
+    const ameliaRewardCard = page.locator('[data-family-reward-card="Amelia"]');
+    await ameliaRewardCard.locator("[data-reward-target]").fill("18");
+    await ameliaRewardCard.locator("[data-reward-name]").fill("Movie night");
+    await ameliaRewardCard.getByRole("button", { name: "Save reward", exact: true }).click();
+    const savedReward = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).familyRewards.Amelia);
+    assert.deepEqual(savedReward, { monthlyTarget: 18, reward: "Movie night" });
+
+    await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));
+      Object.keys(saved.kids.Amelia.habits).forEach((habit) => {
+        saved.kids.Amelia.habits[habit] = saved.kids.Amelia.habits[habit].map(() => true);
+      });
+      localStorage.setItem("macrovault.mvp.v1", JSON.stringify(saved));
+    });
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Family", exact: true }).click();
+    const todayReward = await page.evaluate(() => {
+      const now = new Date();
+      const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      return JSON.parse(localStorage.getItem("macrovault.mvp.v1")).familyHabitHistory[dateKey].Amelia;
+    });
+    assert.equal(todayReward.earned, true);
+    assert.equal(todayReward.completed, todayReward.target);
+    assert.match(await page.locator('[data-family-reward-card="Amelia"]').textContent(), /1 of 18 stars earned/);
+
+    const yesterday = await page.evaluate(() => {
+      const date = new Date();
+      date.setDate(date.getDate() - 1);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    });
+    await page.locator("#rewardMonth").fill(yesterday.slice(0, 7));
+    await page.locator("#rewardMonth").dispatchEvent("change");
+    await page.locator(`[data-reward-person="Amelia"][data-reward-date="${yesterday}"]`).click();
+    await page.locator("#uiDialog").getByRole("button", { name: "Mark complete", exact: true }).click();
+    const correctedReward = await page.evaluate((dateKey) => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).familyHabitHistory[dateKey].Amelia, yesterday);
+    assert.equal(correctedReward.earned, true);
+    assert.equal(correctedReward.manual, true);
 
     await page.getByRole("button", { name: "Planner", exact: true }).click();
+    await page.locator('[data-planner-mobile-day="Sunday"]').evaluate((element) => { element.open = true; });
     await page.getByLabel("Add another dish to Sunday Dinner", { exact: true }).selectOption("lemon-salmon");
     const sundayDinnerIds = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).planner.Sunday.dinner);
     assert.deepEqual(sundayDinnerIds, ["slow-cooker-beef", "lemon-salmon"]);

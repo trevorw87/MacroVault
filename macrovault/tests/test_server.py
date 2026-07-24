@@ -6,6 +6,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -80,6 +81,7 @@ def sample_state():
             },
         ],
         "planner": {"2026-07-19": {"breakfast": "recipe-toast"}},
+        "bought": ["Bread"],
     }
 
 
@@ -102,15 +104,131 @@ class DatabaseSandbox:
         server.write_state(state)
 
         stored = server.read_state()
-        self.assertEqual(stored["state"], state)
+        expected_state = {**state, "planner": {"2026-07-19": {"breakfast": ["recipe-toast"]}}}
+        self.assertEqual(stored["state"], expected_state)
         status = server.schema_status()
-        self.assertEqual(status["version"], 3)
+        self.assertEqual(status["version"], 4)
         self.assertEqual(
             status["counts"],
-            {"recipes": 1, "ingredients": 1, "recipeIngredients": 1, "tags": 2, "images": 0},
+            {
+                "recipes": 1,
+                "ingredients": 1,
+                "recipeIngredients": 1,
+                "tags": 2,
+                "images": 0,
+                "plannerEntries": 1,
+                "shoppingChecks": 1,
+            },
         )
         self.assertEqual(status["warnings"][0]["code"], "duplicate_ingredient_id")
         self.assertEqual(server.read_resources("ingredients")[0]["name"], "Bread")
+
+    def test_planner_and_shopping_are_authoritative_relational_data(self):
+        state = sample_state()
+        state["recipes"].append({
+            "id": "recipe-soup",
+            "name": "Soup",
+            "ingredients": [],
+            "ingredientRefs": [],
+        })
+        state["planner"] = {
+            "Monday": {"dinner": ["recipe-toast", "recipe-soup"]},
+            "Tuesday": {"breakfast": "recipe-toast"},
+        }
+        state["bought"] = ["Bread", "Milk"]
+        server.write_state(state)
+
+        with server.connect_db() as db:
+            document = json.loads(db.execute(
+                "SELECT state_json FROM app_state WHERE id = ?", ("default",)
+            ).fetchone()["state_json"])
+            planner_rows = db.execute(
+                "SELECT day_key, slot_id, position, recipe_id FROM planner_entries ORDER BY day_key, slot_id, position"
+            ).fetchall()
+            shopping_rows = db.execute(
+                "SELECT item_name, position FROM shopping_checks ORDER BY position"
+            ).fetchall()
+            self.assertNotIn("planner", document)
+            self.assertNotIn("bought", document)
+            self.assertEqual(
+                [tuple(row) for row in planner_rows],
+                [
+                    ("Monday", "dinner", 0, "recipe-toast"),
+                    ("Monday", "dinner", 1, "recipe-soup"),
+                    ("Tuesday", "breakfast", 0, "recipe-toast"),
+                ],
+            )
+            self.assertEqual([tuple(row) for row in shopping_rows], [("Bread", 0), ("Milk", 1)])
+
+            db.execute("DELETE FROM planner_entries WHERE day_key = 'Tuesday'")
+            db.execute("DELETE FROM shopping_checks WHERE item_name = 'Milk'")
+
+        stored = server.read_state()["state"]
+        self.assertEqual(stored["planner"], {"Monday": {"dinner": ["recipe-toast", "recipe-soup"]}})
+        self.assertEqual(stored["bought"], ["Bread"])
+
+        server.init_db()
+        self.assertEqual(server.read_state()["state"]["planner"], stored["planner"])
+        self.assertEqual(server.read_state()["state"]["bought"], stored["bought"])
+
+        server.mutate_resource("recipes", "delete", "recipe-soup")
+        self.assertEqual(server.read_state()["state"]["planner"], {"Monday": {"dinner": ["recipe-toast"]}})
+        with server.connect_db() as db:
+            revision = json.loads(db.execute(
+                "SELECT state_json FROM state_revisions ORDER BY id DESC LIMIT 1"
+            ).fetchone()["state_json"])
+            self.assertEqual(revision["planner"], {"Monday": {"dinner": ["recipe-toast", "recipe-soup"]}})
+            self.assertEqual(revision["bought"], ["Bread"])
+
+    def test_legacy_document_planner_and_shopping_migrate_once(self):
+        state = sample_state()
+        server.write_state(state)
+        with server.connect_db() as db:
+            db.execute("DROP TABLE planner_entries")
+            db.execute("DROP TABLE shopping_checks")
+            db.execute("DELETE FROM schema_migrations WHERE version = 4")
+            db.execute(
+                "UPDATE app_state SET state_json = ? WHERE id = ?",
+                (json.dumps(state), "default"),
+            )
+
+        server.init_db()
+        server.init_db()
+        migrated = server.read_state()["state"]
+        self.assertEqual(migrated["planner"], {"2026-07-19": {"breakfast": ["recipe-toast"]}})
+        self.assertEqual(migrated["bought"], ["Bread"])
+        with server.connect_db() as db:
+            document = json.loads(db.execute(
+                "SELECT state_json FROM app_state WHERE id = ?", ("default",)
+            ).fetchone()["state_json"])
+            self.assertNotIn("planner", document)
+            self.assertNotIn("bought", document)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM planner_entries").fetchone()[0], 1)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM shopping_checks").fetchone()[0], 1)
+
+    def test_recipe_json_ld_parser_and_private_url_protection(self):
+        html = """
+        <html><head><title>Fallback title</title><link rel="canonical" href="/recipes/lemon-pasta">
+        <script type="application/ld+json">
+        {"@context":"https://schema.org","@type":"Recipe","name":"Lemon Pasta",
+         "recipeIngredient":["200 g pasta","1 lemon"],"recipeYield":"Serves 4",
+         "recipeInstructions":[{"@type":"HowToStep","text":"Boil pasta."},{"@type":"HowToStep","text":"Add lemon."}],
+         "nutrition":{"calories":"420 kcal","proteinContent":"12 g","carbohydrateContent":"70 g","fatContent":"8 g"},
+         "image":{"url":"/images/pasta.jpg"}}
+        </script></head></html>
+        """
+        recipe = server.parse_recipe_page(html, "https://recipes.example.test/original")
+        self.assertEqual(recipe["name"], "Lemon Pasta")
+        self.assertEqual(recipe["ingredients"], ["200 g pasta", "1 lemon"])
+        self.assertEqual(recipe["method"], "Boil pasta.\nAdd lemon.")
+        self.assertEqual(recipe["servings"], 4)
+        self.assertEqual(recipe["calories"], 420)
+        self.assertEqual(recipe["sourceUrl"], "https://recipes.example.test/recipes/lemon-pasta")
+        self.assertEqual(recipe["imageUrl"], "https://recipes.example.test/images/pasta.jpg")
+
+        for unsafe_url in ("http://127.0.0.1/recipe", "http://localhost/recipe", "http://[::1]/recipe"):
+            with self.assertRaises(server.UnsafeImportUrlError):
+                server.validate_external_url(unsafe_url)
 
     def test_resource_mutations_keep_state_and_projection_in_sync(self):
         server.write_state(sample_state())
@@ -204,6 +322,9 @@ class ApiTestCase(DatabaseSandbox, unittest.TestCase):
     test_resource_mutations_keep_state_and_projection_in_sync = None
     test_embedded_images_move_to_server_table = None
     test_external_export_migrates_when_provided = None
+    test_planner_and_shopping_are_authoritative_relational_data = None
+    test_legacy_document_planner_and_shopping_migrate_once = None
+    test_recipe_json_ld_parser_and_private_url_protection = None
 
     def setUp(self):
         DatabaseSandbox.setUp(self)
@@ -300,7 +421,17 @@ class ApiTestCase(DatabaseSandbox, unittest.TestCase):
         status, payload = self.request("GET", "/api/state")
         self.assertEqual(status, 200)
         self.assertEqual(payload["state"]["recipes"][0]["name"], "Resource API Toast")
-        self.assertEqual(payload["state"]["planner"]["2026-07-20"]["breakfast"], "recipe-toast")
+        self.assertEqual(payload["state"]["planner"]["2026-07-20"]["breakfast"], ["recipe-toast"])
+
+        status, _ = self.request(
+            "PATCH",
+            "/api/state",
+            {"state": {"configuration": {"appName": "MacroVault"}}},
+        )
+        self.assertEqual(status, 200)
+        _, preserved = self.request("GET", "/api/state")
+        self.assertEqual(preserved["state"]["planner"], payload["state"]["planner"])
+        self.assertEqual(preserved["state"]["bought"], payload["state"]["bought"])
 
     def test_state_writes_reject_stale_revisions(self):
         status, current = self.request("GET", "/api/state")
@@ -342,10 +473,39 @@ class ApiTestCase(DatabaseSandbox, unittest.TestCase):
         self.assertEqual(headers["Content-Type"], "image/png")
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
         self.assertIn("default-src 'self'", headers["Content-Security-Policy"])
+        self.assertNotIn("allorigins", headers["Content-Security-Policy"])
+        self.assertNotIn("codetabs", headers["Content-Security-Policy"])
         self.assertTrue(data.startswith(b"\x89PNG"))
 
         status, _, _ = self.raw_request("GET", "/api/images/missing")
         self.assertEqual(status, 404)
+
+    def test_server_side_recipe_import_endpoint(self):
+        recipe = {
+            "name": "Server Pasta",
+            "category": "dinner",
+            "tags": ["imported", "website"],
+            "ingredients": ["200 g pasta"],
+            "method": "Boil pasta.",
+            "servings": 2,
+            "calories": 400,
+            "macros": {"protein": 10, "carbs": 70, "fat": 8},
+            "imageUrl": "https://recipes.example.test/pasta.jpg",
+            "sourceUrl": "https://recipes.example.test/pasta",
+        }
+        with mock.patch.object(server, "import_recipe_from_url", return_value=recipe) as importer:
+            status, payload = self.request(
+                "POST", "/api/import/recipe", {"url": "https://recipes.example.test/pasta"}
+            )
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["recipe"], recipe)
+        importer.assert_called_once_with("https://recipes.example.test/pasta")
+
+        status, blocked = self.request(
+            "POST", "/api/import/recipe", {"url": "http://127.0.0.1/private"}
+        )
+        self.assertEqual(status, 403)
+        self.assertIn("Private or local", blocked["message"])
 
 
 if __name__ == "__main__":

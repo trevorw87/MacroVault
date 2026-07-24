@@ -4,7 +4,7 @@
   "packageManager": "pnpm@11.9.0",
   "scripts": {
     "test": "node tests/barcode-nutrition.test.js && node tests/frontend-utils.test.js && node tests/packaging.test.js",
-    "test:browser": "node tests/browser-smoke.test.js",
+    "test:browser": "node tests/browser-smoke.test.js && node tests/responsive-planner-shopping.test.js",
     "sync:addon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-addon-assets.ps1"
   },
   "devDependencies": {
