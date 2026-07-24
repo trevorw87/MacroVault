@@ -374,27 +374,12 @@
   min-height: 14px;
 }
 
-.planner-table {
-  display: grid;
-  grid-template-columns: minmax(160px, 0.8fr) repeat(9, minmax(170px, 1fr));
-  gap: 8px;
-  width: max(100%, 1830px);
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  font-family: var(--body-font);
-}
-
-.planner-corner,
 .planner-meal-label,
 .planner-day-heading,
 .planner-cell {
   min-width: 0;
 }
 
-.planner-corner,
 .planner-meal-label {
   display: flex;
   flex-direction: column;
@@ -600,6 +585,129 @@
   font-size: 0.78rem;
   font-weight: 850;
   box-shadow: 0 5px 14px rgba(18, 26, 45, 0.035);
+}
+
+.planner-grid {
+  overflow-x: visible;
+}
+
+.planner-week {
+  display: grid;
+  gap: 14px;
+}
+
+.planner-day-section {
+  overflow: hidden;
+  border: 1px solid rgba(111, 154, 86, 0.18);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 26px rgba(24, 63, 34, 0.06);
+}
+
+.planner-day-section.today {
+  border-color: rgba(69, 158, 61, 0.42);
+  box-shadow: 0 12px 30px rgba(69, 158, 61, 0.11);
+}
+
+.planner-day-section > summary {
+  position: relative;
+  display: block;
+  padding-right: 46px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.planner-day-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.planner-day-section > summary::after {
+  content: "+";
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  color: var(--green-dark);
+  background: var(--green-soft);
+  font-size: 1.15rem;
+  font-weight: 950;
+  transform: translateY(-50%);
+}
+
+.planner-day-section[open] > summary::after {
+  content: "−";
+}
+
+.planner-day-section .planner-day-heading {
+  position: static;
+  display: grid;
+  grid-template-columns: minmax(110px, auto) auto minmax(180px, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 0;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(135deg, #f6fbf3, #fffaf0);
+  box-shadow: none;
+}
+
+.planner-day-section.today .planner-day-heading {
+  background: linear-gradient(135deg, #edf8e8, #fff8e8);
+}
+
+.planner-day-section .planner-remaining {
+  justify-self: end;
+  text-align: right;
+}
+
+.planner-day-meals {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid rgba(111, 154, 86, 0.14);
+}
+
+.planner-slot-column {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.planner-slot-column .planner-meal-label {
+  min-height: 64px;
+  padding: 10px;
+  border-radius: 14px;
+  font-size: 0.82rem;
+}
+
+.planner-slot-column .planner-cell {
+  min-height: 186px;
+  padding: 9px 7px;
+  border-radius: 15px;
+}
+
+.planner-slot-column .planner-dish .meal-thumb,
+.planner-slot-column .planner-empty-dish .meal-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+}
+
+.planner-slot-column .planner-meal-pick strong {
+  font-size: 0.79rem;
+}
+
+.planner-slot-column .planner-cell select {
+  padding-inline: 8px;
+  font-size: 0.72rem;
 }
 
 .meal-thumb {

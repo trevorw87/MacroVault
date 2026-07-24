@@ -364,42 +364,43 @@ function updateIngredientsWithGenericNutrition() {
   showToast(`Updated generic nutrition for ${changed} ingredient${changed === 1 ? "" : "s"}.`, { type: "success" });
 }
 
-function convertPlannerToMobile(plannerGrid) {
-  const table = plannerGrid.querySelector(".planner-table");
-  if (!table) return;
-  const tableChildren = [...table.children];
-  const slotHeadings = tableChildren.slice(1, mealPlanSlots.length + 1);
-  const dayRows = days.map((day, dayIndex) => {
-    const rowStart = mealPlanSlots.length + 1 + (dayIndex * (mealPlanSlots.length + 1));
-    return {
-      day,
-      heading: tableChildren[rowStart],
-      cells: tableChildren.slice(rowStart + 1, rowStart + 1 + mealPlanSlots.length)
-    };
-  });
-  const mobile = document.createElement("div");
-  mobile.className = "planner-mobile";
-  const today = days[new Date().getDay()];
-  days.forEach((day, dayIndex) => {
-    const details = document.createElement("details");
-    details.className = "planner-mobile-day";
-    details.dataset.plannerMobileDay = day;
-    details.open = day === today;
-    const summary = document.createElement("summary");
-    summary.append(dayRows[dayIndex].heading);
-    details.append(summary);
-    const slots = document.createElement("div");
-    slots.className = "planner-mobile-slots";
-    mealPlanSlots.forEach((slot, slotIndex) => {
-      const section = document.createElement("section");
-      section.className = "planner-mobile-slot";
-      section.append(slotHeadings[slotIndex].cloneNode(true), dayRows[dayIndex].cells[slotIndex]);
-      slots.append(section);
-    });
-    details.append(slots);
-    mobile.append(details);
-  });
-  plannerGrid.replaceChildren(mobile);
+function plannerCellMarkup(day, slot) {
+  const selectedIds = plannerRecipeIds(day, slot.id);
+  const selectedRecipes = plannerRecipes(day, slot);
+  const options = recipesForSlot(slot)
+    .filter((recipe) => !selectedIds.includes(recipe.id))
+    .map((recipe) => `<option value="${escapeHtml(recipe.id)}">${escapeHtml(recipe.name)} (${caloriesPerServing(recipe)} kcal / ${macrosPerServing(recipe).protein}g protein)</option>`)
+    .join("");
+  const controlId = `planner-${slugify(day)}-${slot.id}`;
+  return `
+    <div class="planner-cell">
+      <div class="planner-dish-list">
+        ${selectedRecipes.length ? selectedRecipes.map((recipe) => `
+          <article class="planner-dish">
+            ${mealThumbnailMarkup(recipe, slot.label)}
+            <div class="planner-meal-pick">
+              <strong>${escapeHtml(recipe.name)}</strong>
+              <span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} / ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>
+              <label class="recipe-prepared-toggle planner-prepared-toggle">
+                <input type="checkbox" ${recipe.prepared ? "checked" : ""} data-recipe-prepared="${escapeHtml(recipe.id)}">
+                <span>${recipe.prepared ? "In freezer / prepared" : "Not prepared"}</span>
+              </label>
+            </div>
+            <button class="planner-remove-dish" data-remove-planner-recipe="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" type="button" aria-label="Remove ${escapeHtml(recipe.name)} from ${day} ${slot.label}" title="Remove dish">&times;</button>
+          </article>
+        `).join("") : `
+          <div class="planner-empty-dish">
+            ${mealThumbnailMarkup(null, slot.label)}
+            <strong>Choose ${slot.label.toLowerCase()}</strong>
+          </div>
+        `}
+      </div>
+      <select id="${controlId}" aria-label="Add another dish to ${day} ${slot.label}" data-planner-add-day="${day}" data-planner-add-slot="${slot.id}" ${options ? "" : "disabled"}>
+        <option value="">${selectedRecipes.length ? "Add another dish" : `Choose ${slot.label.toLowerCase()}`}</option>
+        ${options}
+      </select>
+    </div>
+  `;
 }
 
 function renderPlanner() {
@@ -409,76 +410,45 @@ function renderPlanner() {
   if (calorieGoalInput && document.activeElement !== calorieGoalInput) calorieGoalInput.value = goals.calories;
   if (proteinGoalInput && document.activeElement !== proteinGoalInput) proteinGoalInput.value = goals.protein;
 
+  const mobilePlanner = window.matchMedia("(max-width: 760px)").matches;
+  const today = days[new Date().getDay()];
   document.querySelector("#plannerGrid").innerHTML = `
-    <p class="planner-scroll-hint">Swipe or scroll sideways to move through meals from morning to evening.</p>
-    <div class="planner-table">
-      <div class="planner-corner">Day</div>
-      ${mealPlanSlots.map((slot) => `
-        <div class="planner-meal-label" data-planner-column="${slot.id}">
-          <span>${slot.label}</span>
-          ${slot.timing ? `<small>${slot.timing}</small>` : ""}
-        </div>
-      `).join("")}
+    <div class="planner-week planner-mobile">
       ${days.map((day) => {
         const remaining = nutritionGoalRemainingForDay(day);
+        const expanded = !mobilePlanner || day === today;
         return `
-          <div class="planner-day-heading" data-planner-row="${day}">
-            <h3>${day}</h3>
-            <div class="planner-totals">
-              <strong>${formatPlannerNumber(plannedCaloriesForDay(day), "kcal")}</strong>
-              <strong>${formatPlannerNumber(plannedProteinForDay(day), "protein")}</strong>
-            </div>
-            <div class="planner-remaining ${remaining.met ? "met" : ""}">
-              ${remaining.met
-                ? "Daily goal met"
-                : `Still need ${formatPlannerNumber(remaining.calories, "kcal")} / ${formatPlannerNumber(remaining.protein, "protein")}`}
-            </div>
-          </div>
-          ${mealPlanSlots.map((slot) => {
-          const selectedIds = plannerRecipeIds(day, slot.id);
-          const selectedRecipes = plannerRecipes(day, slot);
-          const options = recipesForSlot(slot)
-            .filter((recipe) => !selectedIds.includes(recipe.id))
-            .map((recipe) => `<option value="${escapeHtml(recipe.id)}">${escapeHtml(recipe.name)} (${caloriesPerServing(recipe)} kcal / ${macrosPerServing(recipe).protein}g protein)</option>`)
-            .join("");
-          const controlId = `planner-${slugify(day)}-${slot.id}`;
-          return `
-            <div class="planner-cell">
-              <div class="planner-dish-list">
-                ${selectedRecipes.length ? selectedRecipes.map((recipe) => `
-                  <article class="planner-dish">
-                    ${mealThumbnailMarkup(recipe, slot.label)}
-                    <div class="planner-meal-pick">
-                      <strong>${escapeHtml(recipe.name)}</strong>
-                      <span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} / ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>
-                      <label class="recipe-prepared-toggle planner-prepared-toggle">
-                        <input type="checkbox" ${recipe.prepared ? "checked" : ""} data-recipe-prepared="${escapeHtml(recipe.id)}">
-                        <span>${recipe.prepared ? "In freezer / prepared" : "Not prepared"}</span>
-                      </label>
-                    </div>
-                    <button class="planner-remove-dish" data-remove-planner-recipe="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" type="button" aria-label="Remove ${escapeHtml(recipe.name)} from ${day} ${slot.label}" title="Remove dish">×</button>
-                  </article>
-                `).join("") : `
-                  <div class="planner-empty-dish">
-                    ${mealThumbnailMarkup(null, slot.label)}
-                    <strong>Choose ${slot.label.toLowerCase()}</strong>
-                  </div>
-                `}
+          <details class="planner-day-section planner-mobile-day ${day === today ? "today" : ""}" data-planner-mobile-day="${day}" ${expanded ? "open" : ""}>
+            <summary>
+              <div class="planner-day-heading" data-planner-row="${day}">
+                <h3>${day}</h3>
+                <div class="planner-totals">
+                  <strong>${formatPlannerNumber(plannedCaloriesForDay(day), "kcal")}</strong>
+                  <strong>${formatPlannerNumber(plannedProteinForDay(day), "protein")}</strong>
+                </div>
+                <div class="planner-remaining ${remaining.met ? "met" : ""}">
+                  ${remaining.met
+                    ? "Daily goal met"
+                    : `Still need ${formatPlannerNumber(remaining.calories, "kcal")} / ${formatPlannerNumber(remaining.protein, "protein")}`}
+                </div>
               </div>
-              <select id="${controlId}" aria-label="Add another dish to ${day} ${slot.label}" data-planner-add-day="${day}" data-planner-add-slot="${slot.id}" ${options ? "" : "disabled"}>
-                <option value="">${selectedRecipes.length ? "Add another dish" : `Choose ${slot.label.toLowerCase()}`}</option>
-                ${options}
-              </select>
+            </summary>
+            <div class="planner-day-meals planner-mobile-slots">
+              ${mealPlanSlots.map((slot) => `
+                <section class="planner-slot-column planner-mobile-slot" data-planner-column="${slot.id}">
+                  <div class="planner-meal-label">
+                    <span>${slot.label}</span>
+                    ${slot.timing ? `<small>${slot.timing}</small>` : ""}
+                  </div>
+                  ${plannerCellMarkup(day, slot)}
+                </section>
+              `).join("")}
             </div>
-          `;
-        }).join("")}
+          </details>
         `;
       }).join("")}
     </div>
   `;
-  if (window.matchMedia("(max-width: 760px)").matches) {
-    convertPlannerToMobile(document.querySelector("#plannerGrid"));
-  }
 }
 
 function renderShopping() {

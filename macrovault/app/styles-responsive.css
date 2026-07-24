@@ -231,6 +231,35 @@
   }
 }
 
+@media (min-width: 761px) and (max-width: 1500px) {
+  .planner-day-meals {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .planner-slot-column .planner-cell {
+    min-height: 0;
+  }
+
+  .planner-slot-column .planner-dish {
+    grid-template-columns: 72px minmax(0, 1fr) auto;
+    justify-items: start;
+  }
+
+  .planner-slot-column .planner-dish .meal-thumb {
+    width: 72px;
+    height: 72px;
+  }
+
+  .planner-slot-column .planner-meal-pick {
+    text-align: left;
+  }
+
+  .planner-slot-column .planner-recipe-nutrition,
+  .planner-slot-column .planner-prepared-toggle {
+    justify-self: start;
+  }
+}
+
 @media (max-width: 760px) {
   .main {
     padding: 16px;
@@ -317,11 +346,6 @@
     width: calc(100vw - 32px);
   }
 
-  .planner-table {
-    width: max(100%, 1830px);
-    grid-template-columns: minmax(160px, 0.8fr) repeat(9, minmax(170px, 1fr));
-  }
-
   .planner-cell {
     grid-template-columns: 1fr;
     min-height: 176px;
@@ -348,10 +372,6 @@
 }
 
 @media (min-width: 761px) and (max-width: 1320px) {
-  .planner-table {
-    grid-template-columns: minmax(160px, 0.8fr) repeat(9, minmax(170px, 1fr));
-  }
-
   .planner-cell {
     grid-template-columns: 1fr;
     gap: 8px;
@@ -1229,10 +1249,6 @@ textarea:focus-visible,
   }
 }
 
-.planner-scroll-hint {
-  display: none;
-}
-
 .dashboard-meal-card.small {
   height: auto;
   min-height: 112px;
@@ -1285,27 +1301,6 @@ textarea:focus-visible,
   .nav-button {
     flex: 0 0 78px;
     width: 78px;
-  }
-}
-
-@media (min-width: 761px) {
-  .planner-scroll-hint {
-    position: sticky;
-    left: 0;
-    display: block;
-    width: fit-content;
-    margin: 0 0 8px;
-    padding: 7px 10px;
-    border-radius: 999px;
-    color: var(--green-dark);
-    background: var(--green-soft);
-    font-size: 0.78rem;
-    font-weight: 850;
-  }
-
-  .planner-table {
-    width: max(100%, 1830px);
-    grid-template-columns: minmax(160px, 0.8fr) repeat(9, minmax(170px, 1fr));
   }
 }
 
@@ -1400,6 +1395,8 @@ textarea:focus-visible,
 
   .planner-mobile-day .planner-day-heading {
     position: static;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
     min-height: 0;
     padding: 12px 14px;
     border: 0;
@@ -1410,8 +1407,14 @@ textarea:focus-visible,
 
   .planner-mobile-day .planner-totals { flex-direction: row; }
 
+  .planner-mobile-day .planner-remaining {
+    justify-self: start;
+    text-align: left;
+  }
+
   .planner-mobile-slots {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     padding: 10px;
     border-top: 1px solid rgba(111, 154, 86, 0.14);

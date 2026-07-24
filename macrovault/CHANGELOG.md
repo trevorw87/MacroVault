@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.7
+
+- Replaced the horizontally scrolling planner table with collapsible full-width day sections.
+- Added responsive nine-column, 3-by-3, and single-column meal layouts for wide screens, standard desktops and tablets, and phones.
+- Preserved chronological meal progression while removing planner and page overflow.
+
 ## 0.9.6
 
 - Moved the sample-data reset into a Settings danger zone with an initial warning and exact typed confirmation.

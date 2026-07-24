@@ -62,20 +62,20 @@ function startServer() {
 
     await page.getByRole("button", { name: "Planner", exact: true }).click();
     const desktopPlannerAxis = await page.evaluate(() => {
-      const table = document.querySelector(".planner-table");
-      const children = [...table.children];
+      const sunday = document.querySelector('[data-planner-mobile-day="Sunday"]');
+      const mealGrid = sunday.querySelector(".planner-day-meals");
       return {
-        corner: children[0].textContent.trim(),
-        mealColumns: children.slice(1, 10).map((element) => element.dataset.plannerColumn),
-        firstDayRow: children[10].dataset.plannerRow,
-        dayRows: table.querySelectorAll("[data-planner-row]").length,
+        mealColumns: [...mealGrid.children].map((element) => element.dataset.plannerColumn),
+        firstDayRow: document.querySelector("[data-planner-row]").dataset.plannerRow,
+        daySections: document.querySelectorAll(".planner-day-section").length,
+        verticalDayCards: document.querySelectorAll(".planner-corner").length,
+        mealGridColumns: getComputedStyle(mealGrid).gridTemplateColumns.split(" ").length,
         documentWidth: document.documentElement.scrollWidth,
         viewportWidth: window.innerWidth,
         gridClientWidth: document.querySelector("#plannerGrid").clientWidth,
         gridScrollWidth: document.querySelector("#plannerGrid").scrollWidth
       };
     });
-    assert.equal(desktopPlannerAxis.corner, "Day");
     assert.deepEqual(desktopPlannerAxis.mealColumns, [
       "beforeBreakfastDrink",
       "breakfast",
@@ -88,9 +88,18 @@ function startServer() {
       "afterTreatDrink"
     ]);
     assert.equal(desktopPlannerAxis.firstDayRow, "Sunday");
-    assert.equal(desktopPlannerAxis.dayRows, 7);
+    assert.equal(desktopPlannerAxis.daySections, 7);
+    assert.equal(desktopPlannerAxis.verticalDayCards, 0);
+    assert.equal(desktopPlannerAxis.mealGridColumns, 3);
     assert.equal(desktopPlannerAxis.documentWidth, desktopPlannerAxis.viewportWidth);
-    assert.ok(desktopPlannerAxis.gridScrollWidth > desktopPlannerAxis.gridClientWidth);
+    assert.ok(desktopPlannerAxis.gridScrollWidth <= desktopPlannerAxis.gridClientWidth + 1);
+
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Planner", exact: true }).click();
+    const wideMealGrid = page.locator('[data-planner-mobile-day="Sunday"] .planner-day-meals');
+    assert.equal(await wideMealGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 9);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 1600);
 
     await page.setViewportSize({ width: 900, height: 1000 });
     await page.reload({ waitUntil: "networkidle" });
@@ -100,7 +109,7 @@ function startServer() {
     });
     assert.ok(tabletNavTopSpread <= 1);
     await page.getByRole("button", { name: "Planner", exact: true }).click();
-    assert.ok(await page.locator(".planner-scroll-hint").isVisible());
+    assert.equal(await page.locator(".planner-scroll-hint").count(), 0);
     const tabletPlanner = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
@@ -108,7 +117,7 @@ function startServer() {
       gridScrollWidth: document.querySelector("#plannerGrid").scrollWidth
     }));
     assert.equal(tabletPlanner.documentWidth, tabletPlanner.viewportWidth);
-    assert.ok(tabletPlanner.gridScrollWidth > tabletPlanner.gridClientWidth);
+    assert.ok(tabletPlanner.gridScrollWidth <= tabletPlanner.gridClientWidth + 1);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.reload({ waitUntil: "networkidle" });
