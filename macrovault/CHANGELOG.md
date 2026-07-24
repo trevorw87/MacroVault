@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.8
+
+- Aligned planner meal headings, recipe cards, prepared controls, and add-dish selectors across each day.
+- Reserved consistent space for wrapped recipe names and nutrition badges while allowing multiple dishes to expand naturally.
+- Added browser geometry checks that prevent wide-screen planner alignment regressions.
+
 ## 0.9.7
 
 - Replaced the horizontally scrolling planner table with collapsible full-width day sections.

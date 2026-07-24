@@ -242,7 +242,17 @@
 
   .planner-slot-column .planner-dish {
     grid-template-columns: 72px minmax(0, 1fr) auto;
+    grid-template-rows: auto;
     justify-items: start;
+    min-height: 132px;
+  }
+
+  .planner-slot-column .planner-dish-list {
+    grid-auto-rows: minmax(132px, auto);
+  }
+
+  .planner-slot-column .planner-empty-dish {
+    min-height: 132px;
   }
 
   .planner-slot-column .planner-dish .meal-thumb {
@@ -1431,7 +1441,13 @@ textarea:focus-visible,
   }
 
   .planner-mobile-slot .planner-cell { min-height: 0; padding: 9px; }
-  .planner-mobile-slot .planner-dish { grid-template-columns: 72px minmax(0, 1fr) auto; }
+  .planner-mobile-slot .planner-dish-list { grid-auto-rows: auto; }
+  .planner-mobile-slot .planner-dish {
+    grid-template-columns: 72px minmax(0, 1fr) auto;
+    grid-template-rows: auto;
+    min-height: 0;
+  }
+  .planner-mobile-slot .planner-empty-dish { min-height: 0; }
   .planner-mobile-slot .meal-thumb { width: 72px; height: 72px; }
 }
 

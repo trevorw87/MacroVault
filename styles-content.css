@@ -668,17 +668,19 @@
 .planner-day-meals {
   display: grid;
   grid-template-columns: repeat(9, minmax(0, 1fr));
-  gap: 8px;
+  align-items: stretch;
+  gap: 10px;
   padding: 10px;
   border-top: 1px solid rgba(111, 154, 86, 0.14);
 }
 
 .planner-slot-column {
   display: grid;
-  grid-template-rows: auto 1fr;
-  align-content: start;
+  grid-template-rows: 64px minmax(0, 1fr);
+  align-content: stretch;
   gap: 8px;
   min-width: 0;
+  height: 100%;
 }
 
 .planner-slot-column .planner-meal-label {
@@ -689,9 +691,25 @@
 }
 
 .planner-slot-column .planner-cell {
-  min-height: 186px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 270px;
+  height: 100%;
   padding: 9px 7px;
   border-radius: 15px;
+}
+
+.planner-slot-column .planner-dish-list {
+  grid-auto-rows: minmax(204px, auto);
+  align-content: start;
+}
+
+.planner-slot-column .planner-dish,
+.planner-slot-column .planner-empty-dish {
+  min-height: 204px;
+}
+
+.planner-slot-column .planner-dish {
+  grid-template-rows: 60px minmax(0, 1fr);
 }
 
 .planner-slot-column .planner-dish .meal-thumb,
@@ -702,7 +720,29 @@
 }
 
 .planner-slot-column .planner-meal-pick strong {
+  display: -webkit-box;
+  min-height: 44px;
+  max-height: 44px;
+  overflow: hidden;
   font-size: 0.79rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.planner-slot-column .planner-meal-pick {
+  grid-template-rows: 44px 32px 30px;
+  align-content: start;
+}
+
+.planner-slot-column .planner-recipe-nutrition {
+  min-height: 32px;
+  max-height: 32px;
+  overflow: hidden;
+  text-align: center;
+}
+
+.planner-slot-column .planner-prepared-toggle {
+  min-height: 30px;
 }
 
 .planner-slot-column .planner-cell select {

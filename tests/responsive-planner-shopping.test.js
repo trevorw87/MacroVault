@@ -100,6 +100,18 @@ function startServer() {
     const wideMealGrid = page.locator('[data-planner-mobile-day="Sunday"] .planner-day-meals');
     assert.equal(await wideMealGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 9);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 1600);
+    const wideAlignment = await wideMealGrid.evaluate((element) => {
+      const spread = (values) => Math.max(...values) - Math.min(...values);
+      const columns = [...element.querySelectorAll(":scope > .planner-slot-column")];
+      return {
+        labelBottomSpread: spread(columns.map((column) => column.querySelector(".planner-meal-label").getBoundingClientRect().bottom)),
+        dishHeightSpread: spread(columns.map((column) => column.querySelector(".planner-dish, .planner-empty-dish").getBoundingClientRect().height)),
+        selectBottomSpread: spread(columns.map((column) => column.querySelector("select").getBoundingClientRect().bottom))
+      };
+    });
+    assert.ok(wideAlignment.labelBottomSpread <= 1, JSON.stringify(wideAlignment));
+    assert.ok(wideAlignment.dishHeightSpread <= 1, JSON.stringify(wideAlignment));
+    assert.ok(wideAlignment.selectBottomSpread <= 1, JSON.stringify(wideAlignment));
 
     await page.setViewportSize({ width: 900, height: 1000 });
     await page.reload({ waitUntil: "networkidle" });
