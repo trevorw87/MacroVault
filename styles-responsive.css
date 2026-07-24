@@ -318,8 +318,8 @@
   }
 
   .planner-table {
-    width: max(100%, 1320px);
-    grid-template-columns: minmax(130px, 0.75fr) repeat(7, minmax(170px, 1fr));
+    width: max(100%, 1830px);
+    grid-template-columns: minmax(160px, 0.8fr) repeat(9, minmax(170px, 1fr));
   }
 
   .planner-cell {
@@ -349,7 +349,7 @@
 
 @media (min-width: 761px) and (max-width: 1320px) {
   .planner-table {
-    grid-template-columns: minmax(118px, 0.58fr) repeat(7, minmax(0, 1fr));
+    grid-template-columns: minmax(160px, 0.8fr) repeat(9, minmax(170px, 1fr));
   }
 
   .planner-cell {
@@ -1288,7 +1288,7 @@ textarea:focus-visible,
   }
 }
 
-@media (min-width: 761px) and (max-width: 1320px) {
+@media (min-width: 761px) {
   .planner-scroll-hint {
     position: sticky;
     left: 0;
@@ -1304,8 +1304,8 @@ textarea:focus-visible,
   }
 
   .planner-table {
-    width: max(100%, 1320px);
-    grid-template-columns: minmax(130px, 0.72fr) repeat(7, minmax(170px, 1fr));
+    width: max(100%, 1830px);
+    grid-template-columns: minmax(160px, 0.8fr) repeat(9, minmax(170px, 1fr));
   }
 }
 
@@ -1399,6 +1399,7 @@ textarea:focus-visible,
   .planner-mobile-day[open] summary::after { content: "−"; }
 
   .planner-mobile-day .planner-day-heading {
+    position: static;
     min-height: 0;
     padding: 12px 14px;
     border: 0;

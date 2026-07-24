@@ -6,7 +6,7 @@
     <title>MacroVault</title>
     <meta name="theme-color" content="#399b3f">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=125">
+    <link rel="stylesheet" href="styles.css?v=126">
   </head>
   <body>
     <div class="app-shell">
@@ -32,9 +32,6 @@
             </div>
           </div>
           <div class="topbar-actions">
-            <button class="icon-button" id="seedButton" aria-label="Reload sample data" title="Reload sample data" type="button">
-              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg>
-            </button>
             <div class="profile-avatar" id="profileAvatar" aria-label="Ashley profile">A</div>
             <div class="action-overflow" id="actionOverflow">
               <button class="secondary-button more-actions-button" id="moreActionsButton" type="button" aria-expanded="false" aria-controls="moreActionsMenu">
@@ -280,6 +277,23 @@
                 <button class="secondary-button" id="addConfigMemberButton" type="button">Add member</button>
               </div>
               <div class="settings-member-list" id="configMemberRows"></div>
+            </section>
+
+            <section class="section-block settings-card settings-danger-zone" aria-labelledby="dataResetHeading">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Danger zone</p>
+                  <h2 id="dataResetHeading">Reset application data</h2>
+                  <p class="muted">Only use this when you want to replace the household's recipes, planner, shopping, family, and private records.</p>
+                </div>
+              </div>
+              <div class="settings-danger-action">
+                <div>
+                  <strong>Reset to sample data</strong>
+                  <p class="muted">A browser backup is kept when storage allows it. You will be asked twice before the reset runs.</p>
+                </div>
+                <button class="secondary-button danger-button" id="seedButton" type="button">Reset to sample data</button>
+              </div>
             </section>
 
             <section class="settings-save-bar">
@@ -588,10 +602,10 @@
     <script src="zxing-browser.min.js?v=107"></script>
     <script src="barcode-nutrition.js?v=114"></script>
     <script src="frontend-utils.js?v=116"></script>
-    <script src="app-core.js?v=125"></script>
-    <script src="app-views.js?v=125"></script>
-    <script src="app-editors.js?v=125"></script>
-    <script src="app-features.js?v=125"></script>
-    <script src="app.js?v=125"></script>
+    <script src="app-core.js?v=126"></script>
+    <script src="app-views.js?v=126"></script>
+    <script src="app-editors.js?v=126"></script>
+    <script src="app-features.js?v=126"></script>
+    <script src="app.js?v=126"></script>
   </body>
 </html>

@@ -60,6 +60,38 @@ function startServer() {
     assert.equal(desktopLayout.clippedMealCards, 0);
     assert.equal(desktopLayout.clippedFamilyValues, 0);
 
+    await page.getByRole("button", { name: "Planner", exact: true }).click();
+    const desktopPlannerAxis = await page.evaluate(() => {
+      const table = document.querySelector(".planner-table");
+      const children = [...table.children];
+      return {
+        corner: children[0].textContent.trim(),
+        mealColumns: children.slice(1, 10).map((element) => element.dataset.plannerColumn),
+        firstDayRow: children[10].dataset.plannerRow,
+        dayRows: table.querySelectorAll("[data-planner-row]").length,
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        gridClientWidth: document.querySelector("#plannerGrid").clientWidth,
+        gridScrollWidth: document.querySelector("#plannerGrid").scrollWidth
+      };
+    });
+    assert.equal(desktopPlannerAxis.corner, "Day");
+    assert.deepEqual(desktopPlannerAxis.mealColumns, [
+      "beforeBreakfastDrink",
+      "breakfast",
+      "morningSnack",
+      "lunch",
+      "afterLunchDrink",
+      "afternoonSnack",
+      "dinner",
+      "eveningSnack",
+      "afterTreatDrink"
+    ]);
+    assert.equal(desktopPlannerAxis.firstDayRow, "Sunday");
+    assert.equal(desktopPlannerAxis.dayRows, 7);
+    assert.equal(desktopPlannerAxis.documentWidth, desktopPlannerAxis.viewportWidth);
+    assert.ok(desktopPlannerAxis.gridScrollWidth > desktopPlannerAxis.gridClientWidth);
+
     await page.setViewportSize({ width: 900, height: 1000 });
     await page.reload({ waitUntil: "networkidle" });
     const tabletNavTopSpread = await page.locator("#navTabs .nav-button").evaluateAll((buttons) => {
@@ -82,6 +114,7 @@ function startServer() {
     await page.reload({ waitUntil: "networkidle" });
     await page.getByRole("button", { name: "Planner", exact: true }).click();
     assert.equal(await page.locator(".planner-mobile-day").count(), 7);
+    assert.equal(await page.locator('.planner-mobile-day[data-planner-mobile-day="Sunday"] .planner-mobile-slot').count(), 9);
     assert.equal(await page.locator(".planner-table").count(), 0);
     const mobileLayout = await page.evaluate(() => {
       const navTops = [...document.querySelectorAll("#navTabs .nav-button")].map((button) => Math.round(button.getBoundingClientRect().top));

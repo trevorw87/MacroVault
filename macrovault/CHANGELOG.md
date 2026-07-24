@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.6
+
+- Moved the sample-data reset into a Settings danger zone with an initial warning and exact typed confirmation.
+- Reoriented the desktop and tablet planner so days are rows and meals progress left-to-right, with a pinned day column and preserved mobile day cards.
+- Added browser coverage for safe reset cancellation, confirmation, planner axis order, and responsive overflow.
+
 ## 0.9.5
 
 - Split the large frontend JavaScript and stylesheet files into ordered feature modules for safer maintenance and testing.

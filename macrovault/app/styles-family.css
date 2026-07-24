@@ -1163,6 +1163,40 @@ dialog::backdrop {
   gap: 18px;
 }
 
+.settings-danger-zone {
+  border-color: rgba(180, 35, 24, 0.3);
+  background: linear-gradient(145deg, #fffdfc, #fff4f2);
+}
+
+.settings-danger-zone .eyebrow,
+.settings-danger-zone h2 {
+  color: #a53531;
+}
+
+.settings-danger-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px;
+  border: 1px solid rgba(180, 35, 24, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.settings-danger-action p {
+  max-width: 720px;
+  margin: 5px 0 0;
+}
+
+.settings-danger-action .danger-button {
+  flex: 0 0 auto;
+  border-color: #b42318;
+  color: #fff;
+  background: linear-gradient(135deg, #d2534e, #a53531);
+  box-shadow: 0 10px 22px rgba(165, 53, 49, 0.16);
+}
+
 .settings-field-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1260,6 +1294,15 @@ dialog::backdrop {
   }
 
   .settings-save-bar .primary-button {
+    width: 100%;
+  }
+
+  .settings-danger-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-danger-action .danger-button {
     width: 100%;
   }
 }

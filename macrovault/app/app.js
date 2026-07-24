@@ -597,13 +597,32 @@ document.querySelector("#importFile").addEventListener("change", (event) => {
 });
 
 document.querySelector("#seedButton").addEventListener("click", async () => {
-  const confirmed = await openUiDialog({
-    title: "Reload sample data?",
-    message: "This replaces saved recipes, ingredients, planner, family and private data. A backup will be kept first when browser storage allows it.",
-    confirmLabel: "Reload sample data",
+  const acknowledged = await openUiDialog({
+    title: "Reset all application data?",
+    message: "This will replace saved recipes, ingredients, planner, shopping, family, and private records with sample data. A browser backup will be kept first when storage allows it.",
+    confirmLabel: "Continue to final check",
     tone: "danger"
   });
-  if (!confirmed) return;
+  if (!acknowledged) return;
+
+  const confirmationPhrase = "RESET SAMPLE DATA";
+  const enteredPhrase = await openUiDialog({
+    title: "Final reset confirmation",
+    message: `Type ${confirmationPhrase} exactly to confirm that you want to replace the current household data.`,
+    confirmLabel: "Reset to sample data",
+    tone: "danger",
+    input: {
+      label: `Type ${confirmationPhrase} to continue`,
+      type: "text",
+      value: ""
+    }
+  });
+  if (enteredPhrase === null) return;
+  if (enteredPhrase.trim() !== confirmationPhrase) {
+    showToast("Reset cancelled because the confirmation phrase did not match.", { type: "warning" });
+    return;
+  }
+
   backupCurrentStorage("before sample reload");
   state = normalizeState(structuredClone(sampleState));
   saveState({ skipBackup: true });

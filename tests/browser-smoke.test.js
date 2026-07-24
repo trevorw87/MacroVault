@@ -99,7 +99,7 @@ function startServer() {
     await page.getByRole("button", { name: "Import recipe", exact: true }).click();
     await page.locator("#recipeImportUrl").fill("https://recipes.example.test/pasta");
     await page.getByRole("button", { name: "Preview import", exact: true }).click();
-    await page.locator("#recipeImportPreview").waitFor({ state: "visible" });
+    await page.locator("#recipeImportPreview").getByText("Server Imported Pasta", { exact: true }).waitFor();
     assert.equal(importedRecipeUrl, "https://recipes.example.test/pasta");
     assert.match(await page.locator("#recipeImportPreview").textContent(), /Server Imported Pasta/);
     assert.match(await page.locator("#recipeImportStatus").textContent(), /through Home Assistant/);
@@ -278,6 +278,30 @@ function startServer() {
     assert.equal(cleaned.recipes[1].imageUrl, "image-asset:server-backed-test");
     await page.getByRole("button", { name: "Clean up images", exact: true }).click();
     await page.getByText("Image storage is already clean.", { exact: true }).waitFor();
+
+    assert.equal(await page.locator(".topbar #seedButton").count(), 0);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    const stateBeforeReset = await page.evaluate(() => localStorage.getItem("macrovault.mvp.v1"));
+
+    await page.getByRole("button", { name: "Reset to sample data", exact: true }).click();
+    await page.locator("#uiDialog").getByRole("button", { name: "Cancel", exact: true }).click();
+    assert.equal(await page.evaluate(() => localStorage.getItem("macrovault.mvp.v1")), stateBeforeReset);
+
+    await page.getByRole("button", { name: "Reset to sample data", exact: true }).click();
+    await page.locator("#uiDialog").getByRole("button", { name: "Continue to final check", exact: true }).click();
+    await page.getByLabel("Type RESET SAMPLE DATA to continue", { exact: true }).fill("RESET SAMPLE");
+    await page.locator("#uiDialog").getByRole("button", { name: "Reset to sample data", exact: true }).click();
+    await page.getByText("Reset cancelled because the confirmation phrase did not match.", { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => localStorage.getItem("macrovault.mvp.v1")), stateBeforeReset);
+
+    await page.getByRole("button", { name: "Reset to sample data", exact: true }).click();
+    await page.locator("#uiDialog").getByRole("button", { name: "Continue to final check", exact: true }).click();
+    await page.getByLabel("Type RESET SAMPLE DATA to continue", { exact: true }).fill("RESET SAMPLE DATA");
+    await page.locator("#uiDialog").getByRole("button", { name: "Reset to sample data", exact: true }).click();
+    await page.getByText("Sample data reloaded.", { exact: true }).waitFor();
+    const resetState = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")));
+    assert.equal(resetState.configuration.appName, "MacroVault");
+    assert.equal(await page.locator("#pageTitle").textContent(), "Dashboard");
     assert.deepEqual(pageErrors, []);
     console.log("Browser smoke and injection checks: PASS");
   } finally {

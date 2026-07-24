@@ -368,13 +368,13 @@ function convertPlannerToMobile(plannerGrid) {
   const table = plannerGrid.querySelector(".planner-table");
   if (!table) return;
   const tableChildren = [...table.children];
-  const headings = tableChildren.slice(1, days.length + 1);
-  const slotRows = mealPlanSlots.map((slot, slotIndex) => {
-    const rowStart = days.length + 1 + (slotIndex * (days.length + 1));
+  const slotHeadings = tableChildren.slice(1, mealPlanSlots.length + 1);
+  const dayRows = days.map((day, dayIndex) => {
+    const rowStart = mealPlanSlots.length + 1 + (dayIndex * (mealPlanSlots.length + 1));
     return {
-      slot,
-      label: tableChildren[rowStart],
-      cells: tableChildren.slice(rowStart + 1, rowStart + 1 + days.length)
+      day,
+      heading: tableChildren[rowStart],
+      cells: tableChildren.slice(rowStart + 1, rowStart + 1 + mealPlanSlots.length)
     };
   });
   const mobile = document.createElement("div");
@@ -386,14 +386,14 @@ function convertPlannerToMobile(plannerGrid) {
     details.dataset.plannerMobileDay = day;
     details.open = day === today;
     const summary = document.createElement("summary");
-    summary.append(headings[dayIndex]);
+    summary.append(dayRows[dayIndex].heading);
     details.append(summary);
     const slots = document.createElement("div");
     slots.className = "planner-mobile-slots";
-    slotRows.forEach(({ label, cells }) => {
+    mealPlanSlots.forEach((slot, slotIndex) => {
       const section = document.createElement("section");
       section.className = "planner-mobile-slot";
-      section.append(label.cloneNode(true), cells[dayIndex]);
+      section.append(slotHeadings[slotIndex].cloneNode(true), dayRows[dayIndex].cells[slotIndex]);
       slots.append(section);
     });
     details.append(slots);
@@ -410,13 +410,19 @@ function renderPlanner() {
   if (proteinGoalInput && document.activeElement !== proteinGoalInput) proteinGoalInput.value = goals.protein;
 
   document.querySelector("#plannerGrid").innerHTML = `
-    <p class="planner-scroll-hint">Swipe or scroll sideways to see every day.</p>
+    <p class="planner-scroll-hint">Swipe or scroll sideways to move through meals from morning to evening.</p>
     <div class="planner-table">
-      <div class="planner-corner">Meal</div>
+      <div class="planner-corner">Day</div>
+      ${mealPlanSlots.map((slot) => `
+        <div class="planner-meal-label" data-planner-column="${slot.id}">
+          <span>${slot.label}</span>
+          ${slot.timing ? `<small>${slot.timing}</small>` : ""}
+        </div>
+      `).join("")}
       ${days.map((day) => {
         const remaining = nutritionGoalRemainingForDay(day);
         return `
-          <div class="planner-day-heading">
+          <div class="planner-day-heading" data-planner-row="${day}">
             <h3>${day}</h3>
             <div class="planner-totals">
               <strong>${formatPlannerNumber(plannedCaloriesForDay(day), "kcal")}</strong>
@@ -428,14 +434,7 @@ function renderPlanner() {
                 : `Still need ${formatPlannerNumber(remaining.calories, "kcal")} / ${formatPlannerNumber(remaining.protein, "protein")}`}
             </div>
           </div>
-        `;
-      }).join("")}
-      ${mealPlanSlots.map((slot) => `
-        <div class="planner-meal-label">
-          <span>${slot.label}</span>
-          ${slot.timing ? `<small>${slot.timing}</small>` : ""}
-        </div>
-        ${days.map((day) => {
+          ${mealPlanSlots.map((slot) => {
           const selectedIds = plannerRecipeIds(day, slot.id);
           const selectedRecipes = plannerRecipes(day, slot);
           const options = recipesForSlot(slot)
@@ -473,7 +472,8 @@ function renderPlanner() {
             </div>
           `;
         }).join("")}
-      `).join("")}
+        `;
+      }).join("")}
     </div>
   `;
   if (window.matchMedia("(max-width: 760px)").matches) {

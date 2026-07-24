@@ -376,9 +376,9 @@
 
 .planner-table {
   display: grid;
-  grid-template-columns: minmax(118px, 0.55fr) repeat(7, minmax(150px, 1fr));
+  grid-template-columns: minmax(160px, 0.8fr) repeat(9, minmax(170px, 1fr));
   gap: 8px;
-  width: 100%;
+  width: max(100%, 1830px);
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -421,6 +421,9 @@
 }
 
 .planner-day-heading {
+  position: sticky;
+  left: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: start;

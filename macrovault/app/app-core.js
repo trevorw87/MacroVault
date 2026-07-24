@@ -512,7 +512,9 @@ uiDialogForm.addEventListener("submit", (event) => {
 });
 
 uiDialog.addEventListener("close", () => {
-  if (!uiDialogResolver) return;
+  // A close event is queued. If another confirmation has already opened,
+  // this event belongs to the previous dialog and must not cancel the new one.
+  if (uiDialog.open || !uiDialogResolver) return;
   const resolve = uiDialogResolver;
   uiDialogResolver = null;
   resolve(null);
