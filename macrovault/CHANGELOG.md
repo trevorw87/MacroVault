@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.4
+
+- Added monthly child reward charts with full-day stars, partial progress, configurable targets and rewards, retained history, and parent corrections.
+- Reworked the mobile planner into collapsible day cards, compacted mobile navigation and dashboard cards, and improved tablet and desktop overflow handling.
+- Moved planner assignments and shopping checks into authoritative relational SQLite tables with automatic schema migration and complete rollback snapshots.
+- Moved website and YouTube recipe importing into the Home Assistant add-on with private-network protection, redirect validation, timeouts, and page-size limits.
+- Expanded browser and server coverage for responsive layouts, planner-to-shopping generation, relational migration, and server-side imports.
+
 ## 0.9.3
 
 - Added child-only routines for making the bed, morning and night tooth brushing, showering or bathing, and a goodnight story.
