@@ -56,10 +56,21 @@ Once the repo is pushed to GitHub:
 
 ## Next Steps
 
-- Add relational meal planning and shopping tables
 - Add user profiles for family members
 - Expand browser coverage for camera, OCR, and service-worker upgrades
 - Add optional first-run onboarding for brand-new installations
+
+## Frontend Architecture
+
+The browser application uses ordered classic-script modules so it remains directly deployable without a build step:
+
+- `app-core.js` contains state, persistence, normalization, and shared helpers.
+- `app-views.js` renders dashboard, recipe, ingredient, planner, and shopping views.
+- `app-editors.js` owns recipe, ingredient, image, barcode, and import editors.
+- `app-features.js` contains family, rewards, private tracking, settings, and backup features.
+- `app.js` connects the modules through rendering, event handlers, and startup.
+
+Styles follow the same pattern: `styles.css` imports core, content, family, and responsive modules in that order. Keep both module orders intact because later files intentionally build on shared globals and earlier cascade layers. The packaging test verifies these orders and that every module is synchronized into the Home Assistant add-on.
 
 ## Test
 

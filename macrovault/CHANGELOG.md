@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.5
+
+- Split the large frontend JavaScript and stylesheet files into ordered feature modules for safer maintenance and testing.
+- Added packaging checks for module load order, Home Assistant synchronization, and offline availability.
+
 ## 0.9.4
 
 - Added monthly child reward charts with full-day stars, partial progress, configurable targets and rewards, retained history, and parent corrections.
