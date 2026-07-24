@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.9
+
+- Enlarged planner meal thumbnails to make recipe images easier to recognize.
+- Added a per-dish people count that defaults to the household size and supports guests.
+- Scaled planned nutrition, printed meal plans, and shopping quantities to each dish's people count.
+- Added browser coverage for serving-count persistence, shopping scaling, and thumbnail sizing.
+
 ## 0.9.8
 
 - Aligned planner meal headings, recipe cards, prepared controls, and add-dish selectors across each day.

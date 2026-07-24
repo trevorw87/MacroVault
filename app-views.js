@@ -2,11 +2,14 @@
 function getShoppingItems() {
   const plannedRecipes = days
     .flatMap((day) => mealPlanSlots
-      .flatMap((slot) => plannerRecipes(day, slot)))
+      .flatMap((slot) => plannerRecipes(day, slot).map((recipe) => ({
+        recipe,
+        servings: plannerServingCount(day, slot.id, recipe.id)
+      }))))
     .filter(Boolean);
   const counts = new Map();
 
-  plannedRecipes.forEach((recipe) => {
+  plannedRecipes.forEach(({ recipe, servings }) => {
     (recipe.ingredients || []).forEach((ingredient, index) => {
       const ref = recipe.ingredientRefs?.[index];
       const linkedIngredient = ref?.ingredientId ? ingredientById(ref.ingredientId) : findIngredientForLine(ingredient);
@@ -22,17 +25,17 @@ function getShoppingItems() {
         quantities: [],
         category: categoryForIngredient(linkedIngredient?.name || ingredient)
       };
-      existing.count += 1;
+      existing.count += servings;
       if (perServeAmount) {
         const unit = usedUnit || "each";
         const base = unitBaseFactor(unit);
         const quantity = existing.quantities.find((item) => item.group === base.group);
         if (quantity) {
-          quantity.baseAmount += perServeAmount * base.factor;
+          quantity.baseAmount += perServeAmount * servings * base.factor;
         } else {
           existing.quantities.push({
             group: base.group,
-            baseAmount: perServeAmount * base.factor,
+            baseAmount: perServeAmount * servings * base.factor,
             unit,
             factor: base.factor
           });
@@ -83,8 +86,8 @@ function renderDashboard() {
     const recipe = recipes[0];
     const imageUrl = resolveImageUrl(recipe?.imageUrl);
     const mealName = recipes.map((item) => item.name).join(" + ");
-    const mealCalories = recipes.reduce((sum, item) => sum + caloriesPerServing(item), 0);
-    const mealProtein = recipes.reduce((sum, item) => sum + macrosPerServing(item).protein, 0);
+    const mealCalories = recipes.reduce((sum, item) => sum + caloriesPerServing(item) * plannerServingCount(today, slot.id, item.id), 0);
+    const mealProtein = recipes.reduce((sum, item) => sum + macrosPerServing(item).protein * plannerServingCount(today, slot.id, item.id), 0);
     return `
       <article class="dashboard-meal-card ${meal.size === "small" ? "small" : "main"} ${imageUrl ? "has-image" : ""}">
         <button class="dashboard-meal-image" ${recipe ? `data-edit-recipe="${escapeHtml(recipe.id)}"` : `data-tab="planner"`} type="button" aria-label="${recipe ? `Open ${escapeHtml(recipe.name)}` : `Choose ${meal.label.toLowerCase()}`}">
@@ -375,12 +378,24 @@ function plannerCellMarkup(day, slot) {
   return `
     <div class="planner-cell">
       <div class="planner-dish-list">
-        ${selectedRecipes.length ? selectedRecipes.map((recipe) => `
+        ${selectedRecipes.length ? selectedRecipes.map((recipe) => {
+          const servings = plannerServingCount(day, slot.id, recipe.id);
+          const scaledCalories = caloriesPerServing(recipe) * servings;
+          const scaledProtein = macrosPerServing(recipe).protein * servings;
+          return `
           <article class="planner-dish">
             ${mealThumbnailMarkup(recipe, slot.label)}
             <div class="planner-meal-pick">
               <strong>${escapeHtml(recipe.name)}</strong>
-              <span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} / ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>
+              <span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(scaledCalories, "kcal")} / ${formatPlannerNumber(scaledProtein, "protein")}`)}</span>
+              <label class="planner-serving-control">
+                <span>People eating</span>
+                <span class="planner-serving-stepper">
+                  <button data-planner-serving-step="-1" data-planner-day="${day}" data-planner-slot="${slot.id}" data-planner-recipe="${escapeHtml(recipe.id)}" type="button" aria-label="One fewer person eating ${escapeHtml(recipe.name)}">&minus;</button>
+                  <input type="number" min="1" max="99" step="1" value="${servings}" data-planner-serving-count data-planner-day="${day}" data-planner-slot="${slot.id}" data-planner-recipe="${escapeHtml(recipe.id)}" aria-label="People eating ${escapeHtml(recipe.name)} on ${day}">
+                  <button data-planner-serving-step="1" data-planner-day="${day}" data-planner-slot="${slot.id}" data-planner-recipe="${escapeHtml(recipe.id)}" type="button" aria-label="One more person eating ${escapeHtml(recipe.name)}">&plus;</button>
+                </span>
+              </label>
               <label class="recipe-prepared-toggle planner-prepared-toggle">
                 <input type="checkbox" ${recipe.prepared ? "checked" : ""} data-recipe-prepared="${escapeHtml(recipe.id)}">
                 <span>${recipe.prepared ? "In freezer / prepared" : "Not prepared"}</span>
@@ -388,7 +403,8 @@ function plannerCellMarkup(day, slot) {
             </div>
             <button class="planner-remove-dish" data-remove-planner-recipe="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" type="button" aria-label="Remove ${escapeHtml(recipe.name)} from ${day} ${slot.label}" title="Remove dish">&times;</button>
           </article>
-        `).join("") : `
+        `;
+        }).join("") : `
           <div class="planner-empty-dish">
             ${mealThumbnailMarkup(null, slot.label)}
             <strong>Choose ${slot.label.toLowerCase()}</strong>

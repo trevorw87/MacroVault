@@ -174,6 +174,15 @@ function startServer() {
       await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).planner.Monday.dinner),
       ["lemon-salmon"]
     );
+    const mondayServingInput = page.getByLabel("People eating Lemon Garlic Salmon on Monday", { exact: true });
+    assert.equal(await mondayServingInput.inputValue(), "4");
+    assert.equal(Math.round(await mondayServingInput.locator("xpath=ancestor::article[1]").locator(".meal-thumb").evaluate((element) => element.getBoundingClientRect().width)), 90);
+    await mondayServingInput.fill("6");
+    await mondayServingInput.dispatchEvent("change");
+    assert.equal(
+      await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).plannerServings.Monday.dinner["lemon-salmon"]),
+      6
+    );
 
     const expectedShoppingNames = await page.evaluate(() => {
       const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));

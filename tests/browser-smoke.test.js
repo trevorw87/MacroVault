@@ -203,7 +203,7 @@ function startServer() {
     await page.getByRole("button", { name: "Shopping", exact: true }).click();
     const cornflourRows = page.locator("#shoppingList .check-row").filter({ hasText: "Cornflour" });
     assert.equal(await cornflourRows.count(), 1);
-    assert.match(await cornflourRows.textContent(), /12\.5 g \+ 1 each/);
+    assert.match(await cornflourRows.textContent(), /50 g \+ 4 each/);
 
     await page.getByRole("button", { name: "Private", exact: true }).click();
     await page.getByRole("button", { name: "Ashley", exact: true }).click();

@@ -14,6 +14,7 @@ async function deleteRecipe(recipeId) {
     mealPlanSlots
       .forEach((slot) => {
         state.planner[day][slot.id] = plannerRecipeIds(day, slot.id).filter((plannedId) => plannedId !== recipeId);
+        if (state.plannerServings?.[day]?.[slot.id]) delete state.plannerServings[day][slot.id][recipeId];
       });
   });
   Object.values(state.kids).forEach((kid) => {
@@ -496,15 +497,18 @@ function printWeekPlanner() {
       ${printDays.map((day) => {
         const recipes = plannerRecipes(day, slot);
         const recipe = recipes[0];
-        const calories = recipes.reduce((sum, item) => sum + caloriesPerServing(item), 0);
-        const protein = recipes.reduce((sum, item) => sum + macrosPerServing(item).protein, 0);
+        const calories = recipes.reduce((sum, item) => sum + caloriesPerServing(item) * plannerServingCount(day, slot.id, item.id), 0);
+        const protein = recipes.reduce((sum, item) => sum + macrosPerServing(item).protein * plannerServingCount(day, slot.id, item.id), 0);
         return `
           <td>
             <div class="meal-print-cell">
               ${printMealImage(recipe, slot.label)}
               <div class="meal-print-text">
                 ${recipes.length
-                  ? recipes.map((item) => `<strong>${escapeHtml(item.name)}</strong>`).join("")
+                  ? recipes.map((item) => {
+                    const servings = plannerServingCount(day, slot.id, item.id);
+                    return `<strong>${escapeHtml(item.name)} (${servings} ${servings === 1 ? "person" : "people"})</strong>`;
+                  }).join("")
                   : "<strong>Not planned</strong>"}
                 ${recipes.length ? `<span>${formatPlannerNumber(calories, "kcal")} / ${formatPlannerNumber(protein, "protein")}</span>` : "<span>&nbsp;</span>"}
               </div>

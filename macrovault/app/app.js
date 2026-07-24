@@ -158,11 +158,29 @@ document.addEventListener("click", async (event) => {
     state.planner[plannerDay] ||= {};
     state.planner[plannerDay][plannerSlot] = plannerRecipeIds(plannerDay, plannerSlot)
       .filter((recipeId) => recipeId !== removePlannerRecipe);
+    if (state.plannerServings?.[plannerDay]?.[plannerSlot]) {
+      delete state.plannerServings[plannerDay][plannerSlot][removePlannerRecipe];
+    }
     state.consumed[plannerDay] ||= {};
     if (!state.planner[plannerDay][plannerSlot].length) state.consumed[plannerDay][plannerSlot] = false;
     state.bought = [];
     saveState();
     render();
+  }
+
+  const plannerServingStepButton = event.target.closest("[data-planner-serving-step]");
+  if (plannerServingStepButton) {
+    const { plannerDay, plannerSlot, plannerRecipe, plannerServingStep } = plannerServingStepButton.dataset;
+    state.plannerServings ||= {};
+    state.plannerServings[plannerDay] ||= {};
+    state.plannerServings[plannerDay][plannerSlot] ||= {};
+    state.plannerServings[plannerDay][plannerSlot][plannerRecipe] = Math.min(99, Math.max(1,
+      plannerServingCount(plannerDay, plannerSlot, plannerRecipe) + Number(plannerServingStep)
+    ));
+    state.bought = [];
+    saveState();
+    render();
+    return;
   }
 
   const editButton = event.target.closest("[data-edit-recipe]");
@@ -333,10 +351,32 @@ document.addEventListener("change", (event) => {
       ...plannerRecipeIds(plannerDay, plannerSlot),
       plannerSelect.value
     ].filter(Boolean))];
+    state.plannerServings ||= {};
+    state.plannerServings[plannerDay] ||= {};
+    state.plannerServings[plannerDay][plannerSlot] ||= {};
+    if (plannerSelect.value) {
+      state.plannerServings[plannerDay][plannerSlot][plannerSelect.value] = householdServingCount();
+    }
     state.consumed[plannerDay] ||= {};
     state.bought = [];
     saveState();
     render();
+    return;
+  }
+
+  const plannerServingInput = event.target.closest("[data-planner-serving-count]");
+  if (plannerServingInput) {
+    const { plannerDay, plannerSlot, plannerRecipe } = plannerServingInput.dataset;
+    state.plannerServings ||= {};
+    state.plannerServings[plannerDay] ||= {};
+    state.plannerServings[plannerDay][plannerSlot] ||= {};
+    state.plannerServings[plannerDay][plannerSlot][plannerRecipe] = Math.min(99, Math.max(1,
+      Math.round(Number(plannerServingInput.value) || 1)
+    ));
+    state.bought = [];
+    saveState();
+    render();
+    return;
   }
 
   const boughtCheckbox = event.target.closest("[data-bought]");

@@ -934,11 +934,16 @@ function normalizeState(nextState) {
     .filter((entry) => entry.date && entry.weight > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
   nextState.planner ||= {};
+  nextState.plannerServings = nextState.plannerServings && typeof nextState.plannerServings === "object"
+    ? nextState.plannerServings
+    : {};
+  const defaultPlannerServings = Math.max(1, familyMemberNames(nextState).length || 1);
   days.forEach((day) => {
     if (typeof nextState.planner[day] === "string") {
       nextState.planner[day] = { dinner: nextState.planner[day] };
     }
     nextState.planner[day] ||= {};
+    nextState.plannerServings[day] ||= {};
     if (!nextState.planner[day].afterLunchDrink && nextState.planner[day].beforeLunchDrink) {
       nextState.planner[day].afterLunchDrink = nextState.planner[day].beforeLunchDrink;
     }
@@ -958,6 +963,12 @@ function normalizeState(nextState) {
           const plannedRecipe = nextState.recipes.find((recipe) => recipe.id === recipeId);
           return plannedRecipe && recipeBelongsToCategory(plannedRecipe, slot.category);
         }))];
+      const savedServings = nextState.plannerServings[day][slot.id];
+      const servingCounts = savedServings && typeof savedServings === "object" ? savedServings : {};
+      nextState.plannerServings[day][slot.id] = Object.fromEntries(nextState.planner[day][slot.id].map((recipeId) => [
+        recipeId,
+        Math.min(99, Math.max(1, Math.round(Number(servingCounts[recipeId]) || defaultPlannerServings)))
+      ]));
     });
   });
   nextState.consumed ||= {};
@@ -1189,6 +1200,16 @@ function plannerRecipes(day, slot, nextState = state) {
   return plannerRecipeIds(day, slot.id, nextState)
     .map((recipeId) => (nextState.recipes || []).find((recipe) => recipe.id === recipeId))
     .filter(Boolean);
+}
+
+function householdServingCount(nextState = state) {
+  return Math.max(1, familyMemberNames(nextState).length || 1);
+}
+
+function plannerServingCount(day, slotId, recipeId, nextState = state) {
+  return Math.min(99, Math.max(1, Math.round(
+    Number(nextState.plannerServings?.[day]?.[slotId]?.[recipeId]) || householdServingCount(nextState)
+  )));
 }
 
 function ingredientById(id) {
@@ -2052,12 +2073,12 @@ function ingredientsForServing(recipe) {
 
 function mealSlotCalories(day, slot) {
   return roundNutrition(plannerRecipes(day, slot)
-    .reduce((sum, recipe) => sum + caloriesPerServing(recipe), 0));
+    .reduce((sum, recipe) => sum + caloriesPerServing(recipe) * plannerServingCount(day, slot.id, recipe.id), 0));
 }
 
 function mealSlotProtein(day, slot) {
   return roundNutrition(plannerRecipes(day, slot)
-    .reduce((sum, recipe) => sum + macrosPerServing(recipe).protein, 0));
+    .reduce((sum, recipe) => sum + macrosPerServing(recipe).protein * plannerServingCount(day, slot.id, recipe.id), 0));
 }
 
 function plannedCaloriesForDay(day) {
