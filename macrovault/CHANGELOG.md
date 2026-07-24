@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.11
+
+- Added household and per-person nutrition totals to each planner day and the printed weekly planner.
+- Used per-person nutrition for daily calorie and protein goal progress.
+- Gave planner categories distinct pastel colours and centered their headings across responsive layouts.
+- Added an In Freezer / Prepared navigation page that automatically tracks recipes marked as prepared.
+- Added browser coverage for prepared-meal tracking, category styling, and daily total labels.
+
 ## 0.9.10
 
 - Kept deleted built-in recipes removed across reloads and Home Assistant synchronization.

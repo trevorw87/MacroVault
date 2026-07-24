@@ -73,7 +73,12 @@ function startServer() {
         documentWidth: document.documentElement.scrollWidth,
         viewportWidth: window.innerWidth,
         gridClientWidth: document.querySelector("#plannerGrid").clientWidth,
-        gridScrollWidth: document.querySelector("#plannerGrid").scrollWidth
+        gridScrollWidth: document.querySelector("#plannerGrid").scrollWidth,
+        mealLabelStyles: [...mealGrid.querySelectorAll(".planner-meal-label")].map((label) => ({
+          backgroundImage: getComputedStyle(label).backgroundImage,
+          textAlign: getComputedStyle(label).textAlign,
+          alignItems: getComputedStyle(label).alignItems
+        }))
       };
     });
     assert.deepEqual(desktopPlannerAxis.mealColumns, [
@@ -93,6 +98,9 @@ function startServer() {
     assert.equal(desktopPlannerAxis.mealGridColumns, 3);
     assert.equal(desktopPlannerAxis.documentWidth, desktopPlannerAxis.viewportWidth);
     assert.ok(desktopPlannerAxis.gridScrollWidth <= desktopPlannerAxis.gridClientWidth + 1);
+    assert.ok(new Set(desktopPlannerAxis.mealLabelStyles.map((style) => style.backgroundImage)).size >= 6);
+    assert.ok(desktopPlannerAxis.mealLabelStyles.every((style) => style.textAlign === "center" && style.alignItems === "center"));
+    assert.match(await page.locator('[data-planner-row="Sunday"] .planner-totals').textContent(), /Household total.*Per person/s);
 
     await page.setViewportSize({ width: 1600, height: 1000 });
     await page.reload({ waitUntil: "networkidle" });

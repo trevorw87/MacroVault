@@ -5,6 +5,7 @@ function renderActiveView() {
     recipes: renderRecipes,
     ingredients: renderIngredients,
     planner: renderPlanner,
+    prepared: renderPrepared,
     shopping: renderShopping,
     kids: renderKids,
     private: renderPrivate,

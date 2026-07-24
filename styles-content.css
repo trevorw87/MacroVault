@@ -15,6 +15,40 @@
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
 
+.prepared-summary {
+  margin-bottom: 14px;
+  border: 1px solid rgba(73, 143, 183, 0.2);
+  border-radius: 20px;
+  background: linear-gradient(135deg, #edf8ff, #f5f1ff);
+}
+
+.prepared-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: #315d83;
+  background: #fff;
+  box-shadow: 0 5px 14px rgba(45, 91, 124, 0.08);
+}
+
+.prepared-recipe-grid {
+  align-items: stretch;
+}
+
+.prepared-empty {
+  grid-column: 1 / -1;
+  border: 1px dashed rgba(73, 143, 183, 0.28);
+  border-radius: 20px;
+  text-align: center;
+  background: rgba(241, 249, 255, 0.75);
+}
+
+.prepared-empty .secondary-button {
+  margin-top: 12px;
+}
+
 .recipe-section {
   display: grid;
   gap: 14px;
@@ -383,17 +417,18 @@
 .planner-meal-label {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   padding: 14px;
   color: var(--ink);
-  border: 1px solid rgba(111, 154, 86, 0.16);
+  border: 1px solid var(--planner-label-border, rgba(111, 154, 86, 0.16));
   border-radius: 20px;
   background:
-    radial-gradient(circle at 86% 18%, rgba(244, 189, 59, 0.24) 0 26px, transparent 27px),
-    linear-gradient(135deg, #fffaf0, #eef8ea);
+    radial-gradient(circle at 86% 18%, var(--planner-label-accent, rgba(244, 189, 59, 0.24)) 0 26px, transparent 27px),
+    linear-gradient(135deg, var(--planner-label-start, #fffaf0), var(--planner-label-end, #eef8ea));
   font-size: 0.95rem;
   font-weight: 950;
+  text-align: center;
   box-shadow: 0 9px 20px rgba(24, 63, 34, 0.05);
 }
 
@@ -493,7 +528,25 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: start;
-  gap: 6px;
+  gap: 8px;
+}
+
+.planner-total-set {
+  display: grid;
+  gap: 3px;
+}
+
+.planner-total-set > small {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.planner-total-set > span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
 .planner-day-heading strong {
@@ -511,6 +564,11 @@
 .planner-day-heading strong + strong {
   color: var(--blue);
   background: var(--blue-soft);
+}
+
+.planner-person-total strong {
+  color: #6a3ca0;
+  background: #f2eaff;
 }
 
 .planner-remaining {
@@ -681,6 +739,57 @@
   gap: 8px;
   min-width: 0;
   height: 100%;
+}
+
+.planner-slot-column[data-planner-column="beforeBreakfastDrink"],
+.planner-slot-column[data-planner-column="afterLunchDrink"],
+.planner-slot-column[data-planner-column="afterTreatDrink"] {
+  --planner-label-start: #e9f6ff;
+  --planner-label-end: #dcecff;
+  --planner-label-accent: rgba(76, 151, 224, 0.2);
+  --planner-label-border: rgba(58, 124, 190, 0.28);
+}
+
+.planner-slot-column[data-planner-column="breakfast"] {
+  --planner-label-start: #fff8d9;
+  --planner-label-end: #ffedb5;
+  --planner-label-accent: rgba(239, 174, 28, 0.25);
+  --planner-label-border: rgba(205, 145, 16, 0.28);
+}
+
+.planner-slot-column[data-planner-column="morningSnack"] {
+  --planner-label-start: #fff0e8;
+  --planner-label-end: #ffdcca;
+  --planner-label-accent: rgba(232, 112, 67, 0.22);
+  --planner-label-border: rgba(204, 92, 52, 0.25);
+}
+
+.planner-slot-column[data-planner-column="lunch"] {
+  --planner-label-start: #eaf8e8;
+  --planner-label-end: #d6efcf;
+  --planner-label-accent: rgba(77, 159, 72, 0.2);
+  --planner-label-border: rgba(63, 137, 58, 0.26);
+}
+
+.planner-slot-column[data-planner-column="afternoonSnack"] {
+  --planner-label-start: #fff3dc;
+  --planner-label-end: #ffe0ae;
+  --planner-label-accent: rgba(224, 139, 40, 0.23);
+  --planner-label-border: rgba(194, 113, 23, 0.27);
+}
+
+.planner-slot-column[data-planner-column="dinner"] {
+  --planner-label-start: #f2ecff;
+  --planner-label-end: #dfd3fb;
+  --planner-label-accent: rgba(126, 87, 194, 0.2);
+  --planner-label-border: rgba(108, 72, 174, 0.26);
+}
+
+.planner-slot-column[data-planner-column="eveningSnack"] {
+  --planner-label-start: #ffedf5;
+  --planner-label-end: #ffd8e8;
+  --planner-label-accent: rgba(208, 75, 134, 0.2);
+  --planner-label-border: rgba(181, 60, 114, 0.25);
 }
 
 .planner-slot-column .planner-meal-label {

@@ -70,12 +70,25 @@ function startServer() {
     });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
     await page.waitForSelector("#navTabs .nav-button");
-    assert.equal(await page.locator("#navTabs .nav-button").count(), 9);
+    assert.equal(await page.locator("#navTabs .nav-button").count(), 10);
     assert.equal(await page.locator("#pageTitle").textContent(), "Dashboard");
 
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");
     assert.ok(await page.locator(".recipe-card").count() > 0);
+
+    const preparedRecipeCard = page.locator(".recipe-card").filter({ has: page.getByRole("heading", { name: "Lemon Garlic Salmon", exact: true }) });
+    await preparedRecipeCard.locator("[data-recipe-prepared]").check();
+    await page.getByRole("button", { name: "In Freezer / Prepared", exact: true }).click();
+    assert.equal(await page.locator("#pageTitle").textContent(), "In Freezer / Prepared");
+    assert.equal(await page.getByRole("heading", { name: "Lemon Garlic Salmon", exact: true }).count(), 1);
+    assert.match(await page.locator("#preparedCount").textContent(), /1 meal ready/);
+    await page.locator("#preparedRecipeGrid [data-recipe-prepared]").evaluate((input) => {
+      input.checked = false;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    assert.match(await page.locator("#preparedRecipeGrid").textContent(), /Nothing prepared yet/);
+    await page.getByRole("button", { name: "Recipes", exact: true }).click();
 
     await page.getByRole("button", { name: "Add recipe" }).click();
     assert.ok(await page.locator("#recipeDialog").evaluate((element) => element.open));

@@ -31,6 +31,7 @@ const tabs = [
   { id: "recipes", label: "Recipes", icon: "recipes" },
   { id: "ingredients", label: "Ingredients", icon: "ingredients" },
   { id: "planner", label: "Planner", icon: "planner" },
+  { id: "prepared", label: "In Freezer / Prepared", icon: "prepared" },
   { id: "shopping", label: "Shopping", icon: "shopping" },
   { id: "kids", label: "Family", icon: "family" },
   { id: "private", label: "Private", icon: "private" },
@@ -43,6 +44,7 @@ const iconPaths = {
   recipes: '<path d="M6 3h11a2 2 0 0 1 2 2v16H7a3 3 0 0 1-3-3V5a2 2 0 0 1 2-2Z"/><path d="M7 3v18M10 8h6M10 12h6"/>',
   ingredients: '<path d="M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10Z"/><path d="M8.5 15.5c2-1 4-3 5.5-6"/>',
   planner: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>',
+  prepared: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 10h16M12 12v7M8.5 14l7 4M15.5 14l-7 4"/>',
   shopping: '<path d="M6 8h15l-2 8H8L6 4H3"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/>',
   family: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2"/><path d="M3 20c0-4 2-7 6-7s6 3 6 7M15 15c3 0 5 2 5 5"/>',
   private: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
@@ -2076,12 +2078,30 @@ function mealSlotProtein(day, slot) {
     .reduce((sum, recipe) => sum + macrosPerServing(recipe).protein * plannerServingCount(day, slot.id, recipe.id), 0));
 }
 
+function mealSlotCaloriesPerPerson(day, slot) {
+  return roundNutrition(plannerRecipes(day, slot)
+    .reduce((sum, recipe) => sum + caloriesPerServing(recipe), 0));
+}
+
+function mealSlotProteinPerPerson(day, slot) {
+  return roundNutrition(plannerRecipes(day, slot)
+    .reduce((sum, recipe) => sum + macrosPerServing(recipe).protein, 0));
+}
+
 function plannedCaloriesForDay(day) {
   return roundNutrition(mealPlanSlots.reduce((sum, slot) => sum + mealSlotCalories(day, slot), 0));
 }
 
 function plannedProteinForDay(day) {
   return roundNutrition(mealPlanSlots.reduce((sum, slot) => sum + mealSlotProtein(day, slot), 0));
+}
+
+function plannedCaloriesPerPersonForDay(day) {
+  return roundNutrition(mealPlanSlots.reduce((sum, slot) => sum + mealSlotCaloriesPerPerson(day, slot), 0));
+}
+
+function plannedProteinPerPersonForDay(day) {
+  return roundNutrition(mealPlanSlots.reduce((sum, slot) => sum + mealSlotProteinPerPerson(day, slot), 0));
 }
 
 function currentNutritionGoals() {
@@ -2100,8 +2120,8 @@ function formatPlannerNumber(value, unit) {
 
 function nutritionGoalRemainingForDay(day) {
   const goals = currentNutritionGoals();
-  const caloriesRemaining = Math.max(0, goals.calories - plannedCaloriesForDay(day));
-  const proteinRemaining = Math.max(0, goals.protein - plannedProteinForDay(day));
+  const caloriesRemaining = Math.max(0, goals.calories - plannedCaloriesPerPersonForDay(day));
+  const proteinRemaining = Math.max(0, goals.protein - plannedProteinPerPersonForDay(day));
   return {
     calories: roundNutrition(caloriesRemaining),
     protein: roundNutrition(proteinRemaining),

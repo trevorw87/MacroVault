@@ -1436,7 +1436,6 @@ textarea:focus-visible,
     min-height: 0;
     padding: 8px 10px;
     border-radius: 10px;
-    background: var(--green-soft);
     box-shadow: none;
   }
 

@@ -254,6 +254,21 @@ function renderRecipes() {
   }).join("");
 }
 
+function renderPrepared() {
+  const preparedRecipes = state.recipes.filter((recipe) => recipe.prepared);
+  const count = document.querySelector("#preparedCount");
+  count.textContent = `${preparedRecipes.length} ${preparedRecipes.length === 1 ? "meal" : "meals"} ready`;
+  document.querySelector("#preparedRecipeGrid").innerHTML = preparedRecipes.length
+    ? preparedRecipes.map(recipeCard).join("")
+    : `
+      <section class="section-block prepared-empty">
+        <h2>Nothing prepared yet</h2>
+        <p class="muted">Mark a recipe as “In freezer / prepared” from Recipes or the Planner and it will appear here.</p>
+        <button class="secondary-button" data-tab="recipes" type="button">Browse recipes</button>
+      </section>
+    `;
+}
+
 function renderIngredients() {
   const search = document.querySelector("#ingredientSearch").value.trim().toLowerCase();
   const ingredients = state.ingredients.filter((ingredient) => {
@@ -437,8 +452,14 @@ function renderPlanner() {
               <div class="planner-day-heading" data-planner-row="${day}">
                 <h3>${day}</h3>
                 <div class="planner-totals">
-                  <strong>${formatPlannerNumber(plannedCaloriesForDay(day), "kcal")}</strong>
-                  <strong>${formatPlannerNumber(plannedProteinForDay(day), "protein")}</strong>
+                  <span class="planner-total-set">
+                    <small>Household total</small>
+                    <span><strong>${formatPlannerNumber(plannedCaloriesForDay(day), "kcal")}</strong><strong>${formatPlannerNumber(plannedProteinForDay(day), "protein")}</strong></span>
+                  </span>
+                  <span class="planner-total-set planner-person-total">
+                    <small>Per person</small>
+                    <span><strong>${formatPlannerNumber(plannedCaloriesPerPersonForDay(day), "kcal")}</strong><strong>${formatPlannerNumber(plannedProteinPerPersonForDay(day), "protein")}</strong></span>
+                  </span>
                 </div>
                 <div class="planner-remaining ${remaining.met ? "met" : ""}">
                   ${remaining.met

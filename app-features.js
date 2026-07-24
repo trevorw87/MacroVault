@@ -473,8 +473,8 @@ function printWeekPlanner() {
     return `
       <th>
         <strong>${escapeHtml(day)}</strong>
-        <span>${formatPlannerNumber(plannedCaloriesForDay(day), "kcal")}</span>
-        <span>${formatPlannerNumber(plannedProteinForDay(day), "protein")}</span>
+        <span>Household: ${formatPlannerNumber(plannedCaloriesForDay(day), "kcal")} / ${formatPlannerNumber(plannedProteinForDay(day), "protein")}</span>
+        <span>Per person: ${formatPlannerNumber(plannedCaloriesPerPersonForDay(day), "kcal")} / ${formatPlannerNumber(plannedProteinPerPersonForDay(day), "protein")}</span>
         <em>${remaining.met ? "Goal met" : `Need ${formatPlannerNumber(remaining.calories, "kcal")} / ${formatPlannerNumber(remaining.protein, "protein")}`}</em>
       </th>
     `;
