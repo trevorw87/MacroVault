@@ -201,7 +201,7 @@ function renderKids() {
         </header>
         <div class="habit-grid">
           ${habits.map((habit) => `
-            <section class="habit-row">
+            <section class="habit-row" role="button" tabindex="0" data-habit-row data-habit-member="${escapeHtml(name)}" data-habit-id="${escapeHtml(habit.id)}" aria-label="${escapeHtml(`${habit.label} for ${name}. Tap to mark the next tick.`)}">
               <div class="habit-visual ${habit.icon}" aria-hidden="true"></div>
               <div class="habit-copy">
                 <strong>${habit.label}</strong>

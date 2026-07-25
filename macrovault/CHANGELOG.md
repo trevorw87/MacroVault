@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.12
+
+- Reordered child habits with Make bed first, Breakfast second, and Goodnight story last.
+- Renamed Yoghurt to Yoghurt / Milk and added a breakfast bowl visual.
+- Gave every habit a distinct pastel colour and made each card a large touch and keyboard target.
+- Added tap-to-advance behavior for multi-tick habits and tap-to-clear for completed cards.
+- Persisted daily habit rollover immediately so completed days keep their reward star and new days start clear.
+- Added browser coverage for habit order, colours, touch behavior, rollover clearing, and reward history.
+
 ## 0.9.11
 
 - Added household and per-person nutrition totals to each planner day and the printed weekly planner.

@@ -101,7 +101,7 @@ const memberColorOptions = [
 const kidHabitTargets = [
   { id: "vegetables", label: "Vegetables", target: 5, icon: "veg" },
   { id: "fruit", label: "Fruit", target: 2, icon: "fruit" },
-  { id: "yoghurt", label: "Yoghurt", target: 1, icon: "yoghurt" },
+  { id: "yoghurt", label: "Yoghurt / Milk", target: 1, icon: "yoghurt" },
   { id: "water", label: "Water", target: 2, icon: "water" },
   { id: "multivitamin", label: "Multivitamin", target: 1, icon: "vitamin" },
   { id: "exercise", label: "Exercise", target: 1, icon: "exercise" }
@@ -109,6 +109,7 @@ const kidHabitTargets = [
 
 const childRoutineTargets = [
   { id: "makeBed", label: "Make bed", target: 1, icon: "bed" },
+  { id: "breakfast", label: "Breakfast", target: 1, icon: "breakfast" },
   { id: "brushTeethMorning", label: "Brush teeth (morning)", target: 1, icon: "teeth" },
   { id: "showerBath", label: "Shower / bath", target: 1, icon: "bath" },
   { id: "brushTeethNight", label: "Brush teeth (night)", target: 1, icon: "teeth" },
@@ -117,7 +118,9 @@ const childRoutineTargets = [
 
 function habitDefinitionsForMember(name, member = null) {
   const child = member?.role ? member.role === "child" : ["Amelia", "Spencer"].includes(name);
-  return child ? [...kidHabitTargets, ...childRoutineTargets] : kidHabitTargets;
+  if (!child) return kidHabitTargets;
+  const [makeBed, breakfast, ...remainingRoutines] = childRoutineTargets;
+  return [makeBed, breakfast, ...kidHabitTargets, ...remainingRoutines];
 }
 
 function habitTargetForPerson(name, habit, member = null) {
@@ -626,7 +629,7 @@ function ensureFamilyHabitsForToday(nextState = state) {
   if (!nextState.familyHabitDate) {
     nextState.familyHabitDate = todayKey;
     ensureHealthExerciseForToday(nextState);
-    return false;
+    return true;
   }
   if (nextState.familyHabitDate === todayKey) return false;
   recordFamilyHabitDay(nextState, nextState.familyHabitDate);
@@ -975,7 +978,6 @@ function normalizeState(nextState) {
       nextState.consumed[day][slot.id] = Boolean(nextState.consumed[day][slot.id]);
     });
   });
-  ensureFamilyHabitsForToday(nextState);
   Object.entries(nextState.kids || {}).forEach(([name, kid]) => {
     kid.stars = Math.min(5, Math.max(0, Number(kid.stars) || 0));
     kid.goal = String(kid.goal || "");
@@ -997,7 +999,7 @@ function normalizeState(nextState) {
   Object.keys(nextState.familyRewards).forEach((name) => {
     if (nextState.kids?.[name]?.role !== "child") delete nextState.familyRewards[name];
   });
-  recordFamilyHabitDay(nextState, todayDateKey());
+  if (nextState.familyHabitDate === todayDateKey()) recordFamilyHabitDay(nextState, todayDateKey());
   delete nextState.calories;
   return nextState;
 }

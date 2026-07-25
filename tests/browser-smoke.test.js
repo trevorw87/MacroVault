@@ -136,9 +136,21 @@ function startServer() {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390);
     const ameliaHabits = page.locator("#kidsLayout .kid-habit-card").filter({ has: page.getByRole("heading", { name: "Amelia", exact: true }) });
     const ashleyHabits = page.locator("#kidsLayout .kid-habit-card").filter({ has: page.getByRole("heading", { name: "Ashley", exact: true }) });
-    assert.equal(await ameliaHabits.locator(".habit-row").count(), 11);
+    assert.equal(await ameliaHabits.locator(".habit-row").count(), 12);
     assert.equal(await ashleyHabits.locator(".habit-row").count(), 6);
+    const ameliaHabitOrder = await ameliaHabits.locator(".habit-row .habit-copy > strong").allTextContents();
+    assert.deepEqual(ameliaHabitOrder.slice(0, 2), ["Make bed", "Breakfast"]);
+    assert.equal(ameliaHabitOrder.at(-1), "Goodnight story");
+    const habitColours = await ameliaHabits.locator(".habit-row").evaluateAll((rows) => rows.map((row) => getComputedStyle(row).backgroundColor));
+    assert.equal(new Set(habitColours).size, 12);
+    const makeBedRow = ameliaHabits.locator('[data-habit-row][data-habit-id="makeBed"]');
+    await makeBedRow.locator(".habit-copy").click();
+    assert.equal(await makeBedRow.locator('[data-habit="makeBed"]').isChecked(), true);
+    await makeBedRow.locator(".habit-copy").click();
+    assert.equal(await makeBedRow.locator('[data-habit="makeBed"]').isChecked(), false);
     assert.match(await ameliaHabits.textContent(), /Make bed/);
+    assert.match(await ameliaHabits.textContent(), /Breakfast/);
+    assert.match(await ameliaHabits.textContent(), /Yoghurt \/ Milk/);
     assert.match(await ameliaHabits.textContent(), /Brush teeth \(morning\)/);
     assert.match(await ameliaHabits.textContent(), /Brush teeth \(night\)/);
     assert.match(await ameliaHabits.textContent(), /Shower \/ bath/);
@@ -169,6 +181,31 @@ function startServer() {
     assert.equal(todayReward.earned, true);
     assert.equal(todayReward.completed, todayReward.target);
     assert.match(await page.locator('[data-family-reward-card="Amelia"]').textContent(), /1 of 18 stars earned/);
+
+    const rolloverDate = await page.evaluate(() => {
+      const date = new Date();
+      date.setDate(date.getDate() - 2);
+      const rolloverKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const now = new Date();
+      const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));
+      Object.keys(saved.kids.Amelia.habits).forEach((habit) => {
+        saved.kids.Amelia.habits[habit] = saved.kids.Amelia.habits[habit].map(() => true);
+      });
+      saved.familyHabitDate = rolloverKey;
+      delete saved.familyHabitHistory[rolloverKey];
+      delete saved.familyHabitHistory[todayKey];
+      localStorage.setItem("macrovault.mvp.v1", JSON.stringify(saved));
+      return rolloverKey;
+    });
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Family", exact: true }).click();
+    const rolloverState = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")));
+    assert.equal(rolloverState.familyHabitHistory[rolloverDate].Amelia.earned, true);
+    assert.ok(Object.values(rolloverState.kids.Amelia.habits).every((ticks) => ticks.every((checked) => !checked)));
+    await page.locator("#rewardMonth").fill(rolloverDate.slice(0, 7));
+    await page.locator("#rewardMonth").dispatchEvent("change");
+    assert.match(await page.locator(`[data-reward-person="Amelia"][data-reward-date="${rolloverDate}"]`).getAttribute("class"), /earned/);
 
     const yesterday = await page.evaluate(() => {
       const date = new Date();

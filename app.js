@@ -67,7 +67,28 @@ function renderGenericNutritionStatus() {
   sessionStorage.removeItem(key);
 }
 
+function advanceHabitRow(name, habitId) {
+  const member = state.kids?.[name];
+  const habit = familyHabitTargetsForPerson(name).find((item) => item.id === habitId);
+  if (!member || !habit) return;
+  member.habits ||= {};
+  const ticks = Array.from({ length: habit.target }, (_, index) => Boolean(member.habits[habitId]?.[index]));
+  const nextUnchecked = ticks.findIndex((checked) => !checked);
+  if (nextUnchecked === -1) ticks.fill(false);
+  else ticks[nextUnchecked] = true;
+  member.habits[habitId] = ticks;
+  recordFamilyHabitDay(state, todayDateKey(), { force: true });
+  saveState();
+  render();
+}
+
 document.addEventListener("click", async (event) => {
+  const habitRow = event.target.closest("[data-habit-row]");
+  if (habitRow && !event.target.closest("input, label, button, a, select, textarea")) {
+    advanceHabitRow(habitRow.dataset.habitMember, habitRow.dataset.habitId);
+    return;
+  }
+
   const previousRewardMonth = event.target.closest("#previousRewardMonth");
   if (previousRewardMonth) {
     state.rewardChartMonth = shiftedRewardMonth(state.rewardChartMonth, -1);
@@ -327,6 +348,12 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
 }
 
 document.addEventListener("keydown", (event) => {
+  const habitRow = event.target.closest("[data-habit-row]");
+  if (habitRow && event.target === habitRow && ["Enter", " "].includes(event.key)) {
+    event.preventDefault();
+    advanceHabitRow(habitRow.dataset.habitMember, habitRow.dataset.habitId);
+    return;
+  }
   const recipeImageButton = event.target.closest(".recipe-art[data-edit-recipe]");
   if (!recipeImageButton || !["Enter", " "].includes(event.key)) return;
   event.preventDefault();

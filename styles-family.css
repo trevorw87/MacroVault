@@ -77,9 +77,41 @@
   gap: 8px;
   min-height: 64px;
   padding: 8px;
-  border: 1px solid rgba(18, 26, 45, 0.08);
+  border: 1px solid var(--habit-row-border, rgba(18, 26, 45, 0.08));
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--habit-row-bg, rgba(255, 255, 255, 0.72));
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.habit-row:hover {
+  border-color: color-mix(in srgb, var(--habit-row-border, #71835f) 72%, #26351f);
+  box-shadow: 0 7px 16px rgba(30, 54, 36, 0.08);
+  transform: translateY(-1px);
+}
+
+.habit-row:focus-visible {
+  outline: 3px solid rgba(47, 126, 203, 0.38);
+  outline-offset: 2px;
+}
+
+.habit-row[data-habit-id="makeBed"] { --habit-row-bg: #f3eaff; --habit-row-border: #d9c1f2; }
+.habit-row[data-habit-id="breakfast"] { --habit-row-bg: #fff3c9; --habit-row-border: #ebce76; }
+.habit-row[data-habit-id="vegetables"] { --habit-row-bg: #e5f5dc; --habit-row-border: #b9dcaa; }
+.habit-row[data-habit-id="fruit"] { --habit-row-bg: #ffe1e6; --habit-row-border: #efb3be; }
+.habit-row[data-habit-id="yoghurt"] { --habit-row-bg: #e4f0ff; --habit-row-border: #b7d2ef; }
+.habit-row[data-habit-id="water"] { --habit-row-bg: #dcf5fb; --habit-row-border: #a8dce8; }
+.habit-row[data-habit-id="multivitamin"] { --habit-row-bg: #ffe9da; --habit-row-border: #efc5a8; }
+.habit-row[data-habit-id="exercise"] { --habit-row-bg: #dcf3e7; --habit-row-border: #aad8bf; }
+.habit-row[data-habit-id="brushTeethMorning"] { --habit-row-bg: #e6f7ff; --habit-row-border: #b4ddec; }
+.habit-row[data-habit-id="showerBath"] { --habit-row-bg: #dcf7f4; --habit-row-border: #a5ddd7; }
+.habit-row[data-habit-id="brushTeethNight"] { --habit-row-bg: #e9e7ff; --habit-row-border: #c2bdea; }
+.habit-row[data-habit-id="goodnightStory"] { --habit-row-bg: #fff0da; --habit-row-border: #e9c99b; }
+
+@media (prefers-reduced-motion: reduce) {
+  .habit-row {
+    transition: none;
+  }
 }
 
 .habit-visual {
@@ -377,6 +409,7 @@
 }
 
 .habit-visual.bed,
+.habit-visual.breakfast,
 .habit-visual.teeth,
 .habit-visual.bath,
 .habit-visual.story {
@@ -394,6 +427,14 @@
 
 .habit-visual.bed::after {
   content: "🛏️";
+}
+
+.habit-visual.breakfast {
+  background: linear-gradient(135deg, #fff8d8, #ffe3b5);
+}
+
+.habit-visual.breakfast::after {
+  content: "\1F963";
 }
 
 .habit-visual.teeth {
