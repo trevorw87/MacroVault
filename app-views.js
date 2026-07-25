@@ -272,7 +272,7 @@ function renderPrepared() {
 function renderIngredients() {
   const search = document.querySelector("#ingredientSearch").value.trim().toLowerCase();
   const ingredients = state.ingredients.filter((ingredient) => {
-    const haystack = [ingredient.name, ingredient.plural, ingredient.description, ingredient.label, ingredient.barcode].join(" ").toLowerCase();
+    const haystack = [ingredient.name, ingredient.plural, ...normalizeIngredientAliases(ingredient.aliases), ingredient.description, ingredient.label, ingredient.barcode].join(" ").toLowerCase();
     return !search || haystack.includes(search);
   });
   const categoryOrder = ["Produce", "Dairy", "Protein", "Staples", "Spread", "Snack", "Treat", "Other"];
@@ -313,6 +313,7 @@ function renderIngredients() {
               <div>
                 <strong>${escapeHtml(ingredient.name)}</strong>
                 <span class="muted">${escapeHtml(ingredient.plural || ingredient.description || "Ingredient")}</span>
+                ${normalizeIngredientAliases(ingredient.aliases).length ? `<span class="muted">Also: ${escapeHtml(normalizeIngredientAliases(ingredient.aliases).join(", "))}</span>` : ""}
                 ${ingredient.barcode ? `<span class="muted">Barcode ${escapeHtml(ingredient.barcode)}</span>` : ""}
                 ${ingredientUsageMarkup(ingredient.id)}
               </div>
@@ -349,6 +350,7 @@ function openIngredientDialog(ingredient = null) {
   document.querySelector("#ingredientId").value = ingredient?.id || "";
   document.querySelector("#ingredientName").value = ingredient?.name || "";
   document.querySelector("#ingredientPlural").value = ingredient?.plural || "";
+  document.querySelector("#ingredientAliases").value = normalizeIngredientAliases(ingredient?.aliases).join(", ");
   document.querySelector("#ingredientDescription").value = ingredient?.description || "";
   document.querySelector("#ingredientBarcode").value = ingredient?.barcode || "";
   document.querySelector("#ingredientImageUrl").value = isEmbeddedImage(ingredient?.imageUrl) || isImageAssetRef(ingredient?.imageUrl) ? "" : ingredient?.imageUrl || "";

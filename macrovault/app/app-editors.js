@@ -343,6 +343,7 @@ function fillIngredientFormFromBarcode(data) {
   if (!ingredientDialog.open) openIngredientDialog();
   document.querySelector("#ingredientName").value = data.name || "";
   document.querySelector("#ingredientPlural").value = data.plural || "";
+  document.querySelector("#ingredientAliases").value = normalizeIngredientAliases(data.aliases).join(", ");
   document.querySelector("#ingredientDescription").value = data.description || "";
   document.querySelector("#ingredientBarcode").value = data.barcode || "";
   document.querySelector("#ingredientImageUrl").value = data.imageUrl || "";

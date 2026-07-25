@@ -76,6 +76,11 @@ function startServer() {
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");
     assert.ok(await page.locator(".recipe-card").count() > 0);
+    assert.deepEqual(
+      await page.evaluate(() => parseIngredientLine("2 1/2 cups chicken stock")),
+      { name: "chicken stock", usedAmount: 2.5, usedUnit: "cup", hasQuantity: true }
+    );
+    assert.equal(await page.evaluate(() => scaleIngredientLine("2 1/2 cups chicken stock", 0.5)), "1.25 cups chicken stock");
 
     const preparedRecipeCard = page.locator(".recipe-card").filter({ has: page.getByRole("heading", { name: "Lemon Garlic Salmon", exact: true }) });
     await preparedRecipeCard.locator("[data-recipe-prepared]").check();
@@ -129,6 +134,27 @@ function startServer() {
     assert.match(await page.locator("#recipeImportPreview").textContent(), /Server Imported Pasta/);
     assert.match(await page.locator("#recipeImportStatus").textContent(), /through Home Assistant/);
     await page.locator("#recipeImportDialog").getByRole("button", { name: "Cancel", exact: true }).click();
+
+    await page.getByRole("button", { name: "Ingredients", exact: true }).click();
+    await page.getByRole("button", { name: "Add ingredient", exact: true }).click();
+    await page.locator("#ingredientName").fill("Black Pepper");
+    await page.locator("#ingredientAliases").fill("pepper, Freshly ground black pepper");
+    await page.locator("#ingredientDialog").getByRole("button", { name: "Save ingredient", exact: true }).click();
+    const pepperAliases = await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));
+      const pepper = saved.ingredients.find((ingredient) => ingredient.name === "Black Pepper");
+      const normalized = normalizeIngredients([pepper], [{ ingredients: ["pepper", "Freshly ground black pepper", "black pepper"] }]);
+      return {
+        aliases: pepper.aliases,
+        matchesPepper: ingredientMatchesLine(pepper, "pepper"),
+        matchesLongName: ingredientMatchesLine(pepper, "Freshly ground black pepper"),
+        normalizedCount: normalized.length
+      };
+    });
+    assert.deepEqual(pepperAliases.aliases, ["pepper", "Freshly ground black pepper"]);
+    assert.equal(pepperAliases.matchesPepper, true);
+    assert.equal(pepperAliases.matchesLongName, true);
+    assert.equal(pepperAliases.normalizedCount, 1);
 
     await page.getByRole("button", { name: "Family", exact: true }).click();
     const familyCardWidths = await page.locator("#kidsLayout .kid-habit-card").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().width));

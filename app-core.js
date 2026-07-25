@@ -1351,10 +1351,15 @@ function ingredientKey(value) {
   return normalized;
 }
 
+function normalizeIngredientAliases(value) {
+  const values = Array.isArray(value) ? value : String(value || "").split(/[,\n]/);
+  return [...new Set(values.map((alias) => String(alias || "").trim()).filter(Boolean))];
+}
+
 function ingredientMatchesLine(ingredient, line) {
   const lineKey = ingredientKey(line);
   if (!lineKey) return false;
-  const keys = [ingredient.name, ingredient.plural, ...(ingredient.aliases || [])].map(ingredientKey).filter(Boolean);
+  const keys = [ingredient.name, ingredient.plural, ...normalizeIngredientAliases(ingredient.aliases)].map(ingredientKey).filter(Boolean);
   return keys.some((key) => key === lineKey);
 }
 
@@ -1408,6 +1413,7 @@ function ingredientFromName(name) {
     id: `ingredient-${slugify(displayName)}-${Date.now().toString(36)}`,
     name: displayName,
     plural: "",
+    aliases: [],
     description: "",
     barcode: "",
     imageUrl: "",
@@ -1464,6 +1470,7 @@ function applyGenericNutritionToIngredients(nextState = state, options = {}) {
 
 function normalizeIngredients(existingIngredients, recipes) {
   const byName = new Map();
+  const knownKeys = new Set();
   existingIngredients.forEach((ingredient) => {
     const originalName = ingredient.name || "Ingredient";
     const cleanedName = cleanIngredientName(originalName) || originalName;
@@ -1472,11 +1479,12 @@ function normalizeIngredients(existingIngredients, recipes) {
     const estimated = ingredientNutritionEstimate(name);
     const nutrition = hasNutritionValues(ingredient.nutrition) ? ingredient.nutrition : estimated;
     const defaultNutrition = ingredientDefaultForName(name);
-    byName.set(normalized, {
+    const aliases = normalizeIngredientAliases(ingredient.aliases);
+    const normalizedIngredient = {
       id: ingredient.id || `ingredient-${slugify(name)}-${Date.now().toString(36)}`,
       name,
       plural: ingredient.plural || "",
-      aliases: ingredient.aliases || [],
+      aliases,
       description: ingredient.description || "",
       barcode: ingredient.barcode || "",
       imageUrl: ingredient.imageUrl || "",
@@ -1495,15 +1503,18 @@ function normalizeIngredients(existingIngredients, recipes) {
         fat: roundNutrition(nutrition?.fat),
         sodium: roundNutrition(nutrition?.sodium)
       }
-    });
+    };
+    byName.set(normalized, normalizedIngredient);
+    [name, normalizedIngredient.plural, ...aliases].map(ingredientKey).filter(Boolean).forEach((key) => knownKeys.add(key));
   });
 
   recipes.flatMap((recipe) => recipe.ingredients || []).forEach((ingredientLine) => {
     const cleaned = cleanIngredientName(ingredientLine);
     const key = ingredientKey(ingredientLine);
-    if (cleaned && !byName.has(key)) {
+    if (cleaned && !knownKeys.has(key)) {
       const ingredient = ingredientFromName(cleaned);
       byName.set(key, ingredient);
+      [ingredient.name, ingredient.plural, ...ingredient.aliases].map(ingredientKey).filter(Boolean).forEach((knownKey) => knownKeys.add(knownKey));
     }
   });
 
@@ -1651,11 +1662,8 @@ function categoryForIngredient(name) {
 
 function parseNumber(value) {
   if (!value) return 1;
-  if (value.includes("/")) {
-    const [top, bottom] = value.split("/").map(Number);
-    return bottom ? top / bottom : 1;
-  }
-  return Number(value) || 1;
+  const amount = String(value).trim().split(/\s+/).reduce((sum, part) => sum + parseQuantityNumber(part), 0);
+  return amount || 1;
 }
 
 function unitBaseFactor(unit) {
@@ -2060,7 +2068,7 @@ function formatScaledNumber(value) {
 
 function scaleIngredientLine(line, factor) {
   if (!line || factor === 1) return line;
-  return line.replace(/^(\s*)(\d+(?:\.\d+)?|\d+\/\d+)(\s+)/, (match, prefix, amount, gap) => {
+  return line.replace(/^(\s*)((?:\d+(?:\.\d+)?|\d+\/\d+|[Â¼Â½Â¾â…“â…”â…›â…œâ…â…ž])(?:\s+(?:\d+\/\d+|[Â¼Â½Â¾â…“â…”â…›â…œâ…â…ž]))?)(\s+)/, (match, prefix, amount, gap) => {
     return `${prefix}${formatScaledNumber(parseNumber(amount) * factor)}${gap}`;
   });
 }

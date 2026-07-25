@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.13
+
+- Added full mixed-number ingredient parsing and scaling for quantities such as 2 1/2 cups.
+- Added comma-separated alternate names to the ingredient editor.
+- Used ingredient aliases for recipe linking, search, shopping consolidation, and synchronization.
+- Prevented alias names from creating duplicate ingredients during recipe synchronization.
+- Added browser coverage for mixed measurements, alias persistence, matching, and deduplication.
+
 ## 0.9.12
 
 - Reordered child habits with Make bed first, Breakfast second, and Goodnight story last.

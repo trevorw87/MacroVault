@@ -826,6 +826,8 @@ ingredientForm.addEventListener("submit", (event) => {
     id: ingredientId || `ingredient-${slugify(name)}-${Date.now().toString(36)}`,
     name,
     plural: document.querySelector("#ingredientPlural").value.trim(),
+    aliases: normalizeIngredientAliases(document.querySelector("#ingredientAliases").value)
+      .filter((alias) => ![ingredientKey(name), ingredientKey(document.querySelector("#ingredientPlural").value)].includes(ingredientKey(alias))),
     description: document.querySelector("#ingredientDescription").value.trim(),
     barcode: normalizeBarcode(document.querySelector("#ingredientBarcode").value),
     imageUrl: document.querySelector("#ingredientImageData").value || document.querySelector("#ingredientImageUrl").value.trim(),
