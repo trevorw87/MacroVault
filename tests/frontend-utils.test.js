@@ -15,5 +15,9 @@ assert.equal(stripIngredientBullet("○2 teaspoons fish sauce"), "2 teaspoons fi
 assert.equal(stripIngredientBullet("- 1 cup rice"), "1 cup rice");
 assert.equal(stripIngredientBullet("3. ½ tsp salt"), "½ tsp salt");
 assert.equal(stripIngredientBullet("1.5 cups flour"), "1.5 cups flour");
+assert.equal(
+  stripIngredientBullet("3 cups (360g) **cake flour** ([**spooned &amp; leveled**](https://sallysbakingaddiction.com/how-to-measure-baking-ingredients/))"),
+  "3 cups (360g) cake flour (spooned & leveled)"
+);
 
 console.log("Frontend safety utilities: PASS");

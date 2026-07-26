@@ -60,6 +60,27 @@ function startServer() {
     assert.equal(desktopLayout.clippedMealCards, 0);
     assert.equal(desktopLayout.clippedFamilyValues, 0);
 
+    await page.getByRole("button", { name: "Recipes", exact: true }).click();
+    const desktopRecipeCard = page.locator(".recipe-card").first();
+    await desktopRecipeCard.locator("[data-edit-recipe]").first().click();
+    const recipeEditorLayout = await page.evaluate(() => {
+      const ingredients = document.querySelector("#recipeIngredients").getBoundingClientRect();
+      const image = document.querySelector("#recipeImagePreview").getBoundingClientRect();
+      const dialog = document.querySelector("#recipeDialog").getBoundingClientRect();
+      return {
+        ingredientsLeft: ingredients.left,
+        ingredientsRight: ingredients.right,
+        ingredientsWidth: ingredients.width,
+        ingredientsHeight: ingredients.height,
+        imageLeft: image.left,
+        dialogWidth: dialog.width
+      };
+    });
+    assert.ok(recipeEditorLayout.ingredientsRight < recipeEditorLayout.imageLeft);
+    assert.ok(recipeEditorLayout.ingredientsWidth < recipeEditorLayout.dialogWidth * 0.6);
+    assert.ok(recipeEditorLayout.ingredientsHeight >= 250);
+    await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
+
     await page.getByRole("button", { name: "Planner", exact: true }).click();
     const desktopPlannerAxis = await page.evaluate(() => {
       const sunday = document.querySelector('[data-planner-mobile-day="Sunday"]');

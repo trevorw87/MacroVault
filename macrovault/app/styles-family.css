@@ -835,6 +835,16 @@ dialog::backdrop {
   gap: 14px;
 }
 
+.recipe-ingredients-field {
+  width: min(100%, 560px);
+  justify-self: start;
+}
+
+.recipe-ingredients-field textarea {
+  min-height: 250px;
+  resize: vertical;
+}
+
 #recipeForm .recipe-image-fields {
   grid-template-columns: minmax(0, 1fr) minmax(145px, 0.55fr);
 }

@@ -211,7 +211,7 @@ class DatabaseSandbox:
         <html><head><title>Fallback title</title><link rel="canonical" href="/recipes/lemon-pasta">
         <script type="application/ld+json">
         {"@context":"https://schema.org","@type":"Recipe","name":"Lemon Pasta",
-         "recipeIngredient":["200 g pasta","1 lemon"],"recipeYield":"Serves 4",
+         "recipeIngredient":["200 g pasta","1 lemon","3 cups (360g) **cake flour** ([**spooned &amp; leveled**](https://sallysbakingaddiction.com/how-to-measure-baking-ingredients/))"],"recipeYield":"Serves 4",
          "recipeInstructions":[{"@type":"HowToStep","text":"Boil pasta."},{"@type":"HowToStep","text":"Add lemon."}],
          "nutrition":{"calories":"420 kcal","proteinContent":"12 g","carbohydrateContent":"70 g","fatContent":"8 g"},
          "image":{"url":"/images/pasta.jpg"}}
@@ -219,7 +219,11 @@ class DatabaseSandbox:
         """
         recipe = server.parse_recipe_page(html, "https://recipes.example.test/original")
         self.assertEqual(recipe["name"], "Lemon Pasta")
-        self.assertEqual(recipe["ingredients"], ["200 g pasta", "1 lemon"])
+        self.assertEqual(recipe["ingredients"], [
+            "200 g pasta",
+            "1 lemon",
+            "3 cups (360g) cake flour (spooned & leveled)",
+        ])
         self.assertEqual(recipe["method"], "Boil pasta.\nAdd lemon.")
         self.assertEqual(recipe["servings"], 4)
         self.assertEqual(recipe["calories"], 420)

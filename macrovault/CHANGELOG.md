@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.14
+
+- Moved Brush teeth (morning) directly after Breakfast in child routines.
+- Kept deleted ingredients removed across reloads and add-on updates, including duplicate copies of the same ingredient.
+- Made the recipe Ingredients field narrower, taller, and left-aligned beside the image on desktop.
+- Cleaned Markdown links, emphasis, and HTML entities from website and pasted recipe ingredients.
+- Added browser, responsive layout, frontend utility, and server importer regression coverage.
+
 ## 0.9.13
 
 - Added full mixed-number ingredient parsing and scaling for quantities such as 2 1/2 cups.

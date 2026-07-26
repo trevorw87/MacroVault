@@ -217,6 +217,16 @@ def clean_html_text(value):
     return re.sub(r"\s+", " ", unescape(text)).strip()
 
 
+def clean_import_text(value):
+    text = unescape(str(value or ""))
+    text = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"(\*\*|__)(.*?)\1", r"\2", text)
+    text = re.sub(r"([*_])([^*_]+)\1", r"\2", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    return clean_html_text(text)
+
+
 def absolute_http_url(base_url, value):
     if not str(value or "").strip():
         return ""
@@ -250,7 +260,7 @@ def parse_recipe_page(html, source_url):
         ingredients = recipe_schema.get("recipeIngredient") or recipe_schema.get("ingredients") or []
         if isinstance(ingredients, str):
             ingredients = [ingredients]
-        ingredients = [str(item).strip() for item in ingredients if str(item).strip()]
+        ingredients = [clean_import_text(item) for item in ingredients if clean_import_text(item)]
         macros = {
             "protein": numeric_text(nutrition.get("proteinContent")),
             "carbs": numeric_text(nutrition.get("carbohydrateContent")),

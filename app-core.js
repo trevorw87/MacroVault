@@ -119,8 +119,8 @@ const childRoutineTargets = [
 function habitDefinitionsForMember(name, member = null) {
   const child = member?.role ? member.role === "child" : ["Amelia", "Spencer"].includes(name);
   if (!child) return kidHabitTargets;
-  const [makeBed, breakfast, ...remainingRoutines] = childRoutineTargets;
-  return [makeBed, breakfast, ...kidHabitTargets, ...remainingRoutines];
+  const [makeBed, breakfast, brushTeethMorning, ...remainingRoutines] = childRoutineTargets;
+  return [makeBed, breakfast, brushTeethMorning, ...kidHabitTargets, ...remainingRoutines];
 }
 
 function habitTargetForPerson(name, habit, member = null) {
@@ -386,6 +386,7 @@ const sampleState = {
   activeTab: "dashboard",
   configuration: structuredClone(defaultConfiguration),
   consumed: {},
+  deletedIngredientKeys: [],
   ingredients: [],
   privatePerson: "Ashley",
   privateWeightGoals: {},
@@ -893,6 +894,9 @@ function normalizeState(nextState) {
       calories: Number(normalizedRecipe.calories) || caloriesFromMacros(normalizedRecipe.macros)
     };
   });
+  nextState.deletedIngredientKeys = [...new Set((Array.isArray(nextState.deletedIngredientKeys)
+    ? nextState.deletedIngredientKeys
+    : []).map(ingredientKey).filter(Boolean))];
   syncIngredientsAndRecipeLinks(nextState);
   normalizeImageAssets(nextState);
   nextState.kids = nextState.kids && typeof nextState.kids === "object" && Object.keys(nextState.kids).length
@@ -1468,9 +1472,10 @@ function applyGenericNutritionToIngredients(nextState = state, options = {}) {
   return changed;
 }
 
-function normalizeIngredients(existingIngredients, recipes) {
+function normalizeIngredients(existingIngredients, recipes, deletedIngredientKeys = []) {
   const byName = new Map();
   const knownKeys = new Set();
+  const deletedKeys = new Set(deletedIngredientKeys.map(ingredientKey).filter(Boolean));
   existingIngredients.forEach((ingredient) => {
     const originalName = ingredient.name || "Ingredient";
     const cleanedName = cleanIngredientName(originalName) || originalName;
@@ -1511,7 +1516,7 @@ function normalizeIngredients(existingIngredients, recipes) {
   recipes.flatMap((recipe) => recipe.ingredients || []).forEach((ingredientLine) => {
     const cleaned = cleanIngredientName(ingredientLine);
     const key = ingredientKey(ingredientLine);
-    if (cleaned && !knownKeys.has(key)) {
+    if (cleaned && !knownKeys.has(key) && !deletedKeys.has(key)) {
       const ingredient = ingredientFromName(cleaned);
       byName.set(key, ingredient);
       [ingredient.name, ingredient.plural, ...ingredient.aliases].map(ingredientKey).filter(Boolean).forEach((knownKey) => knownKeys.add(knownKey));
@@ -1542,7 +1547,11 @@ function linkRecipesToIngredients(recipes, ingredients) {
 }
 
 function syncIngredientsAndRecipeLinks(nextState = state, options = {}) {
-  nextState.ingredients = normalizeIngredients(nextState.ingredients || [], nextState.recipes || []);
+  nextState.ingredients = normalizeIngredients(
+    nextState.ingredients || [],
+    nextState.recipes || [],
+    nextState.deletedIngredientKeys || []
+  );
   nextState.recipes = linkRecipesToIngredients(nextState.recipes || [], nextState.ingredients);
   if (options.applyGenericNutrition) {
     applyGenericNutritionToIngredients(nextState, { refreshRecipeNutrition: false });

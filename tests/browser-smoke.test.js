@@ -57,7 +57,11 @@ function startServer() {
             name: "Server Imported Pasta",
             category: "dinner",
             tags: ["imported", "website"],
-            ingredients: ["200 g pasta", "1 lemon"],
+            ingredients: [
+              "200 g pasta",
+              "1 lemon",
+              "3 cups (360g) **cake flour** ([**spooned &amp; leveled**](https://sallysbakingaddiction.com/how-to-measure-baking-ingredients/))"
+            ],
             method: "Boil pasta, then add lemon.",
             servings: 2,
             calories: 420,
@@ -132,6 +136,8 @@ function startServer() {
     await page.locator("#recipeImportPreview").getByText("Server Imported Pasta", { exact: true }).waitFor();
     assert.equal(importedRecipeUrl, "https://recipes.example.test/pasta");
     assert.match(await page.locator("#recipeImportPreview").textContent(), /Server Imported Pasta/);
+    assert.match(await page.locator("#recipeImportPreview").textContent(), /3 cups \(360g\) cake flour \(spooned & leveled\)/);
+    assert.doesNotMatch(await page.locator("#recipeImportPreview").textContent(), /\*\*|&amp;|\]\(https?:/);
     assert.match(await page.locator("#recipeImportStatus").textContent(), /through Home Assistant/);
     await page.locator("#recipeImportDialog").getByRole("button", { name: "Cancel", exact: true }).click();
 
@@ -156,6 +162,25 @@ function startServer() {
     assert.equal(pepperAliases.matchesLongName, true);
     assert.equal(pepperAliases.normalizedCount, 1);
 
+    const greenBeansRow = page.locator("#ingredientTable .ingredient-row").filter({
+      has: page.getByText("Green Beans", { exact: true })
+    });
+    assert.equal(await greenBeansRow.count(), 1);
+    await greenBeansRow.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.locator("#uiDialog").getByRole("button", { name: "Delete ingredient", exact: true }).click();
+    assert.equal(await page.getByText("Green Beans", { exact: true }).count(), 0);
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Ingredients", exact: true }).click();
+    assert.equal(await page.getByText("Green Beans", { exact: true }).count(), 0);
+    assert.equal(
+      await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).deletedIngredientKeys.includes("green bean")),
+      true
+    );
+    assert.equal(
+      await page.evaluate(() => normalizeIngredients([], [{ ingredients: ["200 g green beans"] }], ["green bean"]).length),
+      0
+    );
+
     await page.getByRole("button", { name: "Family", exact: true }).click();
     const familyCardWidths = await page.locator("#kidsLayout .kid-habit-card").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().width));
     assert.ok(familyCardWidths.every((width) => width > 300));
@@ -165,7 +190,7 @@ function startServer() {
     assert.equal(await ameliaHabits.locator(".habit-row").count(), 12);
     assert.equal(await ashleyHabits.locator(".habit-row").count(), 6);
     const ameliaHabitOrder = await ameliaHabits.locator(".habit-row .habit-copy > strong").allTextContents();
-    assert.deepEqual(ameliaHabitOrder.slice(0, 2), ["Make bed", "Breakfast"]);
+    assert.deepEqual(ameliaHabitOrder.slice(0, 3), ["Make bed", "Breakfast", "Brush teeth (morning)"]);
     assert.equal(ameliaHabitOrder.at(-1), "Goodnight story");
     const habitColours = await ameliaHabits.locator(".habit-row").evaluateAll((rows) => rows.map((row) => getComputedStyle(row).backgroundColor));
     assert.equal(new Set(habitColours).size, 12);

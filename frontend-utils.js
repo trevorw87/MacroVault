@@ -34,8 +34,37 @@
     return /^[a-z][a-z0-9_-]{0,48}$/.test(token) ? token : fallback;
   }
 
+  function decodeTextEntities(value) {
+    const namedEntities = {
+      amp: "&",
+      apos: "'",
+      gt: ">",
+      lt: "<",
+      nbsp: " ",
+      quot: "\""
+    };
+    return String(value ?? "").replace(/&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/gi, (entity, decimal, hexadecimal, named) => {
+      if (decimal) return String.fromCodePoint(Number(decimal));
+      if (hexadecimal) return String.fromCodePoint(parseInt(hexadecimal, 16));
+      return namedEntities[named.toLowerCase()] ?? entity;
+    });
+  }
+
+  function plainIngredientText(value) {
+    return decodeTextEntities(value)
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/(\*\*|__)(.*?)\1/g, "$2")
+      .replace(/([*_])([^*_]+)\1/g, "$2")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\\([*_`[\]()]|\\)/g, "$1")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   function stripIngredientBullet(value) {
-    return String(value ?? "")
+    return plainIngredientText(value)
       .replace(/^\s*(?:(?:[•●◦○▪▫■□‣⁃·∙⋅]+|[-*]+)\s*|\(?\d{1,2}[.)]\s+)/u, "")
       .trim();
   }

@@ -241,10 +241,18 @@ document.addEventListener("click", async (event) => {
       tone: "danger"
     });
     if (!confirmed) return;
-    state.ingredients = state.ingredients.filter((item) => item.id !== ingredient.id);
+    const deletedNameKey = ingredientKey(ingredient.name);
+    const deletedIngredients = state.ingredients.filter((item) => ingredientKey(item.name) === deletedNameKey);
+    const deletedIds = new Set(deletedIngredients.map((item) => item.id));
+    const deletedKeys = new Set([
+      ...(state.deletedIngredientKeys || []),
+      ...deletedIngredients.flatMap((item) => [item.name, item.plural, ...(item.aliases || [])]).map(ingredientKey)
+    ].filter(Boolean));
+    state.deletedIngredientKeys = [...deletedKeys];
+    state.ingredients = state.ingredients.filter((item) => !deletedIds.has(item.id));
     state.recipes = state.recipes.map((recipe) => ({
       ...recipe,
-      ingredientRefs: (recipe.ingredientRefs || []).map((ref) => ref.ingredientId === ingredient.id ? { ...ref, ingredientId: "" } : ref)
+      ingredientRefs: (recipe.ingredientRefs || []).map((ref) => deletedIds.has(ref.ingredientId) ? { ...ref, ingredientId: "" } : ref)
     }));
     saveState();
     render();
@@ -847,6 +855,9 @@ ingredientForm.addEventListener("submit", (event) => {
       sodium: roundNutrition(document.querySelector("#ingredientSodium").value)
     }
   };
+
+  const restoredKeys = new Set([ingredientData.name, ingredientData.plural, ...ingredientData.aliases].map(ingredientKey).filter(Boolean));
+  state.deletedIngredientKeys = (state.deletedIngredientKeys || []).filter((key) => !restoredKeys.has(ingredientKey(key)));
 
   if (ingredientId) {
     state.ingredients = state.ingredients.map((ingredient) => ingredient.id === ingredientId ? ingredientData : ingredient);
