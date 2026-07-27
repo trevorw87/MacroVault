@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.17
+
+- Made ingredient deletion records authoritative over stale server, backup, and synchronization copies.
+- Prevented deleted ingredient names and aliases such as Onion and Red Kidney Beans from returning.
+- Added a Today badge and stronger highlighting across the current day’s planner category headers and meal boxes.
+- Limited current-day highlighting to the actual current week.
+- Added browser regression coverage for stale deleted ingredients and current-day planner styling.
+
 ## 0.9.16
 
 - Added independently saved, date-based planner weeks with Previous week, Next week, and This week navigation.

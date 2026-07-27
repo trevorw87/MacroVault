@@ -139,6 +139,12 @@ function startServer() {
     assert.ok(new Set(desktopPlannerAxis.mealLabelStyles.map((style) => style.backgroundImage)).size >= 6);
     assert.ok(desktopPlannerAxis.mealLabelStyles.every((style) => style.textAlign === "center" && style.alignItems === "center"));
     assert.match(await page.locator('[data-planner-row="Sunday"] .planner-totals').textContent(), /Household total.*Per person/s);
+    assert.equal(await page.locator(".planner-day-section.today").count(), 1);
+    assert.equal(await page.locator(".planner-day-section.today .planner-today-badge").textContent(), "Today");
+    assert.match(
+      await page.locator(".planner-day-section.today .planner-cell").first().evaluate((element) => getComputedStyle(element).backgroundImage),
+      /linear-gradient/
+    );
     assert.ok(await page.locator("#plannerMonthGrid .planner-month-day").count() >= 35);
 
     const currentPlannerSnapshot = await page.evaluate(() => {
@@ -149,6 +155,7 @@ function startServer() {
       };
     });
     await page.locator("#nextPlannerWeekButton").click();
+    assert.equal(await page.locator(".planner-day-section.today").count(), 0);
     const nextWeekKey = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).selectedPlannerWeek);
     assert.notEqual(nextWeekKey, currentPlannerSnapshot.weekKey);
     await page.locator("#autoFillPlannerButton").click();

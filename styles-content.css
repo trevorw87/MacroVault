@@ -718,6 +718,32 @@
   background: linear-gradient(135deg, #edf8e8, #fff8e8);
 }
 
+.planner-today-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin-left: 8px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--green);
+  font-family: var(--body-font);
+  font-size: 0.64rem;
+  font-weight: 900;
+  vertical-align: middle;
+}
+
+.planner-day-section.today .planner-meal-label {
+  border-color: rgba(57, 155, 63, 0.5);
+  box-shadow: 0 0 0 2px rgba(57, 155, 63, 0.12), 0 8px 18px rgba(57, 155, 63, 0.08);
+}
+
+.planner-day-section.today .planner-cell {
+  border-color: rgba(57, 155, 63, 0.5);
+  background: linear-gradient(180deg, #fbfff8, #f1faeb);
+  box-shadow: 0 0 0 2px rgba(57, 155, 63, 0.12), 0 12px 26px rgba(57, 155, 63, 0.1);
+}
+
 .planner-day-section .planner-remaining {
   justify-self: end;
   text-align: right;

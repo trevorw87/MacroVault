@@ -489,7 +489,7 @@ function renderPlanner() {
           <details class="planner-day-section planner-mobile-day ${isToday ? "today" : ""}" data-planner-mobile-day="${day}" ${expanded ? "open" : ""}>
             <summary>
               <div class="planner-day-heading" data-planner-row="${day}">
-                <h3>${day}<small>${dateFromLocalKey(dateKey).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</small></h3>
+                <h3>${day}${isToday ? `<span class="planner-today-badge">Today</span>` : ""}<small>${dateFromLocalKey(dateKey).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</small></h3>
                 <div class="planner-totals">
                   <span class="planner-total-set">
                     <small>Household total</small>

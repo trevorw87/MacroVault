@@ -1675,7 +1675,10 @@ function normalizeIngredients(existingIngredients, recipes, deletedIngredientKey
   const byName = new Map();
   const knownKeys = new Set();
   const deletedKeys = new Set(deletedIngredientKeys.map(ingredientKey).filter(Boolean));
-  const normalizedIngredients = existingIngredients.map((ingredient) => {
+  const retainedIngredients = existingIngredients.filter((ingredient) => (
+    ![...ingredientIdentityKeys(ingredient)].some((key) => deletedKeys.has(key))
+  ));
+  const normalizedIngredients = retainedIngredients.map((ingredient) => {
     const originalName = ingredient.name || "Ingredient";
     const cleanedName = cleanIngredientName(originalName) || originalName;
     const name = cleanedName.replace(/\b\w/g, (letter) => letter.toUpperCase());

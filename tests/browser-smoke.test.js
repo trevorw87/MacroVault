@@ -222,6 +222,13 @@ function startServer() {
       await page.evaluate(() => normalizeIngredients([], [{ ingredients: ["200 g green beans"] }], ["green bean"]).length),
       0
     );
+    assert.deepEqual(
+      await page.evaluate(() => normalizeIngredients([
+        { id: "stale-onion", name: "Onion", nutrition: {} },
+        { id: "stale-kidney-beans", name: "Red Kidney Beans", aliases: ["kidney beans"], nutrition: {} }
+      ], [{ ingredients: ["1 onion", "400 g red kidney beans"] }], ["onion", "red kidney bean"])),
+      []
+    );
 
     await page.getByRole("button", { name: "Family", exact: true }).click();
     const familyCardWidths = await page.locator("#kidsLayout .kid-habit-card").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().width));
