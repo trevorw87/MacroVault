@@ -10,12 +10,13 @@ async function deleteRecipe(recipeId) {
   });
   if (!confirmed) return;
   state.recipes = state.recipes.filter((item) => item.id !== recipeId);
-  days.forEach((day) => {
-    mealPlanSlots
-      .forEach((slot) => {
-        state.planner[day][slot.id] = plannerRecipeIds(day, slot.id).filter((plannedId) => plannedId !== recipeId);
-        if (state.plannerServings?.[day]?.[slot.id]) delete state.plannerServings[day][slot.id][recipeId];
-      });
+  Object.values(state.plannerWeeks || {}).forEach((week) => {
+    days.forEach((day) => mealPlanSlots.forEach((slot) => {
+      const stored = week.planner?.[day]?.[slot.id];
+      week.planner[day][slot.id] = (Array.isArray(stored) ? stored : stored ? [stored] : [])
+        .filter((plannedId) => plannedId !== recipeId);
+      if (week.plannerServings?.[day]?.[slot.id]) delete week.plannerServings[day][slot.id][recipeId];
+    }));
   });
   Object.values(state.kids).forEach((kid) => {
     delete kid.ratings[recipeId];
@@ -534,7 +535,8 @@ function printWeekPlanner() {
           @page { size: A4 landscape; margin: 5mm; }
           * { box-sizing: border-box; }
           body { margin: 0; color: #121a2d; font-family: Arial, sans-serif; }
-          h1 { margin: 0 0 5px; font-size: 18px; text-align: center; }
+          h1 { margin: 0 0 2px; font-size: 18px; text-align: center; }
+          .week-range { margin: 0 0 5px; color: #657181; font-size: 9px; text-align: center; }
           table { width: 100%; min-height: 181mm; border-collapse: collapse; table-layout: fixed; }
           th, td { padding: 3px 4px; border: 1px solid #cfdacb; text-align: center; vertical-align: middle; }
           thead th { background: #eef7eb; text-align: center; }
@@ -552,6 +554,7 @@ function printWeekPlanner() {
       </head>
       <body>
         <h1>Weekly Planner</h1>
+        <p class="week-range">${escapeHtml(plannerWeekLabel())}</p>
         <table>
           <thead>
             <tr>

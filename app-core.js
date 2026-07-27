@@ -568,6 +568,95 @@ function normalizedMonthKey(value) {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(String(value || "")) ? String(value) : currentMonthKey();
 }
 
+function localDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function dateFromLocalKey(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function plannerWeekKeyForDate(value = new Date()) {
+  const date = value instanceof Date ? new Date(value) : dateFromLocalKey(value);
+  if (!date) return plannerWeekKeyForDate(new Date());
+  date.setDate(date.getDate() - date.getDay());
+  return localDateKey(date);
+}
+
+function currentPlannerWeekKey() {
+  return plannerWeekKeyForDate(new Date());
+}
+
+function shiftDateKey(value, daysToAdd) {
+  const date = dateFromLocalKey(value) || new Date();
+  date.setDate(date.getDate() + daysToAdd);
+  return localDateKey(date);
+}
+
+function shiftMonthKey(value, monthsToAdd) {
+  const monthKey = normalizedMonthKey(value);
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month - 1 + monthsToAdd, 1, 12);
+  return localDateKey(date).slice(0, 7);
+}
+
+function emptyPlannerWeekRecord() {
+  return { planner: {}, plannerServings: {}, consumed: {} };
+}
+
+function normalizePlannerWeekRecord(nextState, value = {}) {
+  const record = value && typeof value === "object" ? value : {};
+  const planner = record.planner && typeof record.planner === "object" ? record.planner : {};
+  const plannerServings = record.plannerServings && typeof record.plannerServings === "object" ? record.plannerServings : {};
+  const consumed = record.consumed && typeof record.consumed === "object" ? record.consumed : {};
+  const defaultPlannerServings = Math.max(1, familyMemberNames(nextState).length || 1);
+  days.forEach((day) => {
+    if (typeof planner[day] === "string") planner[day] = { dinner: planner[day] };
+    planner[day] ||= {};
+    plannerServings[day] ||= {};
+    consumed[day] ||= {};
+    if (!planner[day].afterLunchDrink && planner[day].beforeLunchDrink) planner[day].afterLunchDrink = planner[day].beforeLunchDrink;
+    if (!planner[day].afterTreatDrink && planner[day].afterDinnerDrink) planner[day].afterTreatDrink = planner[day].afterDinnerDrink;
+    mealPlanSlots.forEach((slot) => {
+      const storedRecipeIds = Array.isArray(planner[day][slot.id])
+        ? planner[day][slot.id]
+        : planner[day][slot.id] ? [planner[day][slot.id]] : [];
+      planner[day][slot.id] = [...new Set(storedRecipeIds
+        .map((recipeId) => {
+          if (!["morningSnack", "afternoonSnack", "afterDinnerTreat"].includes(slot.category)) return String(recipeId || "");
+          return legacySnackNameToId[String(recipeId || "").toLowerCase()] || String(recipeId || "");
+        })
+        .filter((recipeId) => {
+          const plannedRecipe = nextState.recipes.find((recipe) => recipe.id === recipeId);
+          return plannedRecipe && recipeBelongsToCategory(plannedRecipe, slot.category);
+        }))];
+      const servingCounts = plannerServings[day][slot.id] && typeof plannerServings[day][slot.id] === "object"
+        ? plannerServings[day][slot.id]
+        : {};
+      plannerServings[day][slot.id] = Object.fromEntries(planner[day][slot.id].map((recipeId) => [
+        recipeId,
+        Math.min(99, Math.max(1, Math.round(Number(servingCounts[recipeId]) || defaultPlannerServings)))
+      ]));
+      consumed[day][slot.id] = Boolean(consumed[day][slot.id]);
+    });
+  });
+  return { planner, plannerServings, consumed };
+}
+
+function activatePlannerWeek(nextState, weekKey) {
+  const normalizedKey = plannerWeekKeyForDate(weekKey);
+  nextState.plannerWeeks ||= {};
+  nextState.plannerWeeks[normalizedKey] = normalizePlannerWeekRecord(nextState, nextState.plannerWeeks[normalizedKey]);
+  nextState.selectedPlannerWeek = normalizedKey;
+  nextState.planner = nextState.plannerWeeks[normalizedKey].planner;
+  nextState.plannerServings = nextState.plannerWeeks[normalizedKey].plannerServings;
+  nextState.consumed = nextState.plannerWeeks[normalizedKey].consumed;
+  return nextState.plannerWeeks[normalizedKey];
+}
+
 function familyMemberNames(nextState = state) {
   return Object.keys(nextState?.kids || {});
 }
@@ -937,51 +1026,30 @@ function normalizeState(nextState) {
     }))
     .filter((entry) => entry.date && entry.weight > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
-  nextState.planner ||= {};
-  nextState.plannerServings = nextState.plannerServings && typeof nextState.plannerServings === "object"
-    ? nextState.plannerServings
+  const legacyPlannerWeek = {
+    planner: nextState.planner && typeof nextState.planner === "object" ? nextState.planner : {},
+    plannerServings: nextState.plannerServings && typeof nextState.plannerServings === "object" ? nextState.plannerServings : {},
+    consumed: nextState.consumed && typeof nextState.consumed === "object" ? nextState.consumed : {}
+  };
+  const savedPlannerWeeks = nextState.plannerWeeks && typeof nextState.plannerWeeks === "object"
+    ? nextState.plannerWeeks
     : {};
-  const defaultPlannerServings = Math.max(1, familyMemberNames(nextState).length || 1);
-  days.forEach((day) => {
-    if (typeof nextState.planner[day] === "string") {
-      nextState.planner[day] = { dinner: nextState.planner[day] };
-    }
-    nextState.planner[day] ||= {};
-    nextState.plannerServings[day] ||= {};
-    if (!nextState.planner[day].afterLunchDrink && nextState.planner[day].beforeLunchDrink) {
-      nextState.planner[day].afterLunchDrink = nextState.planner[day].beforeLunchDrink;
-    }
-    if (!nextState.planner[day].afterTreatDrink && nextState.planner[day].afterDinnerDrink) {
-      nextState.planner[day].afterTreatDrink = nextState.planner[day].afterDinnerDrink;
-    }
-    mealPlanSlots.forEach((slot) => {
-      const storedRecipeIds = Array.isArray(nextState.planner[day][slot.id])
-        ? nextState.planner[day][slot.id]
-        : nextState.planner[day][slot.id] ? [nextState.planner[day][slot.id]] : [];
-      nextState.planner[day][slot.id] = [...new Set(storedRecipeIds
-        .map((recipeId) => {
-          if (!["morningSnack", "afternoonSnack", "afterDinnerTreat"].includes(slot.category)) return String(recipeId || "");
-          return legacySnackNameToId[String(recipeId || "").toLowerCase()] || String(recipeId || "");
-        })
-        .filter((recipeId) => {
-          const plannedRecipe = nextState.recipes.find((recipe) => recipe.id === recipeId);
-          return plannedRecipe && recipeBelongsToCategory(plannedRecipe, slot.category);
-        }))];
-      const savedServings = nextState.plannerServings[day][slot.id];
-      const servingCounts = savedServings && typeof savedServings === "object" ? savedServings : {};
-      nextState.plannerServings[day][slot.id] = Object.fromEntries(nextState.planner[day][slot.id].map((recipeId) => [
-        recipeId,
-        Math.min(99, Math.max(1, Math.round(Number(servingCounts[recipeId]) || defaultPlannerServings)))
-      ]));
-    });
-  });
-  nextState.consumed ||= {};
-  days.forEach((day) => {
-    nextState.consumed[day] ||= {};
-    mealPlanSlots.forEach((slot) => {
-      nextState.consumed[day][slot.id] = Boolean(nextState.consumed[day][slot.id]);
-    });
-  });
+  nextState.plannerWeeks = Object.fromEntries(Object.entries(savedPlannerWeeks)
+    .filter(([weekKey]) => /^\d{4}-\d{2}-\d{2}$/.test(weekKey))
+    .map(([weekKey, week]) => [plannerWeekKeyForDate(weekKey), normalizePlannerWeekRecord(nextState, week)]));
+  if (!Object.keys(nextState.plannerWeeks).length) {
+    nextState.plannerWeeks[currentPlannerWeekKey()] = normalizePlannerWeekRecord(nextState, legacyPlannerWeek);
+  }
+  const selectedPlannerWeek = /^\d{4}-\d{2}-\d{2}$/.test(String(nextState.selectedPlannerWeek || ""))
+    ? plannerWeekKeyForDate(nextState.selectedPlannerWeek)
+    : currentPlannerWeekKey();
+  const rootPlannerDiffers = nextState.plannerWeeks[selectedPlannerWeek]
+    && JSON.stringify(legacyPlannerWeek.planner) !== JSON.stringify(nextState.plannerWeeks[selectedPlannerWeek].planner);
+  if (rootPlannerDiffers) {
+    nextState.plannerWeeks[selectedPlannerWeek] = normalizePlannerWeekRecord(nextState, legacyPlannerWeek);
+  }
+  activatePlannerWeek(nextState, selectedPlannerWeek);
+  nextState.plannerMonth = normalizedMonthKey(nextState.plannerMonth || selectedPlannerWeek.slice(0, 7));
   Object.entries(nextState.kids || {}).forEach(([name, kid]) => {
     kid.stars = Math.min(5, Math.max(0, Number(kid.stars) || 0));
     kid.goal = String(kid.goal || "");
@@ -1192,15 +1260,27 @@ function recipeById(id) {
   return (state.recipes || []).find((recipe) => recipe.id === id);
 }
 
-function plannerRecipeIds(day, slotId, nextState = state) {
-  const stored = nextState.planner?.[day]?.[slotId];
+function plannerWeekRecord(nextState = state, weekKey = nextState.selectedPlannerWeek) {
+  const normalizedKey = plannerWeekKeyForDate(weekKey);
+  if (nextState.plannerWeeks && typeof nextState.plannerWeeks === "object") {
+    return nextState.plannerWeeks[normalizedKey] || emptyPlannerWeekRecord();
+  }
+  return {
+    planner: nextState.planner || {},
+    plannerServings: nextState.plannerServings || {},
+    consumed: nextState.consumed || {}
+  };
+}
+
+function plannerRecipeIds(day, slotId, nextState = state, weekKey = nextState.selectedPlannerWeek) {
+  const stored = plannerWeekRecord(nextState, weekKey).planner?.[day]?.[slotId];
   return (Array.isArray(stored) ? stored : stored ? [stored] : [])
     .map((recipeId) => String(recipeId || ""))
     .filter(Boolean);
 }
 
-function plannerRecipes(day, slot, nextState = state) {
-  return plannerRecipeIds(day, slot.id, nextState)
+function plannerRecipes(day, slot, nextState = state, weekKey = nextState.selectedPlannerWeek) {
+  return plannerRecipeIds(day, slot.id, nextState, weekKey)
     .map((recipeId) => (nextState.recipes || []).find((recipe) => recipe.id === recipeId))
     .filter(Boolean);
 }
@@ -1209,10 +1289,64 @@ function householdServingCount(nextState = state) {
   return Math.max(1, familyMemberNames(nextState).length || 1);
 }
 
-function plannerServingCount(day, slotId, recipeId, nextState = state) {
+function plannerServingCount(day, slotId, recipeId, nextState = state, weekKey = nextState.selectedPlannerWeek) {
   return Math.min(99, Math.max(1, Math.round(
-    Number(nextState.plannerServings?.[day]?.[slotId]?.[recipeId]) || householdServingCount(nextState)
+    Number(plannerWeekRecord(nextState, weekKey).plannerServings?.[day]?.[slotId]?.[recipeId]) || householdServingCount(nextState)
   )));
+}
+
+function selectPlannerWeek(weekKey, nextState = state) {
+  const selectedKey = plannerWeekKeyForDate(weekKey);
+  activatePlannerWeek(nextState, selectedKey);
+  nextState.plannerMonth = selectedKey.slice(0, 7);
+  nextState.bought = [];
+  return selectedKey;
+}
+
+function plannerWeekDateKey(day, weekKey = state.selectedPlannerWeek) {
+  return shiftDateKey(plannerWeekKeyForDate(weekKey), days.indexOf(day));
+}
+
+function plannerWeekLabel(weekKey = state.selectedPlannerWeek) {
+  const start = dateFromLocalKey(plannerWeekKeyForDate(weekKey));
+  const end = dateFromLocalKey(shiftDateKey(weekKey, 6));
+  const startLabel = start.toLocaleDateString(undefined, { day: "numeric", month: "short", year: start.getFullYear() === end.getFullYear() ? undefined : "numeric" });
+  const endLabel = end.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return `${startLabel} – ${endLabel}`;
+}
+
+function plannerRecipeUsageCounts(nextState = state) {
+  const counts = new Map();
+  Object.values(nextState.plannerWeeks || {}).forEach((week) => {
+    days.forEach((day) => mealPlanSlots.forEach((slot) => {
+      const stored = week.planner?.[day]?.[slot.id];
+      (Array.isArray(stored) ? stored : stored ? [stored] : []).forEach((recipeId) => {
+        counts.set(recipeId, (counts.get(recipeId) || 0) + 1);
+      });
+    }));
+  });
+  return counts;
+}
+
+function autoFillSelectedPlannerWeek(nextState = state, random = Math.random) {
+  const usageCounts = plannerRecipeUsageCounts(nextState);
+  const household = householdServingCount(nextState);
+  let filled = 0;
+  days.forEach((day) => mealPlanSlots.forEach((slot) => {
+    if (plannerRecipeIds(day, slot.id, nextState).length) return;
+    const candidates = (nextState.recipes || []).filter((recipe) => recipeBelongsToCategory(recipe, slot.category));
+    if (!candidates.length) return;
+    const minimumUsage = Math.min(...candidates.map((recipe) => usageCounts.get(recipe.id) || 0));
+    const leastUsed = candidates.filter((recipe) => (usageCounts.get(recipe.id) || 0) === minimumUsage);
+    const recipe = leastUsed[Math.min(leastUsed.length - 1, Math.floor(random() * leastUsed.length))];
+    nextState.planner[day][slot.id] = [recipe.id];
+    nextState.plannerServings[day][slot.id] = { [recipe.id]: household };
+    nextState.consumed[day][slot.id] = false;
+    usageCounts.set(recipe.id, (usageCounts.get(recipe.id) || 0) + 1);
+    filled += 1;
+  }));
+  nextState.bought = [];
+  return filled;
 }
 
 function ingredientById(id) {
@@ -1515,22 +1649,26 @@ function mergeIngredientRecords(records) {
 }
 
 function consolidateIngredientAliases(ingredients) {
-  const consolidated = [];
+  const consolidated = new Set();
+  const ingredientByKey = new Map();
   ingredients.forEach((ingredient) => {
     const keys = ingredientIdentityKeys(ingredient);
-    const matches = consolidated.filter((candidate) => {
-      const candidateKeys = ingredientIdentityKeys(candidate);
-      return [...keys].some((key) => candidateKeys.has(key));
-    });
-    if (!matches.length) {
-      consolidated.push(ingredient);
+    const matches = new Set([...keys].map((key) => ingredientByKey.get(key)).filter(Boolean));
+    if (!matches.size) {
+      consolidated.add(ingredient);
+      keys.forEach((key) => ingredientByKey.set(key, ingredient));
       return;
     }
     const merged = mergeIngredientRecords([...matches, ingredient]);
-    matches.forEach((match) => consolidated.splice(consolidated.indexOf(match), 1));
-    consolidated.push(merged);
+    const mergedKeys = ingredientIdentityKeys(merged);
+    matches.forEach((match) => {
+      consolidated.delete(match);
+      ingredientIdentityKeys(match).forEach((key) => mergedKeys.add(key));
+    });
+    consolidated.add(merged);
+    mergedKeys.forEach((key) => ingredientByKey.set(key, merged));
   });
-  return consolidated;
+  return [...consolidated];
 }
 
 function normalizeIngredients(existingIngredients, recipes, deletedIngredientKeys = []) {
@@ -1635,8 +1773,23 @@ function ingredientUsageRecipes(ingredientId) {
   return state.recipes.filter((recipe) => (recipe.ingredientRefs || []).some((ref) => ref.ingredientId === ingredientId));
 }
 
-function ingredientUsageMarkup(ingredientId) {
-  const recipes = ingredientUsageRecipes(ingredientId);
+function ingredientUsageRecipesById(recipes = state.recipes) {
+  const recipesByIngredientId = new Map();
+  recipes.forEach((recipe) => {
+    const ingredientIds = new Set((recipe.ingredientRefs || []).map((ref) => ref.ingredientId).filter(Boolean));
+    ingredientIds.forEach((ingredientId) => {
+      const uses = recipesByIngredientId.get(ingredientId) || [];
+      uses.push(recipe);
+      recipesByIngredientId.set(ingredientId, uses);
+    });
+  });
+  return recipesByIngredientId;
+}
+
+function ingredientUsageMarkup(ingredientId, recipesByIngredientId = null) {
+  const recipes = recipesByIngredientId
+    ? recipesByIngredientId.get(ingredientId) || []
+    : ingredientUsageRecipes(ingredientId);
   if (!recipes.length) return `<span class="ingredient-usage muted-usage">0 recipe uses</span>`;
   if (recipes.length === 1) {
     return `<button class="ingredient-usage" data-open-ingredient-recipe="${escapeHtml(recipes[0].id)}" type="button" title="Open ${escapeHtml(recipes[0].name)}">1 recipe use</button>`;

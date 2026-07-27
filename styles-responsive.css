@@ -275,6 +275,29 @@
     padding: 16px;
   }
 
+  .planner-period-controls,
+  .planner-week-navigation {
+    align-items: stretch;
+  }
+
+  .planner-period-controls {
+    display: grid;
+  }
+
+  .planner-week-navigation {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #plannerWeekLabel {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  #currentPlannerWeekButton {
+    grid-column: 1 / -1;
+  }
+
   .topbar,
   .hero-panel,
   .dinner-content,
@@ -782,6 +805,14 @@ textarea:focus {
     justify-content: start;
   }
 
+  #ingredientsView .ingredients-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  #ingredientsView .toolbar-actions {
+    justify-content: flex-start;
+  }
+
   .ingredient-row,
   .ingredient-row-heading {
     grid-template-columns: 1fr;
@@ -950,6 +981,13 @@ textarea:focus {
 }
 
 @media (max-width: 520px) {
+  .ingredient-search-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .ingredient-search-controls .primary-button {
+    width: 100%;
+  }
   .brand > div:last-child {
     display: none;
   }

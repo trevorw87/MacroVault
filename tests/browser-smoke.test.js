@@ -118,13 +118,15 @@ function startServer() {
         count: ingredients.length,
         name: ingredients[0].name,
         aliases: ingredients[0].aliases,
-        linkedIds: recipes[0].ingredientRefs.map((ref) => ref.ingredientId)
+        linkedIds: recipes[0].ingredientRefs.map((ref) => ref.ingredientId),
+        usageCount: ingredientUsageRecipesById(recipes).get("chicken-breasts").length
       };
     });
     assert.equal(chickenAliasMerge.count, 1);
     assert.equal(chickenAliasMerge.name, "Chicken Breasts");
     assert.deepEqual(new Set(chickenAliasMerge.aliases), new Set(["chicken", "Chicken Breast Fillets"]));
     assert.deepEqual(chickenAliasMerge.linkedIds, ["chicken-breasts", "chicken-breasts", "chicken-breasts"]);
+    assert.equal(chickenAliasMerge.usageCount, 1);
 
     const preparedRecipeCard = page.locator(".recipe-card").filter({ has: page.getByRole("heading", { name: "Lemon Garlic Salmon", exact: true }) });
     await preparedRecipeCard.locator("[data-recipe-prepared]").check();

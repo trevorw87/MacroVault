@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.16
+
+- Added independently saved, date-based planner weeks with Previous week, Next week, and This week navigation.
+- Added rotating Auto-fill that randomly chooses among the least-used eligible recipes and preserves existing selections.
+- Added an advance month calendar whose dates open their editable saved week.
+- Kept Dashboard meals on the current week while Shopping follows the selected planner week.
+- Added the selected date range to printed weekly planners.
+- Accelerated ingredient alias consolidation and recipe-usage lookup for faster ingredient searching.
+- Added an explicit ingredient Search button and a clearer responsive action toolbar.
+- Added browser coverage for future-week persistence, rotation, non-destructive auto-fill, month navigation, and toolbar layout.
+
 ## 0.9.15
 
 - Parsed recipe continuation lines beginning with “and” or “plus” without treating quantities and units as ingredient names.

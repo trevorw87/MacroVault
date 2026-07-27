@@ -95,11 +95,14 @@
         </section>
 
         <section class="view" id="ingredientsView" aria-labelledby="pageTitle">
-          <div class="toolbar">
-            <label class="search-box">
-              <span>Search</span>
-              <input id="ingredientSearch" type="search" placeholder="Search ingredient data">
-            </label>
+          <div class="toolbar ingredients-toolbar">
+            <form class="ingredient-search-controls" id="ingredientSearchForm" role="search">
+              <label class="search-box">
+                <span>Search ingredients</span>
+                <input id="ingredientSearch" type="search" placeholder="Name, alias, label, or barcode">
+              </label>
+              <button class="primary-button" id="ingredientSearchButton" type="submit">Search</button>
+            </form>
             <div class="toolbar-actions">
               <button class="secondary-button" id="scanBarcodeButton" type="button">Scan barcode</button>
               <button class="secondary-button" id="syncIngredientsButton" type="button">Sync from recipes</button>
@@ -119,6 +122,15 @@
         </section>
 
         <section class="view" id="plannerView" aria-labelledby="pageTitle">
+          <div class="planner-period-controls">
+            <div class="planner-week-navigation" aria-label="Planner week navigation">
+              <button class="secondary-button" id="previousPlannerWeekButton" type="button">Previous week</button>
+              <strong id="plannerWeekLabel">Selected week</strong>
+              <button class="secondary-button" id="nextPlannerWeekButton" type="button">Next week</button>
+              <button class="text-button" id="currentPlannerWeekButton" type="button">This week</button>
+            </div>
+            <button class="primary-button" id="autoFillPlannerButton" type="button">Auto-fill empty boxes</button>
+          </div>
           <div class="planner-actions">
             <label>
               Calorie goal
@@ -131,6 +143,20 @@
             <button class="secondary-button" id="printWeekPlannerButton" type="button">Print week planner</button>
           </div>
           <div class="planner-grid" id="plannerGrid"></div>
+          <section class="section-block planner-month-overview">
+            <div class="planner-month-heading">
+              <div>
+                <h2>Month view</h2>
+                <p class="muted">Choose a date to open and edit its saved week.</p>
+              </div>
+              <div class="planner-month-navigation">
+                <button class="secondary-button" id="previousPlannerMonthButton" type="button" aria-label="Previous month">Previous</button>
+                <input id="plannerMonth" type="month" aria-label="Planner month">
+                <button class="secondary-button" id="nextPlannerMonthButton" type="button" aria-label="Next month">Next</button>
+              </div>
+            </div>
+            <div class="planner-month-grid" id="plannerMonthGrid"></div>
+          </section>
         </section>
 
         <section class="view" id="preparedView" aria-labelledby="pageTitle">

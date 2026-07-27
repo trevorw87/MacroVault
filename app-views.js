@@ -72,6 +72,7 @@ function groupShoppingItems(items) {
 
 function renderDashboard() {
   const today = days[new Date().getDay()];
+  const dashboardWeek = currentPlannerWeekKey();
   const dashboardMeals = [
     { id: "breakfast", label: "Breakfast", size: "main" },
     { id: "lunch", label: "Lunch", size: "main" },
@@ -82,12 +83,12 @@ function renderDashboard() {
   ];
   document.querySelector("#todayMeals").innerHTML = dashboardMeals.map((meal) => {
     const slot = mealPlanSlots.find((item) => item.id === meal.id) || meal;
-    const recipes = plannerRecipes(today, slot);
+    const recipes = plannerRecipes(today, slot, state, dashboardWeek);
     const recipe = recipes[0];
     const imageUrl = resolveImageUrl(recipe?.imageUrl);
     const mealName = recipes.map((item) => item.name).join(" + ");
-    const mealCalories = recipes.reduce((sum, item) => sum + caloriesPerServing(item) * plannerServingCount(today, slot.id, item.id), 0);
-    const mealProtein = recipes.reduce((sum, item) => sum + macrosPerServing(item).protein * plannerServingCount(today, slot.id, item.id), 0);
+    const mealCalories = recipes.reduce((sum, item) => sum + caloriesPerServing(item) * plannerServingCount(today, slot.id, item.id, state, dashboardWeek), 0);
+    const mealProtein = recipes.reduce((sum, item) => sum + macrosPerServing(item).protein * plannerServingCount(today, slot.id, item.id, state, dashboardWeek), 0);
     return `
       <article class="dashboard-meal-card ${meal.size === "small" ? "small" : "main"} ${imageUrl ? "has-image" : ""}">
         <button class="dashboard-meal-image" ${recipe ? `data-edit-recipe="${escapeHtml(recipe.id)}"` : `data-tab="planner"`} type="button" aria-label="${recipe ? `Open ${escapeHtml(recipe.name)}` : `Choose ${meal.label.toLowerCase()}`}">
@@ -104,7 +105,7 @@ function renderDashboard() {
     `;
   }).join("");
 
-  const plannedCount = days.filter((day) => mealPlanSlots.some((slot) => plannerRecipeIds(day, slot.id).length)).length;
+  const plannedCount = days.filter((day) => mealPlanSlots.some((slot) => plannerRecipeIds(day, slot.id, state, dashboardWeek).length)).length;
   const shoppingCount = getShoppingItems().length;
   const shoppingCounter = document.querySelector("#shoppingCount");
   if (shoppingCounter) shoppingCounter.textContent = shoppingCount;
@@ -271,6 +272,7 @@ function renderPrepared() {
 
 function renderIngredients() {
   const search = document.querySelector("#ingredientSearch").value.trim().toLowerCase();
+  const recipesByIngredientId = ingredientUsageRecipesById();
   const ingredients = state.ingredients.filter((ingredient) => {
     const haystack = [ingredient.name, ingredient.plural, ...normalizeIngredientAliases(ingredient.aliases), ingredient.description, ingredient.label, ingredient.barcode].join(" ").toLowerCase();
     return !search || haystack.includes(search);
@@ -315,7 +317,7 @@ function renderIngredients() {
                 <span class="muted">${escapeHtml(ingredient.plural || ingredient.description || "Ingredient")}</span>
                 ${normalizeIngredientAliases(ingredient.aliases).length ? `<span class="muted">Also: ${escapeHtml(normalizeIngredientAliases(ingredient.aliases).join(", "))}</span>` : ""}
                 ${ingredient.barcode ? `<span class="muted">Barcode ${escapeHtml(ingredient.barcode)}</span>` : ""}
-                ${ingredientUsageMarkup(ingredient.id)}
+                ${ingredientUsageMarkup(ingredient.id, recipesByIngredientId)}
               </div>
             </div>
             <span class="tag">${escapeHtml(ingredient.label || "Other")}</span>
@@ -434,6 +436,38 @@ function plannerCellMarkup(day, slot) {
   `;
 }
 
+function renderPlannerMonth() {
+  const monthInput = document.querySelector("#plannerMonth");
+  const monthKey = normalizedMonthKey(state.plannerMonth);
+  if (monthInput && document.activeElement !== monthInput) monthInput.value = monthKey;
+  const [year, month] = monthKey.split("-").map(Number);
+  const firstOfMonth = new Date(year, month - 1, 1, 12);
+  const gridStart = new Date(firstOfMonth);
+  gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+  const lastOfMonth = new Date(year, month, 0, 12);
+  const gridEnd = new Date(lastOfMonth);
+  gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()));
+  const cells = [];
+  for (const date = new Date(gridStart); date <= gridEnd; date.setDate(date.getDate() + 1)) {
+    const dateKey = localDateKey(date);
+    const weekKey = plannerWeekKeyForDate(date);
+    const day = days[date.getDay()];
+    const recipes = mealPlanSlots.flatMap((slot) => plannerRecipes(day, slot, state, weekKey));
+    const names = [...new Set(recipes.map((recipe) => recipe.name))];
+    cells.push(`
+      <button class="planner-month-day ${date.getMonth() === month - 1 ? "" : "outside-month"} ${weekKey === state.selectedPlannerWeek ? "selected-week" : ""} ${dateKey === todayDateKey() ? "today" : ""}" data-select-planner-date="${dateKey}" type="button" aria-label="Open week containing ${date.toLocaleDateString()}">
+        <span class="planner-month-date">${date.getDate()}</span>
+        ${names.slice(0, 2).map((name) => `<span>${escapeHtml(name)}</span>`).join("")}
+        ${names.length > 2 ? `<small>+${names.length - 2} more</small>` : names.length ? `<small>${names.length} planned</small>` : `<small>Not planned</small>`}
+      </button>
+    `);
+  }
+  document.querySelector("#plannerMonthGrid").innerHTML = `
+    ${days.map((day) => `<strong class="planner-month-weekday">${day.slice(0, 3)}</strong>`).join("")}
+    ${cells.join("")}
+  `;
+}
+
 function renderPlanner() {
   const goals = currentNutritionGoals();
   const calorieGoalInput = document.querySelector("#dailyCalorieGoal");
@@ -441,18 +475,21 @@ function renderPlanner() {
   if (calorieGoalInput && document.activeElement !== calorieGoalInput) calorieGoalInput.value = goals.calories;
   if (proteinGoalInput && document.activeElement !== proteinGoalInput) proteinGoalInput.value = goals.protein;
 
+  document.querySelector("#plannerWeekLabel").textContent = plannerWeekLabel();
   const mobilePlanner = window.matchMedia("(max-width: 760px)").matches;
-  const today = days[new Date().getDay()];
+  const todayKey = todayDateKey();
   document.querySelector("#plannerGrid").innerHTML = `
     <div class="planner-week planner-mobile">
       ${days.map((day) => {
+        const dateKey = plannerWeekDateKey(day);
         const remaining = nutritionGoalRemainingForDay(day);
-        const expanded = !mobilePlanner || day === today;
+        const isToday = dateKey === todayKey;
+        const expanded = !mobilePlanner || isToday || day === "Sunday";
         return `
-          <details class="planner-day-section planner-mobile-day ${day === today ? "today" : ""}" data-planner-mobile-day="${day}" ${expanded ? "open" : ""}>
+          <details class="planner-day-section planner-mobile-day ${isToday ? "today" : ""}" data-planner-mobile-day="${day}" ${expanded ? "open" : ""}>
             <summary>
               <div class="planner-day-heading" data-planner-row="${day}">
-                <h3>${day}</h3>
+                <h3>${day}<small>${dateFromLocalKey(dateKey).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</small></h3>
                 <div class="planner-totals">
                   <span class="planner-total-set">
                     <small>Household total</small>
@@ -486,6 +523,7 @@ function renderPlanner() {
       }).join("")}
     </div>
   `;
+  renderPlannerMonth();
 }
 
 function renderShopping() {

@@ -60,6 +60,23 @@ function startServer() {
     assert.equal(desktopLayout.clippedMealCards, 0);
     assert.equal(desktopLayout.clippedFamilyValues, 0);
 
+    await page.getByRole("button", { name: "Ingredients", exact: true }).click();
+    const ingredientToolbarLayout = await page.evaluate(() => {
+      const search = document.querySelector("#ingredientSearchForm").getBoundingClientRect();
+      const actions = document.querySelector("#ingredientsView .toolbar-actions").getBoundingClientRect();
+      const buttons = [...document.querySelectorAll("#ingredientsView .toolbar-actions button")];
+      return {
+        searchRight: search.right,
+        actionsLeft: actions.left,
+        actionTextClipped: buttons.some((button) => button.scrollWidth > button.clientWidth + 1)
+      };
+    });
+    assert.ok(ingredientToolbarLayout.actionsLeft >= ingredientToolbarLayout.searchRight);
+    assert.equal(ingredientToolbarLayout.actionTextClipped, false);
+    await page.locator("#ingredientSearch").fill("chicken");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    assert.ok(await page.locator("#ingredientTable .ingredient-row").count() > 0);
+
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
     const desktopRecipeCard = page.locator(".recipe-card").first();
     await desktopRecipeCard.locator("[data-edit-recipe]").first().click();
@@ -122,6 +139,54 @@ function startServer() {
     assert.ok(new Set(desktopPlannerAxis.mealLabelStyles.map((style) => style.backgroundImage)).size >= 6);
     assert.ok(desktopPlannerAxis.mealLabelStyles.every((style) => style.textAlign === "center" && style.alignItems === "center"));
     assert.match(await page.locator('[data-planner-row="Sunday"] .planner-totals').textContent(), /Household total.*Per person/s);
+    assert.ok(await page.locator("#plannerMonthGrid .planner-month-day").count() >= 35);
+
+    const currentPlannerSnapshot = await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));
+      return {
+        weekKey: saved.selectedPlannerWeek,
+        planner: JSON.stringify(saved.plannerWeeks[saved.selectedPlannerWeek].planner)
+      };
+    });
+    await page.locator("#nextPlannerWeekButton").click();
+    const nextWeekKey = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).selectedPlannerWeek);
+    assert.notEqual(nextWeekKey, currentPlannerSnapshot.weekKey);
+    await page.locator("#autoFillPlannerButton").click();
+    const futurePlannerState = await page.evaluate((currentWeekKey) => {
+      const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));
+      const plannedIds = Object.values(saved.plannerWeeks[saved.selectedPlannerWeek].planner)
+        .flatMap((day) => Object.values(day).flat());
+      return {
+        plannedCount: plannedIds.length,
+        currentPlanner: JSON.stringify(saved.plannerWeeks[currentWeekKey].planner)
+      };
+    }, currentPlannerSnapshot.weekKey);
+    assert.ok(futurePlannerState.plannedCount > 0);
+    assert.equal(futurePlannerState.currentPlanner, currentPlannerSnapshot.planner);
+    const autoFilledWeek = await page.evaluate(() => JSON.stringify(
+      JSON.parse(localStorage.getItem("macrovault.mvp.v1")).planner
+    ));
+    await page.locator("#autoFillPlannerButton").click();
+    assert.equal(
+      await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem("macrovault.mvp.v1")).planner)),
+      autoFilledWeek
+    );
+    await page.locator("#currentPlannerWeekButton").click();
+    assert.equal(
+      await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).selectedPlannerWeek),
+      currentPlannerSnapshot.weekKey
+    );
+    const displayedMonth = await page.locator("#plannerMonth").inputValue();
+    await page.locator("#nextPlannerMonthButton").click();
+    assert.notEqual(await page.locator("#plannerMonth").inputValue(), displayedMonth);
+    await page.locator("#plannerMonth").fill(nextWeekKey.slice(0, 7));
+    await page.locator("#plannerMonth").dispatchEvent("change");
+    await page.locator(`[data-select-planner-date="${nextWeekKey}"]`).click();
+    assert.equal(
+      await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).selectedPlannerWeek),
+      nextWeekKey
+    );
+    await page.locator("#currentPlannerWeekButton").click();
 
     await page.setViewportSize({ width: 1600, height: 1000 });
     await page.reload({ waitUntil: "networkidle" });

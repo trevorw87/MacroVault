@@ -174,6 +174,59 @@ document.addEventListener("click", async (event) => {
   const printWeekButton = event.target.closest("#printWeekPlannerButton");
   if (printWeekButton) printWeekPlanner();
 
+  const previousPlannerWeekButton = event.target.closest("#previousPlannerWeekButton");
+  if (previousPlannerWeekButton) {
+    selectPlannerWeek(shiftDateKey(state.selectedPlannerWeek, -7));
+    saveState();
+    render();
+    return;
+  }
+
+  const nextPlannerWeekButton = event.target.closest("#nextPlannerWeekButton");
+  if (nextPlannerWeekButton) {
+    selectPlannerWeek(shiftDateKey(state.selectedPlannerWeek, 7));
+    saveState();
+    render();
+    return;
+  }
+
+  const currentPlannerWeekButton = event.target.closest("#currentPlannerWeekButton");
+  if (currentPlannerWeekButton) {
+    selectPlannerWeek(currentPlannerWeekKey());
+    saveState();
+    render();
+    return;
+  }
+
+  const selectedPlannerDate = event.target.closest("[data-select-planner-date]");
+  if (selectedPlannerDate) {
+    selectPlannerWeek(selectedPlannerDate.dataset.selectPlannerDate);
+    saveState();
+    render();
+    document.querySelector("#plannerView")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+
+  const autoFillPlannerButton = event.target.closest("#autoFillPlannerButton");
+  if (autoFillPlannerButton) {
+    const filled = autoFillSelectedPlannerWeek();
+    saveState();
+    render();
+    showToast(filled
+      ? `Added ${filled} rotating meal${filled === 1 ? "" : "s"} to ${plannerWeekLabel()}.`
+      : "Every available planner box is already filled.", { type: filled ? "success" : "warning" });
+    return;
+  }
+
+  const previousPlannerMonthButton = event.target.closest("#previousPlannerMonthButton");
+  const nextPlannerMonthButton = event.target.closest("#nextPlannerMonthButton");
+  if (previousPlannerMonthButton || nextPlannerMonthButton) {
+    state.plannerMonth = shiftMonthKey(state.plannerMonth, previousPlannerMonthButton ? -1 : 1);
+    saveState();
+    renderPlanner();
+    return;
+  }
+
   const removePlannerRecipeButton = event.target.closest("[data-remove-planner-recipe]");
   if (removePlannerRecipeButton) {
     const { plannerDay, plannerSlot, removePlannerRecipe } = removePlannerRecipeButton.dataset;
@@ -370,6 +423,14 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  const plannerMonthInput = event.target.closest("#plannerMonth");
+  if (plannerMonthInput) {
+    state.plannerMonth = normalizedMonthKey(plannerMonthInput.value);
+    saveState();
+    renderPlanner();
+    return;
+  }
+
   const rewardMonthInput = event.target.closest("#rewardMonth");
   if (rewardMonthInput) {
     state.rewardChartMonth = normalizedMonthKey(rewardMonthInput.value);
@@ -465,7 +526,20 @@ document.addEventListener("change", (event) => {
 
 document.querySelector("#recipeSearch").addEventListener("input", renderRecipes);
 document.querySelector("#tagFilter").addEventListener("change", renderRecipes);
-document.querySelector("#ingredientSearch").addEventListener("input", renderIngredients);
+let ingredientSearchFrame = 0;
+document.querySelector("#ingredientSearch").addEventListener("input", () => {
+  cancelAnimationFrame(ingredientSearchFrame);
+  ingredientSearchFrame = requestAnimationFrame(() => {
+    ingredientSearchFrame = 0;
+    renderIngredients();
+  });
+});
+document.querySelector("#ingredientSearchForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  cancelAnimationFrame(ingredientSearchFrame);
+  ingredientSearchFrame = 0;
+  renderIngredients();
+});
 document.querySelector("#dailyCalorieGoal").addEventListener("change", (event) => {
   state.nutritionGoals ||= { ...defaultDailyNutritionGoals };
   state.nutritionGoals.calories = Math.max(0, Number(event.target.value) || defaultDailyNutritionGoals.calories);
