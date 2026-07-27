@@ -374,7 +374,7 @@ function openIngredientDialog(ingredient = null) {
 }
 
 function syncIngredientsFromRecipes() {
-  syncIngredientsAndRecipeLinks(state, { applyGenericNutrition: true, refreshRecipeNutrition: true });
+  syncIngredientsAndRecipeLinks(state, { applyGenericNutrition: true, refreshRecipeNutrition: true, removeUnused: true });
   saveState();
   render();
 }

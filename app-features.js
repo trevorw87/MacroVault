@@ -21,6 +21,7 @@ async function deleteRecipe(recipeId) {
   Object.values(state.kids).forEach((kid) => {
     delete kid.ratings[recipeId];
   });
+  removeUnusedIngredients(state);
   state.bought = [];
   saveState();
   render();

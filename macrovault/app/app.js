@@ -870,7 +870,7 @@ recipeForm.addEventListener("submit", async (event) => {
   } else {
     state.recipes.unshift(recipeData);
   }
-  syncIngredientsAndRecipeLinks(state);
+  syncIngredientsAndRecipeLinks(state, { removeUnused: true });
   applyRecipeIngredientNutritionEdits(ingredients);
   applyRecipeIngredientUsageEdits(recipeData.id);
   syncIngredientsAndRecipeLinks(state);

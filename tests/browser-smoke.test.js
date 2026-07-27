@@ -229,6 +229,20 @@ function startServer() {
       ], [{ ingredients: ["1 onion", "400 g red kidney beans"] }], ["onion", "red kidney bean"])),
       []
     );
+    const orphanCleanup = await page.evaluate(() => {
+      const draft = structuredClone(state);
+      draft.ingredients.push({ id: "unused-test-ingredient", name: "Unused Test Ingredient", nutrition: {} });
+      const normalized = normalizeState(draft);
+      const usedIngredientIds = new Set(normalized.recipes.flatMap((recipe) => (
+        (recipe.ingredientRefs || []).map((ref) => ref.ingredientId).filter(Boolean)
+      )));
+      return {
+        orphanStillExists: normalized.ingredients.some((ingredient) => ingredient.id === "unused-test-ingredient"),
+        allIngredientsAreUsed: normalized.ingredients.every((ingredient) => usedIngredientIds.has(ingredient.id))
+      };
+    });
+    assert.equal(orphanCleanup.orphanStillExists, false);
+    assert.equal(orphanCleanup.allIngredientsAreUsed, true);
 
     await page.getByRole("button", { name: "Family", exact: true }).click();
     const familyCardWidths = await page.locator("#kidsLayout .kid-habit-card").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().width));

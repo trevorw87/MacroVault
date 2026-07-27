@@ -974,7 +974,7 @@ async function saveImportedRecipe() {
     prepared: false,
     art: "custom"
   });
-  syncIngredientsAndRecipeLinks(state);
+  syncIngredientsAndRecipeLinks(state, { removeUnused: true });
   if (!saveState()) {
     state = previousState;
     pendingImportedRecipe = importedRecipe;

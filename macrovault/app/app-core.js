@@ -986,7 +986,7 @@ function normalizeState(nextState) {
   nextState.deletedIngredientKeys = [...new Set((Array.isArray(nextState.deletedIngredientKeys)
     ? nextState.deletedIngredientKeys
     : []).map(ingredientKey).filter(Boolean))];
-  syncIngredientsAndRecipeLinks(nextState);
+  syncIngredientsAndRecipeLinks(nextState, { removeUnused: true });
   normalizeImageAssets(nextState);
   nextState.kids = nextState.kids && typeof nextState.kids === "object" && Object.keys(nextState.kids).length
     ? { ...nextState.kids }
@@ -1750,6 +1750,15 @@ function linkRecipesToIngredients(recipes, ingredients) {
   }));
 }
 
+function removeUnusedIngredients(nextState = state) {
+  const usedIngredientIds = new Set((nextState.recipes || []).flatMap((recipe) => (
+    (recipe.ingredientRefs || []).map((ref) => ref.ingredientId).filter(Boolean)
+  )));
+  const ingredientCount = (nextState.ingredients || []).length;
+  nextState.ingredients = (nextState.ingredients || []).filter((ingredient) => usedIngredientIds.has(ingredient.id));
+  return ingredientCount - nextState.ingredients.length;
+}
+
 function syncIngredientsAndRecipeLinks(nextState = state, options = {}) {
   nextState.ingredients = normalizeIngredients(
     nextState.ingredients || [],
@@ -1757,6 +1766,9 @@ function syncIngredientsAndRecipeLinks(nextState = state, options = {}) {
     nextState.deletedIngredientKeys || []
   );
   nextState.recipes = linkRecipesToIngredients(nextState.recipes || [], nextState.ingredients);
+  if (options.removeUnused) {
+    removeUnusedIngredients(nextState);
+  }
   if (options.applyGenericNutrition) {
     applyGenericNutritionToIngredients(nextState, { refreshRecipeNutrition: false });
   }

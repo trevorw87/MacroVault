@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.18
+
+- Automatically removed ingredients with zero recipe uses after recipe links are rebuilt.
+- Applied orphan cleanup when recipes are saved, imported, deleted, or ingredients are resynchronized.
+- Kept newly added ingredients available during editing until the next recipe-link cleanup.
+- Added browser regression coverage for automatic zero-use ingredient removal.
+
 ## 0.9.17
 
 - Made ingredient deletion records authoritative over stale server, backup, and synchronization copies.
