@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.15
+
+- Parsed recipe continuation lines beginning with “and” or “plus” without treating quantities and units as ingredient names.
+- Decoded punctuation and consolidated malformed flour and confectioners’ sugar ingredient records automatically.
+- Merged existing ingredients whose names overlap another ingredient’s aliases, preserving the alias-rich canonical record.
+- Redirected recipe ingredient links to the canonical merged ingredient.
+- Added browser regression coverage for continuation parsing, malformed-record cleanup, alias merging, and recipe relinking.
+
 ## 0.9.14
 
 - Moved Brush teeth (morning) directly after Breakfast in child routines.

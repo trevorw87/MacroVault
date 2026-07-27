@@ -85,6 +85,46 @@ function startServer() {
       { name: "chicken stock", usedAmount: 2.5, usedUnit: "cup", hasQuantity: true }
     );
     assert.equal(await page.evaluate(() => scaleIngredientLine("2 1/2 cups chicken stock", 0.5)), "1.25 cups chicken stock");
+    assert.deepEqual(
+      await page.evaluate(() => parseIngredientLine("And 1/2 Cups All-Purpose Flour")),
+      { name: "all-purpose flour", usedAmount: 0.5, usedUnit: "cup", hasQuantity: true }
+    );
+    assert.deepEqual(
+      await page.evaluate(() => parseIngredientLine("And 3/4 Cups Confectioners&#8217; Sugar")),
+      { name: "confectioners' sugar", usedAmount: 0.75, usedUnit: "cup", hasQuantity: true }
+    );
+    const continuedIngredientCleanup = await page.evaluate(() => normalizeIngredients([
+      { id: "bad-flour-half", name: "And 1/2 Cups All-Purpose Flour", nutrition: {} },
+      { id: "bad-flour-two-thirds", name: "And 2/3 Cups All-Purpose Flour", nutrition: {} },
+      { id: "bad-sugar-curly", name: "And 3/4 Cups Confectioners’ Sugar", nutrition: {} },
+      { id: "bad-sugar-encoded", name: "And 3/4 Cups Confectioners&#8217; Sugar", nutrition: {} }
+    ], []).map((ingredient) => ingredient.name));
+    assert.deepEqual(continuedIngredientCleanup, ["All-Purpose Flour", "Confectioners' Sugar"]);
+    const chickenAliasMerge = await page.evaluate(() => {
+      const ingredients = normalizeIngredients([
+        { id: "chicken", name: "Chicken", nutrition: { calories: 120 } },
+        { id: "chicken-fillet", name: "Chicken Breast Fillets", nutrition: { calories: 120 } },
+        { id: "chicken-breasts", name: "Chicken Breasts", aliases: ["Chicken Breast Fillets", "chicken"], nutrition: { calories: 120 } }
+      ], []);
+      const recipes = linkRecipesToIngredients([{
+        ingredients: ["1 chicken", "2 chicken breast fillets", "3 chicken breasts"],
+        ingredientRefs: [
+          { ingredientId: "chicken" },
+          { ingredientId: "chicken-fillet" },
+          { ingredientId: "chicken-breasts" }
+        ]
+      }], ingredients);
+      return {
+        count: ingredients.length,
+        name: ingredients[0].name,
+        aliases: ingredients[0].aliases,
+        linkedIds: recipes[0].ingredientRefs.map((ref) => ref.ingredientId)
+      };
+    });
+    assert.equal(chickenAliasMerge.count, 1);
+    assert.equal(chickenAliasMerge.name, "Chicken Breasts");
+    assert.deepEqual(new Set(chickenAliasMerge.aliases), new Set(["chicken", "Chicken Breast Fillets"]));
+    assert.deepEqual(chickenAliasMerge.linkedIds, ["chicken-breasts", "chicken-breasts", "chicken-breasts"]);
 
     const preparedRecipeCard = page.locator(".recipe-card").filter({ has: page.getByRole("heading", { name: "Lemon Garlic Salmon", exact: true }) });
     await preparedRecipeCard.locator("[data-recipe-prepared]").check();

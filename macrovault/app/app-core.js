@@ -1262,8 +1262,10 @@ function recipeCategory(recipe) {
 }
 
 function cleanIngredientName(value) {
-  return String(value || "")
+  return stripIngredientBullet(value)
     .toLowerCase()
+    .replace(/[‘’]/g, "'")
+    .replace(/^\s*(?:and|plus)\s+/i, "")
     .replace(/^\s*(\d+\s+\d+\/\d+|\d+\/\d+)\s*/i, "")
     .replace(/^\s*\/\d+\s*/i, "")
     .replace(/^\s*(\d+(?:\.\d+)?|\d+\/\d+|[¼½¾⅓⅔⅛⅜⅝⅞])\s*/i, "")
@@ -1296,7 +1298,8 @@ function parseQuantityNumber(value) {
 }
 
 function parseIngredientLine(line) {
-  const original = stripIngredientBullet(line);
+  const original = stripIngredientBullet(line)
+    .replace(/^\s*(?:and|plus)\s+(?=\d|[¼½¾⅓⅔⅛⅜⅝⅞])/i, "");
   const quantityMatch = original.match(/^((?:\d+(?:\.\d+)?|\d+\/\d+|[¼½¾⅓⅔⅛⅜⅝⅞])(?:\s+(?:\d+\/\d+|[¼½¾⅓⅔⅛⅜⅝⅞]))?)\s*(?:x\s*)?([a-zA-Z]+)?\.?\s+(.+)$/);
   if (!quantityMatch) {
     return {
@@ -1345,7 +1348,7 @@ function normalizeRecipeIngredientQuantities(recipe) {
 }
 
 function ingredientKey(value) {
-  const normalized = cleanIngredientName(value);
+  const normalized = cleanIngredientName(value).replace(/['’]/g, "");
   if (!normalized) return "";
   if (normalized.endsWith("ies")) return normalized.slice(0, -3) + "y";
   if (normalized.endsWith("atoes")) return normalized.slice(0, -2);
@@ -1472,15 +1475,72 @@ function applyGenericNutritionToIngredients(nextState = state, options = {}) {
   return changed;
 }
 
+function ingredientIdentityKeys(ingredient) {
+  return new Set([ingredient.name, ingredient.plural, ...normalizeIngredientAliases(ingredient.aliases)]
+    .map(ingredientKey)
+    .filter(Boolean));
+}
+
+function ingredientMergePriority(ingredient) {
+  return (normalizeIngredientAliases(ingredient.aliases).length * 1000)
+    + ([ingredient.plural, ingredient.description, ingredient.barcode, ingredient.imageUrl].filter(Boolean).length * 10)
+    + (hasNutritionValues(ingredient.nutrition) ? 1 : 0);
+}
+
+function mergeIngredientRecords(records) {
+  const preferred = records.reduce((best, ingredient) => (
+    ingredientMergePriority(ingredient) > ingredientMergePriority(best) ? ingredient : best
+  ));
+  const nutritionSource = hasNutritionValues(preferred.nutrition)
+    ? preferred
+    : records.find((ingredient) => hasNutritionValues(ingredient.nutrition)) || preferred;
+  const aliasByKey = new Map();
+  records.flatMap((ingredient) => [ingredient.name, ingredient.plural, ...normalizeIngredientAliases(ingredient.aliases)])
+    .filter(Boolean)
+    .forEach((alias) => aliasByKey.set(ingredientKey(alias), alias));
+  aliasByKey.delete(ingredientKey(preferred.name));
+  aliasByKey.delete(ingredientKey(preferred.plural));
+  const fallbackValue = (field) => preferred[field] || records.find((ingredient) => ingredient[field])?.[field] || "";
+  return {
+    ...preferred,
+    aliases: [...aliasByKey.values()],
+    description: fallbackValue("description"),
+    barcode: fallbackValue("barcode"),
+    imageUrl: fallbackValue("imageUrl"),
+    label: fallbackValue("label"),
+    onHand: records.some((ingredient) => ingredient.onHand),
+    serving: nutritionSource.serving,
+    nutrition: nutritionSource.nutrition
+  };
+}
+
+function consolidateIngredientAliases(ingredients) {
+  const consolidated = [];
+  ingredients.forEach((ingredient) => {
+    const keys = ingredientIdentityKeys(ingredient);
+    const matches = consolidated.filter((candidate) => {
+      const candidateKeys = ingredientIdentityKeys(candidate);
+      return [...keys].some((key) => candidateKeys.has(key));
+    });
+    if (!matches.length) {
+      consolidated.push(ingredient);
+      return;
+    }
+    const merged = mergeIngredientRecords([...matches, ingredient]);
+    matches.forEach((match) => consolidated.splice(consolidated.indexOf(match), 1));
+    consolidated.push(merged);
+  });
+  return consolidated;
+}
+
 function normalizeIngredients(existingIngredients, recipes, deletedIngredientKeys = []) {
   const byName = new Map();
   const knownKeys = new Set();
   const deletedKeys = new Set(deletedIngredientKeys.map(ingredientKey).filter(Boolean));
-  existingIngredients.forEach((ingredient) => {
+  const normalizedIngredients = existingIngredients.map((ingredient) => {
     const originalName = ingredient.name || "Ingredient";
     const cleanedName = cleanIngredientName(originalName) || originalName;
     const name = cleanedName.replace(/\b\w/g, (letter) => letter.toUpperCase());
-    const normalized = ingredientKey(name);
     const estimated = ingredientNutritionEstimate(name);
     const nutrition = hasNutritionValues(ingredient.nutrition) ? ingredient.nutrition : estimated;
     const defaultNutrition = ingredientDefaultForName(name);
@@ -1509,8 +1569,11 @@ function normalizeIngredients(existingIngredients, recipes, deletedIngredientKey
         sodium: roundNutrition(nutrition?.sodium)
       }
     };
-    byName.set(normalized, normalizedIngredient);
-    [name, normalizedIngredient.plural, ...aliases].map(ingredientKey).filter(Boolean).forEach((key) => knownKeys.add(key));
+    return normalizedIngredient;
+  });
+  consolidateIngredientAliases(normalizedIngredients).forEach((ingredient) => {
+    byName.set(ingredientKey(ingredient.name), ingredient);
+    ingredientIdentityKeys(ingredient).forEach((key) => knownKeys.add(key));
   });
 
   recipes.flatMap((recipe) => recipe.ingredients || []).forEach((ingredientLine) => {
