@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.19
+
+- Kept manually created ingredients across reloads even when they are not yet linked to a recipe.
+- Tracked pending browser changes until Home Assistant confirms the matching server save.
+- Recovered unsynced local changes after quick reloads, interrupted uploads, and offline sessions without silently replacing them with older server data.
+- Preserved revision conflict protection and retried pending changes when connectivity returns.
+- Reported browser storage failures instead of treating an unconfirmed asynchronous server save as successful.
+- Added browser regression coverage for standalone ingredient persistence and interrupted-sync recovery.
+
 ## 0.9.18
 
 - Automatically removed ingredients with zero recipe uses after recipe links are rebuilt.

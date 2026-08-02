@@ -1011,7 +1011,7 @@ document.addEventListener("keydown", (event) => {
 window.addEventListener("offline", () => setSyncStatus("local", "Offline — saved locally"));
 window.addEventListener("online", () => {
   setSyncStatus("saving", "Reconnecting…");
-  queueServerStateSave(state);
+  queueServerStateSave(state, syncMetadata.pending ? { token: syncMetadata.pending.token } : {});
 });
 
 window.matchMedia("(max-width: 760px)").addEventListener("change", () => {

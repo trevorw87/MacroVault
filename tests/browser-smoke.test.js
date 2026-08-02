@@ -184,6 +184,7 @@ function startServer() {
     await page.locator("#recipeImportDialog").getByRole("button", { name: "Cancel", exact: true }).click();
 
     await page.getByRole("button", { name: "Ingredients", exact: true }).click();
+    const remoteStateBeforePepper = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")));
     await page.getByRole("button", { name: "Add ingredient", exact: true }).click();
     await page.locator("#ingredientName").fill("Black Pepper");
     await page.locator("#ingredientAliases").fill("pepper, Freshly ground black pepper");
@@ -203,6 +204,36 @@ function startServer() {
     assert.equal(pepperAliases.matchesPepper, true);
     assert.equal(pepperAliases.matchesLongName, true);
     assert.equal(pepperAliases.normalizedCount, 1);
+
+    await page.evaluate(() => clearTimeout(serverSaveTimer));
+    let recoveredServerSave = null;
+    await page.route("**/api/state", async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ state: remoteStateBeforePepper, revision: 0 })
+        });
+        return;
+      }
+      recoveredServerSave = route.request().postDataJSON();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, revision: 1 })
+      });
+    });
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForFunction(() => !JSON.parse(localStorage.getItem("macrovault.mvp.v1.syncMeta")).pending);
+    await page.getByRole("button", { name: "Ingredients", exact: true }).click();
+    assert.equal(await page.getByText("Black Pepper", { exact: true }).count(), 1);
+    assert.equal(
+      await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).ingredients.some((ingredient) => ingredient.name === "Black Pepper")),
+      true
+    );
+    assert.equal(recoveredServerSave.expectedRevision, 0);
+    assert.equal(recoveredServerSave.state.ingredients.some((ingredient) => ingredient.name === "Black Pepper"), true);
+    await page.unroute("**/api/state");
 
     const greenBeansRow = page.locator("#ingredientTable .ingredient-row").filter({
       has: page.getByText("Green Beans", { exact: true })
@@ -229,20 +260,20 @@ function startServer() {
       ], [{ ingredients: ["1 onion", "400 g red kidney beans"] }], ["onion", "red kidney bean"])),
       []
     );
-    const orphanCleanup = await page.evaluate(() => {
+    const standaloneIngredientPersistence = await page.evaluate(() => {
       const draft = structuredClone(state);
       draft.ingredients.push({ id: "unused-test-ingredient", name: "Unused Test Ingredient", nutrition: {} });
       const normalized = normalizeState(draft);
-      const usedIngredientIds = new Set(normalized.recipes.flatMap((recipe) => (
-        (recipe.ingredientRefs || []).map((ref) => ref.ingredientId).filter(Boolean)
-      )));
       return {
         orphanStillExists: normalized.ingredients.some((ingredient) => ingredient.id === "unused-test-ingredient"),
-        allIngredientsAreUsed: normalized.ingredients.every((ingredient) => usedIngredientIds.has(ingredient.id))
+        removedByExplicitCleanup: (() => {
+          removeUnusedIngredients(normalized);
+          return !normalized.ingredients.some((ingredient) => ingredient.id === "unused-test-ingredient");
+        })()
       };
     });
-    assert.equal(orphanCleanup.orphanStillExists, false);
-    assert.equal(orphanCleanup.allIngredientsAreUsed, true);
+    assert.equal(standaloneIngredientPersistence.orphanStillExists, true);
+    assert.equal(standaloneIngredientPersistence.removedByExplicitCleanup, true);
 
     await page.getByRole("button", { name: "Family", exact: true }).click();
     const familyCardWidths = await page.locator("#kidsLayout .kid-habit-card").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().width));

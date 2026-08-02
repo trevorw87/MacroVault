@@ -3,6 +3,7 @@ const { escapeHtml, safeHttpUrl, safeImageUrl, safeCssToken, stripIngredientBull
 const STORAGE_KEY = "macrovault.mvp.v1";
 const BACKUP_KEY = `${STORAGE_KEY}.backup`;
 const BACKUP_META_KEY = `${STORAGE_KEY}.backupMeta`;
+const SYNC_META_KEY = `${STORAGE_KEY}.syncMeta`;
 const IMAGE_ASSET_PREFIX = "image-asset:";
 const MAX_IMAGE_UPLOAD_BYTES = 8 * 1024 * 1024;
 const MAX_STORED_IMAGE_BYTES = 75 * 1024;
@@ -16,6 +17,7 @@ let serverSaveTimer = null;
 let serverSaveInFlight = null;
 let serverRevision = 0;
 let serverConflictInFlight = null;
+let syncMetadata = { revision: 0, pending: null };
 
 class ServerRequestError extends Error {
   constructor(message, status, payload = null) {
@@ -821,6 +823,63 @@ function loadBackupState() {
   }
 }
 
+function loadSyncMetadata() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SYNC_META_KEY) || "null");
+    return {
+      revision: Math.max(0, Number(saved?.revision) || 0),
+      pending: saved?.pending?.token ? {
+        token: String(saved.pending.token),
+        baseRevision: Math.max(0, Number(saved.pending.baseRevision) || 0)
+      } : null
+    };
+  } catch (error) {
+    console.warn("Unable to read MacroVault sync metadata", error);
+    return { revision: 0, pending: null };
+  }
+}
+
+function persistSyncMetadata() {
+  try {
+    localStorage.setItem(SYNC_META_KEY, JSON.stringify(syncMetadata));
+    return true;
+  } catch (error) {
+    console.warn("Unable to save MacroVault sync metadata", error);
+    return false;
+  }
+}
+
+function markServerSyncPending() {
+  const pending = {
+    token: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+    baseRevision: serverRevision
+  };
+  syncMetadata = { revision: serverRevision, pending };
+  persistSyncMetadata();
+  return pending;
+}
+
+function recordServerSyncSuccess(token, revision) {
+  serverRevision = Math.max(0, Number(revision) || serverRevision);
+  const pending = syncMetadata.pending;
+  syncMetadata.revision = serverRevision;
+  if (token && pending?.token === token) {
+    syncMetadata.pending = null;
+  } else if (pending) {
+    // A newer local snapshot includes the one just saved, so it now builds on
+    // the revision returned by this successful request.
+    pending.baseRevision = serverRevision;
+  }
+  persistSyncMetadata();
+}
+
+function clearPendingServerSync(token = "") {
+  if (token && syncMetadata.pending?.token !== token) return;
+  syncMetadata.pending = null;
+  syncMetadata.revision = serverRevision;
+  persistSyncMetadata();
+}
+
 async function loadServerState() {
   const response = await fetch(API_STATE_URL, {
     headers: { Accept: "application/json" },
@@ -832,6 +891,8 @@ async function loadServerState() {
   if (!payload?.state || typeof payload.state !== "object") return null;
   serverStorageAvailable = true;
   serverRevision = Number(payload.revision) || 0;
+  syncMetadata.revision = serverRevision;
+  persistSyncMetadata();
   return normalizeState({ ...structuredClone(sampleState), ...payload.state });
 }
 
@@ -855,23 +916,27 @@ async function requestServerJson(path, { method = "GET", body, acceptedStatuses 
   return payload;
 }
 
-async function saveStateToServer(snapshot) {
+async function saveStateToServer(snapshot, { expectedRevision = serverRevision, token = "" } = {}) {
   const result = await requestServerJson(API_STATE_URL, {
     method: "PUT",
-    body: { state: snapshot, expectedRevision: serverRevision }
+    body: { state: snapshot, expectedRevision }
   });
-  serverRevision = Number(result?.revision) || serverRevision;
+  recordServerSyncSuccess(token, result?.revision);
   serverStorageAvailable = true;
   return result;
 }
 
-async function resolveServerConflict(localSnapshot) {
+async function resolveServerConflict(localSnapshot, token = "") {
   if (serverConflictInFlight) return serverConflictInFlight;
   serverConflictInFlight = (async () => {
+    if (token && syncMetadata.pending?.token !== token) return;
     backupStateSnapshot(stateWithoutEmbeddedImageData(localSnapshot), "sync conflict");
     const response = await requestServerJson(API_STATE_URL);
     const remoteState = normalizeState({ ...structuredClone(sampleState), ...response.state });
     serverRevision = Number(response.revision) || 0;
+    syncMetadata.revision = serverRevision;
+    persistSyncMetadata();
+    if (token && syncMetadata.pending?.token !== token) return;
     setSyncStatus("error", "Changes found on another device");
     const keepLocal = await openUiDialog({
       title: "Changes on another device",
@@ -884,7 +949,7 @@ async function resolveServerConflict(localSnapshot) {
         method: "PUT",
         body: { state: localSnapshot, expectedRevision: serverRevision }
       });
-      serverRevision = Number(saved?.revision) || serverRevision;
+      recordServerSyncSuccess(token, saved?.revision);
       setSyncStatus("saved", "Saved to Home Assistant");
       showToast("This device's version was saved after resolving the conflict.", { type: "success" });
       return;
@@ -892,6 +957,7 @@ async function resolveServerConflict(localSnapshot) {
 
     state = remoteState;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stateWithoutEmbeddedImageData(remoteState)));
+    clearPendingServerSync(token);
     render();
     setSyncStatus("saved", "Using latest Home Assistant data");
     showToast("Loaded the newer Home Assistant version. Your previous local version remains in the browser backup.");
@@ -901,18 +967,20 @@ async function resolveServerConflict(localSnapshot) {
   return serverConflictInFlight;
 }
 
-function queueServerStateSave(snapshot) {
+function queueServerStateSave(snapshot, { token = "", expectedRevision } = {}) {
   const serverSnapshot = structuredClone(snapshot);
   clearTimeout(serverSaveTimer);
   setSyncStatus("saving", "Saving…");
   serverSaveTimer = setTimeout(() => {
     serverSaveInFlight = (serverSaveInFlight || Promise.resolve())
       .catch(() => undefined)
-      .then(() => saveStateToServer(serverSnapshot))
-      .then(() => setSyncStatus("saved", "Saved to Home Assistant"))
+      .then(() => saveStateToServer(serverSnapshot, { expectedRevision, token }))
+      .then(() => {
+        if (!syncMetadata.pending) setSyncStatus("saved", "Saved to Home Assistant");
+      })
       .catch(async (error) => {
         if (error instanceof ServerRequestError && error.status === 409) {
-          await resolveServerConflict(serverSnapshot);
+          await resolveServerConflict(serverSnapshot, token);
           return;
         }
         serverStorageAvailable = false;
@@ -923,10 +991,28 @@ function queueServerStateSave(snapshot) {
 }
 
 async function initializeStateFromStorage() {
+  syncMetadata = loadSyncMetadata();
+  serverRevision = syncMetadata.revision;
+  const pendingSync = syncMetadata.pending ? { ...syncMetadata.pending } : null;
   const browserState = loadState();
   try {
     const serverState = await loadServerState();
     if (serverState) {
+      if (pendingSync) {
+        if (JSON.stringify(stateWithoutEmbeddedImageData(browserState)) === JSON.stringify(stateWithoutEmbeddedImageData(serverState))) {
+          state = serverState;
+          clearPendingServerSync(pendingSync.token);
+          setSyncStatus("saved", "Saved to Home Assistant");
+          return;
+        }
+        state = browserState;
+        setSyncStatus("saving", "Recovering unsynced changes…");
+        queueServerStateSave(state, {
+          token: pendingSync.token,
+          expectedRevision: pendingSync.baseRevision
+        });
+        return;
+      }
       state = serverState;
       setSyncStatus("saved", "Saved to Home Assistant");
       try {
@@ -938,7 +1024,10 @@ async function initializeStateFromStorage() {
       return;
     }
     state = browserState;
-    queueServerStateSave(state);
+    queueServerStateSave(state, pendingSync ? {
+      token: pendingSync.token,
+      expectedRevision: pendingSync.baseRevision
+    } : {});
   } catch (error) {
     serverStorageAvailable = false;
     setSyncStatus("local", navigator.onLine ? "Saved in this browser" : "Offline — saved locally");
@@ -986,7 +1075,8 @@ function normalizeState(nextState) {
   nextState.deletedIngredientKeys = [...new Set((Array.isArray(nextState.deletedIngredientKeys)
     ? nextState.deletedIngredientKeys
     : []).map(ingredientKey).filter(Boolean))];
-  syncIngredientsAndRecipeLinks(nextState, { removeUnused: true });
+  // Preserve ingredients created independently of recipes across reloads.
+  syncIngredientsAndRecipeLinks(nextState);
   normalizeImageAssets(nextState);
   nextState.kids = nextState.kids && typeof nextState.kids === "object" && Object.keys(nextState.kids).length
     ? { ...nextState.kids }
@@ -1196,26 +1286,26 @@ function saveState({ skipBackup = false } = {}) {
   lastSaveWarning = "";
   const nextState = normalizeImageAssets(structuredClone(state));
   state = nextState;
-  queueServerStateSave(nextState);
-  const browserSnapshot = stateWithoutEmbeddedImageData(nextState);
+  let browserSnapshot = stateWithoutEmbeddedImageData(nextState);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(browserSnapshot));
+    const pending = markServerSyncPending();
     if (!skipBackup) backupStateSnapshot(browserSnapshot, "after save");
+    queueServerStateSave(nextState, { token: pending.token });
     return true;
   } catch (error) {
     pruneUnusedImageAssets(nextState);
+    browserSnapshot = stateWithoutEmbeddedImageData(nextState);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(browserSnapshot));
+      const pending = markServerSyncPending();
       if (!skipBackup) backupStateSnapshot(browserSnapshot, "after reduced save");
+      queueServerStateSave(nextState, { token: pending.token });
       return true;
     } catch {
       // Keep the original error in the console because it carries the quota detail.
     }
     console.error("Unable to save MacroVault state", error);
-    if (serverStorageAvailable) {
-      lastSaveWarning = "MacroVault saved to the server database, but this browser could not refresh its local backup.";
-      return true;
-    }
     setSyncStatus("error", "Could not save changes");
     return false;
   }
