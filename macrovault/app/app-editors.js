@@ -525,9 +525,10 @@ function renderRecipeIngredientNutritionEditor() {
     ${ingredientData.map((item, index) => {
       const usage = editingRecipe?.ingredientRefs?.[index] || {};
       const linkedIngredient = state.ingredients.find((candidate) => candidate.id === usage.ingredientId);
-      const ingredient = linkedIngredient && ingredientMatchesLine(linkedIngredient, item.name)
-        ? linkedIngredient
-        : findIngredientForLine(item.name);
+      // Restore an explicit database selection even when its name differs from
+      // the free-text recipe line. Fall back to name matching only when no saved
+      // selection exists (or the selected ingredient was deleted).
+      const ingredient = linkedIngredient || findIngredientForLine(item.name);
       const nutrition = ingredient?.nutrition || ingredientNutritionEstimate(item.name);
       const serving = ingredient?.serving || { amount: 1, unit: "each" };
       const usedAmount = usage.usedAmount ?? item.usedAmount ?? serving.amount;

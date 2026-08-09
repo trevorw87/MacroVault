@@ -88,6 +88,42 @@ function startServer() {
       await recipeIngredientRows.count()
     );
     await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
+
+    const explicitIngredientSelection = await page.evaluate(() => {
+      const recipe = recipeById("lemon-salmon");
+      const lineName = parseIngredientLine(recipe.ingredients[0]).name;
+      const ingredient = state.ingredients.find((candidate) => !ingredientMatchesLine(candidate, lineName));
+      return {
+        ingredientId: ingredient.id,
+        ingredientName: ingredient.name
+      };
+    });
+    await page.evaluate(() => openRecipeDialog(recipeById("lemon-salmon")));
+    await page.locator('[data-recipe-ingredient-index="0"][data-recipe-ingredient-field="ingredientId"]')
+      .selectOption(explicitIngredientSelection.ingredientId);
+    await page.locator("#recipeDialog").getByRole("button", { name: "Save recipe", exact: true }).click();
+    assert.equal(
+      await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1"))
+        .recipes.find((recipe) => recipe.id === "lemon-salmon").ingredientRefs[0].ingredientId),
+      explicitIngredientSelection.ingredientId
+    );
+    await page.evaluate(() => openRecipeDialog(recipeById("lemon-salmon")));
+    assert.equal(
+      await page.locator('[data-recipe-ingredient-index="0"][data-recipe-ingredient-field="ingredientId"]').inputValue(),
+      explicitIngredientSelection.ingredientId
+    );
+    assert.match(
+      await page.locator('[data-recipe-ingredient-index="0"]').first().locator("xpath=ancestor::article[1]").textContent(),
+      new RegExp(`Linked to ${explicitIngredientSelection.ingredientName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`)
+    );
+    await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.evaluate(() => {
+      state = normalizeState(structuredClone(sampleState));
+      saveState({ skipBackup: true });
+      render();
+      setTab("recipes");
+    });
+
     assert.deepEqual(
       await page.evaluate(() => parseIngredientLine("2 1/2 cups chicken stock")),
       { name: "chicken stock", usedAmount: 2.5, usedUnit: "cup", hasQuantity: true }

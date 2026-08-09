@@ -1835,9 +1835,10 @@ function linkRecipesToIngredients(recipes, ingredients) {
       const existingIngredient = existingRef?.ingredientId
         ? ingredients.find((ingredient) => ingredient.id === existingRef.ingredientId)
         : null;
-      const matchedIngredient = existingIngredient && ingredientMatchesLine(existingIngredient, line)
-        ? existingIngredient
-        : findIngredientForLine(line, ingredients);
+      // A recipe editor selection is authoritative even when its database name
+      // differs from the ingredient line (for example "butter" linked to
+      // "Butter - Other"). Only auto-match when the saved id no longer exists.
+      const matchedIngredient = existingIngredient || findIngredientForLine(line, ingredients);
       return {
         ...existingRef,
         line,

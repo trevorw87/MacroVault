@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.21
+
+- Preserved explicitly selected database ingredients when their names differ from recipe ingredient text.
+- Restored saved database ingredient selections when recipes are reopened for editing.
+- Added browser regression coverage for saving and reopening explicit ingredient links.
+
 ## 0.9.20
 
 - Preserved manually added and edited ingredients when recipe-generated orphan ingredients are cleaned up.
