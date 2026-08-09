@@ -538,10 +538,13 @@ function renderRecipeIngredientNutritionEditor() {
         <option value="${candidate.id}" ${ingredient?.id === candidate.id ? "selected" : ""}>${escapeHtml(candidate.name)}${candidate.label ? ` - ${escapeHtml(candidate.label)}` : ""}</option>
       `).join("");
       return `
-        <article class="recipe-ingredient-row" data-serving-amount="${serving.amount}" data-serving-unit="${serving.unit}" data-base-calories="${Number(nutrition.calories) || 0}" data-base-protein="${Number(nutrition.protein) || 0}" data-base-carbs="${Number(nutrition.carbs) || 0}" data-base-sugar="${Number(nutrition.sugar) || 0}" data-base-fibre="${Number(nutrition.fibre) || 0}" data-base-fat="${Number(nutrition.fat) || 0}" data-base-sodium="${Number(nutrition.sodium) || 0}">
-          <div>
-            <strong>${escapeHtml(item.name)}</strong>
-            <span class="muted">${ingredient ? `Linked to ${escapeHtml(ingredient.name)} - row nutrition is for amount used` : "Will be added to ingredients"}</span>
+        <article class="recipe-ingredient-row" data-ingredient-name="${escapeHtml(item.name)}" data-serving-amount="${serving.amount}" data-serving-unit="${serving.unit}" data-base-calories="${Number(nutrition.calories) || 0}" data-base-protein="${Number(nutrition.protein) || 0}" data-base-carbs="${Number(nutrition.carbs) || 0}" data-base-sugar="${Number(nutrition.sugar) || 0}" data-base-fibre="${Number(nutrition.fibre) || 0}" data-base-fat="${Number(nutrition.fat) || 0}" data-base-sodium="${Number(nutrition.sodium) || 0}">
+          <div class="recipe-ingredient-summary">
+            <span class="recipe-ingredient-thumbnail" data-recipe-ingredient-thumbnail>${ingredientImageMarkup(ingredient || { name: item.name })}</span>
+            <div class="recipe-ingredient-copy">
+              <strong>${escapeHtml(item.name)}</strong>
+              <span class="muted" data-recipe-ingredient-link-copy>${ingredient ? `Linked to ${escapeHtml(ingredient.name)} - row nutrition is for amount used` : "Will be added to ingredients"}</span>
+            </div>
           </div>
           <label>
             database ingredient
@@ -626,6 +629,14 @@ function refreshRecipeIngredientRowNutrition(row) {
 function refreshRecipeIngredientRowFromSelection(row) {
   const ingredientId = row.querySelector('[data-recipe-ingredient-field="ingredientId"]')?.value;
   const ingredient = state.ingredients.find((item) => item.id === ingredientId);
+  const thumbnail = row.querySelector("[data-recipe-ingredient-thumbnail]");
+  const linkCopy = row.querySelector("[data-recipe-ingredient-link-copy]");
+  if (thumbnail) thumbnail.innerHTML = ingredientImageMarkup(ingredient || { name: row.dataset.ingredientName || "Ingredient" });
+  if (linkCopy) {
+    linkCopy.textContent = ingredient
+      ? `Linked to ${ingredient.name} - row nutrition is for amount used`
+      : "Will be added to ingredients";
+  }
   if (!ingredient) return;
   row.dataset.servingAmount = ingredient.serving?.amount || 1;
   row.dataset.servingUnit = ingredient.serving?.unit || "each";

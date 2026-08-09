@@ -985,6 +985,28 @@ dialog::backdrop {
   display: block;
 }
 
+.recipe-ingredient-summary {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.recipe-ingredient-thumbnail,
+.recipe-ingredient-copy {
+  min-width: 0;
+}
+
+.recipe-ingredient-thumbnail {
+  display: block;
+  align-self: start;
+}
+
+.recipe-ingredient-copy .muted {
+  display: block;
+}
+
 .recipe-ingredient-row label {
   gap: 4px;
   font-size: 0.76rem;

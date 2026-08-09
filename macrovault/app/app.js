@@ -907,6 +907,7 @@ ingredientForm.addEventListener("submit", (event) => {
   const ingredientData = {
     id: ingredientId || `ingredient-${slugify(name)}-${Date.now().toString(36)}`,
     name,
+    manuallyAdded: true,
     plural: document.querySelector("#ingredientPlural").value.trim(),
     aliases: normalizeIngredientAliases(document.querySelector("#ingredientAliases").value)
       .filter((alias) => ![ingredientKey(name), ingredientKey(document.querySelector("#ingredientPlural").value)].includes(ingredientKey(alias))),

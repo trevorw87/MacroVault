@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.20
+
+- Preserved manually added and edited ingredients when recipe-generated orphan ingredients are cleaned up.
+- Treated existing ingredients from earlier releases as manually saved to prevent accidental data loss.
+- Added compact ingredient thumbnails to recipe nutrition rows using saved images or category artwork.
+- Updated thumbnails immediately when a different database ingredient is selected.
+- Added browser regression coverage for ingredient persistence and recipe-row thumbnails.
+
 ## 0.9.19
 
 - Kept manually created ingredients across reloads even when they are not yet linked to a recipe.

@@ -1643,6 +1643,7 @@ function ingredientFromName(name) {
   return {
     id: `ingredient-${slugify(displayName)}-${Date.now().toString(36)}`,
     name: displayName,
+    manuallyAdded: false,
     plural: "",
     aliases: [],
     description: "",
@@ -1727,6 +1728,9 @@ function mergeIngredientRecords(records) {
   const fallbackValue = (field) => preferred[field] || records.find((ingredient) => ingredient[field])?.[field] || "";
   return {
     ...preferred,
+    // A recipe-generated duplicate must never make a deliberately saved
+    // ingredient eligible for orphan cleanup.
+    manuallyAdded: records.some((ingredient) => ingredient.manuallyAdded !== false),
     aliases: [...aliasByKey.values()],
     description: fallbackValue("description"),
     barcode: fallbackValue("barcode"),
@@ -1779,6 +1783,9 @@ function normalizeIngredients(existingIngredients, recipes, deletedIngredientKey
     const normalizedIngredient = {
       id: ingredient.id || `ingredient-${slugify(name)}-${Date.now().toString(36)}`,
       name,
+      // Records saved before this flag existed are treated as manual. We cannot
+      // safely infer their origin, and preserving user data is the safer migration.
+      manuallyAdded: ingredient.manuallyAdded !== false,
       plural: ingredient.plural || "",
       aliases,
       description: ingredient.description || "",
@@ -1845,7 +1852,9 @@ function removeUnusedIngredients(nextState = state) {
     (recipe.ingredientRefs || []).map((ref) => ref.ingredientId).filter(Boolean)
   )));
   const ingredientCount = (nextState.ingredients || []).length;
-  nextState.ingredients = (nextState.ingredients || []).filter((ingredient) => usedIngredientIds.has(ingredient.id));
+  nextState.ingredients = (nextState.ingredients || []).filter((ingredient) => (
+    ingredient.manuallyAdded !== false || usedIngredientIds.has(ingredient.id)
+  ));
   return ingredientCount - nextState.ingredients.length;
 }
 

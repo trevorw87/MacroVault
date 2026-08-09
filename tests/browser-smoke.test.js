@@ -80,6 +80,14 @@ function startServer() {
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");
     assert.ok(await page.locator(".recipe-card").count() > 0);
+    await page.evaluate(() => openRecipeDialog(recipeById("lemon-salmon")));
+    const recipeIngredientRows = page.locator("#recipeIngredientNutrition .recipe-ingredient-row");
+    assert.ok(await recipeIngredientRows.count() > 0);
+    assert.equal(
+      await page.locator("#recipeIngredientNutrition .recipe-ingredient-thumbnail .ingredient-image").count(),
+      await recipeIngredientRows.count()
+    );
+    await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
     assert.deepEqual(
       await page.evaluate(() => parseIngredientLine("2 1/2 cups chicken stock")),
       { name: "chicken stock", usedAmount: 2.5, usedUnit: "cup", hasQuantity: true }
@@ -195,12 +203,14 @@ function startServer() {
       const normalized = normalizeIngredients([pepper], [{ ingredients: ["pepper", "Freshly ground black pepper", "black pepper"] }]);
       return {
         aliases: pepper.aliases,
+        manuallyAdded: pepper.manuallyAdded,
         matchesPepper: ingredientMatchesLine(pepper, "pepper"),
         matchesLongName: ingredientMatchesLine(pepper, "Freshly ground black pepper"),
         normalizedCount: normalized.length
       };
     });
     assert.deepEqual(pepperAliases.aliases, ["pepper", "Freshly ground black pepper"]);
+    assert.equal(pepperAliases.manuallyAdded, true);
     assert.equal(pepperAliases.matchesPepper, true);
     assert.equal(pepperAliases.matchesLongName, true);
     assert.equal(pepperAliases.normalizedCount, 1);
@@ -233,6 +243,25 @@ function startServer() {
     );
     assert.equal(recoveredServerSave.expectedRevision, 0);
     assert.equal(recoveredServerSave.state.ingredients.some((ingredient) => ingredient.name === "Black Pepper"), true);
+    const cleanupByOrigin = await page.evaluate(() => {
+      state.ingredients.push({
+        id: "generated-orphan",
+        name: "Generated Orphan",
+        manuallyAdded: false,
+        nutrition: {}
+      });
+      syncIngredientsAndRecipeLinks(state, { removeUnused: true });
+      saveState();
+      return {
+        manualRemains: state.ingredients.some((ingredient) => ingredient.name === "Black Pepper"),
+        generatedRemoved: !state.ingredients.some((ingredient) => ingredient.id === "generated-orphan")
+      };
+    });
+    assert.equal(cleanupByOrigin.manualRemains, true);
+    assert.equal(cleanupByOrigin.generatedRemoved, true);
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Ingredients", exact: true }).click();
+    assert.equal(await page.getByText("Black Pepper", { exact: true }).count(), 1);
     await page.unroute("**/api/state");
 
     const greenBeansRow = page.locator("#ingredientTable .ingredient-row").filter({
@@ -262,18 +291,24 @@ function startServer() {
     );
     const standaloneIngredientPersistence = await page.evaluate(() => {
       const draft = structuredClone(state);
+      // Missing origin metadata represents a manually saved pre-upgrade record.
       draft.ingredients.push({ id: "unused-test-ingredient", name: "Unused Test Ingredient", nutrition: {} });
+      draft.ingredients.push({ id: "generated-test-ingredient", name: "Generated Test Ingredient", manuallyAdded: false, nutrition: {} });
       const normalized = normalizeState(draft);
       return {
         orphanStillExists: normalized.ingredients.some((ingredient) => ingredient.id === "unused-test-ingredient"),
-        removedByExplicitCleanup: (() => {
+        cleanupByOrigin: (() => {
           removeUnusedIngredients(normalized);
-          return !normalized.ingredients.some((ingredient) => ingredient.id === "unused-test-ingredient");
+          return {
+            legacyManualRemains: normalized.ingredients.some((ingredient) => ingredient.id === "unused-test-ingredient"),
+            generatedRemoved: !normalized.ingredients.some((ingredient) => ingredient.id === "generated-test-ingredient")
+          };
         })()
       };
     });
     assert.equal(standaloneIngredientPersistence.orphanStillExists, true);
-    assert.equal(standaloneIngredientPersistence.removedByExplicitCleanup, true);
+    assert.equal(standaloneIngredientPersistence.cleanupByOrigin.legacyManualRemains, true);
+    assert.equal(standaloneIngredientPersistence.cleanupByOrigin.generatedRemoved, true);
 
     await page.getByRole("button", { name: "Family", exact: true }).click();
     const familyCardWidths = await page.locator("#kidsLayout .kid-habit-card").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().width));
