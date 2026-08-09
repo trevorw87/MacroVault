@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.22
+
+- Added a Print action to every recipe card.
+- Created an A4 recipe sheet with the recipe image, servings, ingredients, instructions, and per-serving nutrition.
+- Used clear fallback artwork when a recipe does not have a saved image.
+- Added browser regression coverage for printable recipe content.
+
 ## 0.9.21
 
 - Preserved explicitly selected database ingredients when their names differ from recipe ingredient text.

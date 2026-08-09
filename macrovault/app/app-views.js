@@ -193,6 +193,7 @@ function recipeCard(recipe) {
         </div>
         <div class="card-actions">
           <button class="secondary-button" data-edit-recipe="${escapeHtml(recipe.id)}" type="button">Edit</button>
+          <button class="secondary-button" data-print-recipe="${escapeHtml(recipe.id)}" type="button">Print</button>
           <button class="secondary-button" data-duplicate-recipe="${escapeHtml(recipe.id)}" type="button" aria-label="Duplicate ${escapeHtml(recipe.name)}">Duplicate</button>
           <button class="text-button danger-button" data-delete-recipe="${escapeHtml(recipe.id)}" type="button">Delete</button>
         </div>

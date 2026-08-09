@@ -174,6 +174,12 @@ document.addEventListener("click", async (event) => {
   const printWeekButton = event.target.closest("#printWeekPlannerButton");
   if (printWeekButton) printWeekPlanner();
 
+  const printRecipeButton = event.target.closest("[data-print-recipe]");
+  if (printRecipeButton) {
+    printRecipe(printRecipeButton.dataset.printRecipe);
+    return;
+  }
+
   const previousPlannerWeekButton = event.target.closest("#previousPlannerWeekButton");
   if (previousPlannerWeekButton) {
     selectPlannerWeek(shiftDateKey(state.selectedPlannerWeek, -7));

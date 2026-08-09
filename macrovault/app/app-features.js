@@ -572,6 +572,103 @@ function printWeekPlanner() {
   printWindow.document.close();
 }
 
+function printRecipe(recipeId) {
+  const recipe = recipeById(recipeId);
+  if (!recipe) {
+    showToast("This recipe could not be found.", { type: "error" });
+    return;
+  }
+
+  const servings = recipeServings(recipe);
+  const perServe = recipeNutritionPerServing(recipe);
+  const imageUrl = resolveImageUrl(recipe.imageUrl);
+  const printableImageUrl = imageUrl ? new URL(imageUrl, window.location.href).href : "";
+  const ingredients = (recipe.ingredients || []).map((ingredient) => `
+    <li>${escapeHtml(ingredient)}</li>
+  `).join("") || "<li>No ingredients listed.</li>";
+  const instructions = String(recipe.method || "No instructions listed.")
+    .split(/\r?\n/)
+    .map((step) => step.trim())
+    .filter(Boolean)
+    .map((step) => `<p>${escapeHtml(step)}</p>`)
+    .join("");
+  const appName = state.configuration?.appName || "MacroVault";
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) {
+    showToast("Your browser blocked the print window. Please allow pop-ups and try again.", { type: "error" });
+    return;
+  }
+
+  printWindow.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <title>${escapeHtml(recipe.name)} recipe</title>
+        <style>
+          @page { size: A4 portrait; margin: 12mm; }
+          * { box-sizing: border-box; }
+          body { max-width: 760px; margin: 0 auto; color: #172033; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.45; }
+          header { display: grid; grid-template-columns: minmax(0, 1fr) 210px; align-items: center; gap: 24px; padding-bottom: 18px; border-bottom: 2px solid #dbe8d7; }
+          .eyebrow { margin: 0 0 5px; color: #4d7356; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+          h1 { margin: 0 0 8px; color: #0e4323; font-size: 30px; line-height: 1.1; }
+          .servings { margin: 0; color: #647083; font-weight: 700; }
+          .recipe-image { display: grid; place-items: center; width: 210px; height: 150px; overflow: hidden; border-radius: 18px; color: #176034; background: linear-gradient(135deg, #e8f5e4, #dcefeb); font-size: 46px; font-weight: 800; }
+          .recipe-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+          .macro-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; margin: 16px 0; }
+          .macro { padding: 9px 5px; border-radius: 10px; background: #f0f7ed; text-align: center; }
+          .macro strong, .macro span { display: block; }
+          .macro strong { color: #133f25; font-size: 14px; }
+          .macro span { margin-top: 2px; color: #647083; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+          main { display: grid; grid-template-columns: minmax(190px, 0.8fr) minmax(0, 1.35fr); gap: 28px; }
+          h2 { margin: 0 0 10px; color: #174d2c; font-size: 17px; }
+          ul { margin: 0; padding-left: 20px; }
+          li { margin-bottom: 7px; break-inside: avoid; }
+          .instructions p { margin: 0 0 10px; white-space: pre-wrap; }
+          footer { margin-top: 22px; padding-top: 8px; border-top: 1px solid #dbe3d8; color: #778174; font-size: 9px; text-align: center; }
+          @media print { body { margin: 0 auto; } }
+        </style>
+      </head>
+      <body>
+        <header>
+          <div>
+            <p class="eyebrow">${escapeHtml(appName)} recipe</p>
+            <h1>${escapeHtml(recipe.name)}</h1>
+            <p class="servings">Serves ${servings} · Nutrition shown per serving</p>
+          </div>
+          <div class="recipe-image">
+            ${printableImageUrl
+              ? `<img src="${escapeHtml(printableImageUrl)}" alt="${escapeHtml(recipe.name)}">`
+              : escapeHtml(recipe.name.slice(0, 1).toUpperCase())}
+          </div>
+        </header>
+        <section class="macro-grid" aria-label="Nutrition per serving">
+          <div class="macro"><strong>${perServe.calories}</strong><span>kcal</span></div>
+          <div class="macro"><strong>${perServe.protein}g</strong><span>protein</span></div>
+          <div class="macro"><strong>${perServe.carbs}g</strong><span>carbs</span></div>
+          <div class="macro"><strong>${perServe.fat}g</strong><span>fat</span></div>
+          <div class="macro"><strong>${perServe.sugar}g</strong><span>sugar</span></div>
+          <div class="macro"><strong>${perServe.fibre}g</strong><span>fibre</span></div>
+          <div class="macro"><strong>${perServe.sodium}mg</strong><span>sodium</span></div>
+        </section>
+        <main>
+          <section>
+            <h2>Ingredients</h2>
+            <ul>${ingredients}</ul>
+          </section>
+          <section class="instructions">
+            <h2>Instructions</h2>
+            ${instructions}
+          </section>
+        </main>
+        <footer>Printed from ${escapeHtml(appName)}</footer>
+        <script>window.addEventListener("load", () => window.print());<\/script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+
 function configurationMemberRow(name = "", member = {}, originalName = "") {
   const role = member.role === "adult" ? "adult" : "child";
   const color = memberColorOptions.some((option) => option.value === member.color) ? member.color : "trevor";

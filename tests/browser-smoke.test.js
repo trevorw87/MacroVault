@@ -80,6 +80,25 @@ function startServer() {
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");
     assert.ok(await page.locator(".recipe-card").count() > 0);
+    const printedRecipe = await page.evaluate(() => {
+      let html = "";
+      const originalOpen = window.open;
+      window.open = () => ({
+        document: {
+          write(content) { html += content; },
+          close() {}
+        }
+      });
+      printRecipe("lemon-salmon");
+      window.open = originalOpen;
+      return html;
+    });
+    assert.match(printedRecipe, /Lemon Garlic Salmon/);
+    assert.match(printedRecipe, /<h2>Ingredients<\/h2>/);
+    assert.match(printedRecipe, /salmon fillets/);
+    assert.match(printedRecipe, /<h2>Instructions<\/h2>/);
+    assert.match(printedRecipe, /protein/);
+    assert.match(printedRecipe, /recipe-image/);
     await page.evaluate(() => openRecipeDialog(recipeById("lemon-salmon")));
     const recipeIngredientRows = page.locator("#recipeIngredientNutrition .recipe-ingredient-row");
     assert.ok(await recipeIngredientRows.count() > 0);
