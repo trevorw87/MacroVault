@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.23
+
+- Added kilograms (`kg`) to recipe ingredient quantity options.
+- Preserved kilogram quantities when parsing recipe ingredient lines instead of treating them as grams.
+- Converted kilogram quantities correctly against gram-based nutrition servings.
+- Added browser regression coverage for kilogram parsing and nutrition scaling.
+
 ## 0.9.22
 
 - Added a Print action to every recipe card.

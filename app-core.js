@@ -216,14 +216,14 @@ const ingredientNutritionDefaults = [
   { match: ["tiny chocolate"], label: "Snack", servingAmount: 1, servingUnit: "each", calories: 55, protein: 1, carbs: 7, sugar: 6, fibre: 1, fat: 3 }
 ];
 
-const ingredientUnits = ["each", "g", "ml", "cup", "tbsp", "tsp"];
+const ingredientUnits = ["each", "g", "kg", "ml", "cup", "tbsp", "tsp"];
 const unitAliases = {
   g: "g",
   gram: "g",
   grams: "g",
-  kg: "g",
-  kilogram: "g",
-  kilograms: "g",
+  kg: "kg",
+  kilogram: "kg",
+  kilograms: "kg",
   ml: "ml",
   millilitre: "ml",
   millilitres: "ml",
@@ -2013,6 +2013,8 @@ function unitBaseFactor(unit) {
     gram: { group: "weight", factor: 1 },
     grams: { group: "weight", factor: 1 },
     kg: { group: "weight", factor: 1000 },
+    kilogram: { group: "weight", factor: 1000 },
+    kilograms: { group: "weight", factor: 1000 },
     ml: { group: "volume", factor: 1 },
     millilitre: { group: "volume", factor: 1 },
     milliliter: { group: "volume", factor: 1 },

@@ -147,6 +147,15 @@ function startServer() {
       await page.evaluate(() => parseIngredientLine("2 1/2 cups chicken stock")),
       { name: "chicken stock", usedAmount: 2.5, usedUnit: "cup", hasQuantity: true }
     );
+    assert.deepEqual(
+      await page.evaluate(() => parseIngredientLine("1.2 kg beef chuck")),
+      { name: "beef chuck", usedAmount: 1.2, usedUnit: "kg", hasQuantity: true }
+    );
+    assert.equal(await page.evaluate(() => ingredientUnits.includes("kg")), true);
+    assert.equal(
+      await page.evaluate(() => nutritionScale(1.2, "kg", { amount: 100, unit: "g" })),
+      12
+    );
     assert.equal(await page.evaluate(() => scaleIngredientLine("2 1/2 cups chicken stock", 0.5)), "1.25 cups chicken stock");
     assert.deepEqual(
       await page.evaluate(() => parseIngredientLine("And 1/2 Cups All-Purpose Flour")),
