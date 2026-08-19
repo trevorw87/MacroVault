@@ -1090,6 +1090,8 @@ function normalizeState(nextState) {
       meal: ["breakfast", "lunch", "dinner", "snacks"].includes(entry.meal) ? entry.meal : "snacks",
       name: String(entry.name || "Food").trim().slice(0, 100),
       servings: Math.max(0.01, Number(entry.servings) || 1),
+      grams: Math.max(0, Number(entry.grams) || 0),
+      gramsPerServing: Math.max(0, Number(entry.gramsPerServing) || 0),
       calories: Math.max(0, Number(entry.calories) || 0),
       protein: Math.max(0, Number(entry.protein) || 0),
       carbs: Math.max(0, Number(entry.carbs) || 0),

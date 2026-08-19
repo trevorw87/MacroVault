@@ -80,14 +80,19 @@ function startServer() {
     await page.getByRole("button", { name: "Food Tracker", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Food Tracker");
     await page.getByRole("button", { name: "Add food eaten" }).click();
+    assert.equal(await page.locator("#foodLogServings").inputValue(), "1.00");
     await page.locator("#foodLogName").fill("Test snack");
     await page.locator("#foodLogMeal").selectOption("snacks");
+    await page.locator("#foodLogGrams").fill("150");
+    await page.locator("#foodLogGramsPerServing").fill("100");
+    assert.equal(await page.locator("#foodLogServings").inputValue(), "1.50");
     await page.locator("#foodLogCalories").fill("125");
     await page.locator("#foodLogProtein").fill("4");
     await page.locator("#foodLogForm button[value=default]").click();
     await page.waitForSelector(".tracker-entry");
-    assert.match(await page.locator("#trackerSummary").textContent(), /125 kcal/);
+    assert.match(await page.locator("#trackerSummary").textContent(), /187\.5 kcal/);
     assert.match(await page.locator(".tracker-entry").textContent(), /Test snack/);
+    assert.match(await page.locator(".tracker-entry").textContent(), /150.00 g/);
 
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");

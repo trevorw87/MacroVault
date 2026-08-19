@@ -217,7 +217,8 @@ function renderTracker() {
       <div class="section-heading"><h2>${meal.label}</h2><strong>${roundNutrition(mealTotals.calories)} kcal</strong></div>
       ${mealEntries.length ? mealEntries.map((entry) => {
         const entryTotals = foodLogEntryTotals(entry);
-        return `<div class="tracker-entry"><div><strong>${escapeHtml(entry.name)}</strong><small>${entry.servings} serving${Number(entry.servings) === 1 ? "" : "s"} · ${entryTotals.protein}g protein</small></div><strong>${entryTotals.calories} kcal</strong><button class="icon-button" data-remove-food-log="${escapeHtml(entry.id)}" type="button" aria-label="Remove ${escapeHtml(entry.name)}">×</button></div>`;
+        const amount = Number(entry.grams) > 0 ? `${formatFoodLogNumber(entry.grams)} g · ` : "";
+        return `<div class="tracker-entry"><div><strong>${escapeHtml(entry.name)}</strong><small>${amount}${formatFoodLogNumber(entry.servings)} serving${Number(entry.servings) === 1 ? "" : "s"} · ${entryTotals.protein}g protein</small></div><strong>${entryTotals.calories} kcal</strong><button class="icon-button" data-remove-food-log="${escapeHtml(entry.id)}" type="button" aria-label="Remove ${escapeHtml(entry.name)}">×</button></div>`;
       }).join("") : `<p class="tracker-empty">Nothing logged yet.</p>`}
     </section>`;
   }).join("");
@@ -236,7 +237,10 @@ function foodLogSourceOptions() {
     calories: Number(ingredient.nutrition?.calories) || 0,
     protein: Number(ingredient.nutrition?.protein) || 0,
     carbs: Number(ingredient.nutrition?.carbs) || 0,
-    fat: Number(ingredient.nutrition?.fat) || 0
+    fat: Number(ingredient.nutrition?.fat) || 0,
+    gramsPerServing: ["g", "gram", "grams"].includes(String(ingredient.serving?.unit || ingredient.servingUnit || "").toLowerCase())
+      ? Number(ingredient.serving?.amount || ingredient.servingAmount) || 0
+      : 0
   }));
   return [...recipes, ...ingredients].sort((a, b) => a.label.localeCompare(b.label));
 }
@@ -246,18 +250,39 @@ function openFoodLogDialog() {
   const select = document.querySelector("#foodLogSource");
   select.innerHTML = `<option value="">Manual entry</option>${options.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("")}`;
   document.querySelector("#foodLogForm").reset();
-  document.querySelector("#foodLogServings").value = 1;
+  document.querySelector("#foodLogServings").value = "1.00";
+  document.querySelector("#foodLogGramNote").textContent = "Enter both gram values to calculate servings and nutrition automatically.";
   document.querySelector("#foodLogDialog").showModal();
+}
+
+function formatFoodLogNumber(value) {
+  return (Math.max(0, Number(value) || 0)).toFixed(2);
 }
 
 function applyFoodLogSource() {
   const selected = foodLogSourceOptions().find((item) => item.value === document.querySelector("#foodLogSource").value);
   if (!selected) return;
   document.querySelector("#foodLogName").value = selected.label;
-  document.querySelector("#foodLogCalories").value = selected.calories;
-  document.querySelector("#foodLogProtein").value = selected.protein;
-  document.querySelector("#foodLogCarbs").value = selected.carbs;
-  document.querySelector("#foodLogFat").value = selected.fat;
+  document.querySelector("#foodLogCalories").value = formatFoodLogNumber(selected.calories);
+  document.querySelector("#foodLogProtein").value = formatFoodLogNumber(selected.protein);
+  document.querySelector("#foodLogCarbs").value = formatFoodLogNumber(selected.carbs);
+  document.querySelector("#foodLogFat").value = formatFoodLogNumber(selected.fat);
+  document.querySelector("#foodLogGrams").value = "";
+  document.querySelector("#foodLogGramsPerServing").value = selected.gramsPerServing
+    ? formatFoodLogNumber(selected.gramsPerServing)
+    : "";
+  document.querySelector("#foodLogGramNote").textContent = selected.gramsPerServing
+    ? `Nutrition is based on ${formatFoodLogNumber(selected.gramsPerServing)} g per serving.`
+    : "Enter a gram serving size to calculate nutrition from grams eaten.";
+}
+
+function updateFoodLogServingsFromGrams() {
+  const grams = Number(document.querySelector("#foodLogGrams").value) || 0;
+  const gramsPerServing = Number(document.querySelector("#foodLogGramsPerServing").value) || 0;
+  if (grams > 0 && gramsPerServing > 0) {
+    document.querySelector("#foodLogServings").value = formatFoodLogNumber(grams / gramsPerServing);
+    document.querySelector("#foodLogGramNote").textContent = `${formatFoodLogNumber(grams)} g equals ${formatFoodLogNumber(grams / gramsPerServing)} servings.`;
+  }
 }
 
 function recipeCard(recipe) {

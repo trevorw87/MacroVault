@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.25
+
+- Added grams eaten and grams-per-serving fields to daily food entries.
+- Automatically calculated servings and nutrition totals from gram amounts.
+- Pre-filled gram serving sizes for compatible saved ingredients and displayed grams in logged entries.
+- Formatted food-tracker numeric inputs consistently to two decimal places.
+- Added browser regression coverage for gram-based nutrition scaling.
+
 ## 0.9.24
 
 - Added a daily food tracker with separate dated logs for each family member.

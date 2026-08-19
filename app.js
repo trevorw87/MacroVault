@@ -86,6 +86,13 @@ function advanceHabitRow(name, habitId) {
 document.querySelector("#trackerDate").addEventListener("change", renderTracker);
 document.querySelector("#trackerPerson").addEventListener("change", renderTracker);
 document.querySelector("#foodLogSource").addEventListener("change", applyFoodLogSource);
+document.querySelector("#foodLogGrams").addEventListener("input", updateFoodLogServingsFromGrams);
+document.querySelector("#foodLogGramsPerServing").addEventListener("input", updateFoodLogServingsFromGrams);
+document.querySelectorAll("#foodLogForm input[type=number]").forEach((input) => {
+  input.addEventListener("change", () => {
+    if (input.value !== "") input.value = formatFoodLogNumber(input.value);
+  });
+});
 document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
@@ -97,6 +104,8 @@ document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
     meal: document.querySelector("#foodLogMeal").value,
     name: document.querySelector("#foodLogName").value.trim(),
     servings: Math.max(0.01, Number(document.querySelector("#foodLogServings").value) || 1),
+    grams: Math.max(0, Number(document.querySelector("#foodLogGrams").value) || 0),
+    gramsPerServing: Math.max(0, Number(document.querySelector("#foodLogGramsPerServing").value) || 0),
     calories: Math.max(0, Number(document.querySelector("#foodLogCalories").value) || 0),
     protein: Math.max(0, Number(document.querySelector("#foodLogProtein").value) || 0),
     carbs: Math.max(0, Number(document.querySelector("#foodLogCarbs").value) || 0),
