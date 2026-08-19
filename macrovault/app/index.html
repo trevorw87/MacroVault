@@ -200,6 +200,16 @@
           </section>
         </section>
 
+        <section class="view" id="trackerView" aria-labelledby="pageTitle">
+          <div class="tracker-controls section-block">
+            <label>Date<input id="trackerDate" type="date"></label>
+            <label>Family member<select id="trackerPerson"></select></label>
+            <button class="primary-button" id="addFoodLogButton" type="button">Add food eaten</button>
+          </div>
+          <section class="tracker-summary section-block" id="trackerSummary"></section>
+          <div class="tracker-meals" id="trackerMeals"></div>
+        </section>
+
         <section class="view" id="privateView" aria-labelledby="pageTitle">
           <section class="private-layout">
             <form class="section-block private-form" id="weightForm" novalidate>
@@ -640,6 +650,26 @@
           <button class="secondary-button" value="cancel" type="submit">Cancel</button>
           <button class="primary-button" id="saveImportedRecipeButton" value="default" type="submit" disabled>Save imported recipe</button>
         </menu>
+      </form>
+    </dialog>
+
+    <dialog id="foodLogDialog">
+      <form method="dialog" class="recipe-form" id="foodLogForm">
+        <div class="dialog-heading">
+          <div><h2>Add food eaten</h2><p class="muted">Choose a saved food or enter nutrition manually.</p></div>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+        <label>Saved food<select id="foodLogSource"></select></label>
+        <div class="form-grid">
+          <label>Name<input id="foodLogName" maxlength="100" required></label>
+          <label>Meal<select id="foodLogMeal"><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snacks">Snacks</option></select></label>
+          <label>Servings<input id="foodLogServings" type="number" min="0.25" step="0.25" value="1" required></label>
+          <label>Calories / serving<input id="foodLogCalories" type="number" min="0" step="0.1" required></label>
+          <label>Protein / serving (g)<input id="foodLogProtein" type="number" min="0" step="0.1"></label>
+          <label>Carbs / serving (g)<input id="foodLogCarbs" type="number" min="0" step="0.1"></label>
+          <label>Fat / serving (g)<input id="foodLogFat" type="number" min="0" step="0.1"></label>
+        </div>
+        <menu><button class="secondary-button" value="cancel" type="submit">Cancel</button><button class="primary-button" value="default" type="submit">Add to day</button></menu>
       </form>
     </dialog>
 

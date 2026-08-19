@@ -33,6 +33,7 @@ const tabs = [
   { id: "recipes", label: "Recipes", icon: "recipes" },
   { id: "ingredients", label: "Ingredients", icon: "ingredients" },
   { id: "planner", label: "Planner", icon: "planner" },
+  { id: "tracker", label: "Food Tracker", icon: "heart" },
   { id: "prepared", label: "In Freezer / Prepared", icon: "prepared" },
   { id: "shopping", label: "Shopping", icon: "shopping" },
   { id: "kids", label: "Family", icon: "family" },
@@ -1081,6 +1082,20 @@ function normalizeState(nextState) {
   nextState.kids = nextState.kids && typeof nextState.kids === "object" && Object.keys(nextState.kids).length
     ? { ...nextState.kids }
     : structuredClone(defaultFamilyMembers);
+  nextState.foodLog = (Array.isArray(nextState.foodLog) ? nextState.foodLog : [])
+    .map((entry) => ({
+      id: String(entry.id || `food-${Date.now().toString(36)}`),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(String(entry.date || "")) ? entry.date : todayDateKey(),
+      person: String(entry.person || ""),
+      meal: ["breakfast", "lunch", "dinner", "snacks"].includes(entry.meal) ? entry.meal : "snacks",
+      name: String(entry.name || "Food").trim().slice(0, 100),
+      servings: Math.max(0.01, Number(entry.servings) || 1),
+      calories: Math.max(0, Number(entry.calories) || 0),
+      protein: Math.max(0, Number(entry.protein) || 0),
+      carbs: Math.max(0, Number(entry.carbs) || 0),
+      fat: Math.max(0, Number(entry.fat) || 0)
+    }))
+    .filter((entry) => entry.person && entry.name);
   Object.entries(nextState.kids).forEach(([name, member], index) => {
     member.role = member.role === "adult" || member.role === "child"
       ? member.role

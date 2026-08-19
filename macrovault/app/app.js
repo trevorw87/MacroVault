@@ -5,6 +5,7 @@ function renderActiveView() {
     recipes: renderRecipes,
     ingredients: renderIngredients,
     planner: renderPlanner,
+    tracker: renderTracker,
     prepared: renderPrepared,
     shopping: renderShopping,
     kids: renderKids,
@@ -82,7 +83,46 @@ function advanceHabitRow(name, habitId) {
   render();
 }
 
+document.querySelector("#trackerDate").addEventListener("change", renderTracker);
+document.querySelector("#trackerPerson").addEventListener("change", renderTracker);
+document.querySelector("#foodLogSource").addEventListener("change", applyFoodLogSource);
+document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
+  if (event.submitter?.value === "cancel") return;
+  event.preventDefault();
+  if (!event.currentTarget.reportValidity()) return;
+  state.foodLog.push({
+    id: `food-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    date: selectedTrackerDate(),
+    person: selectedTrackerPerson(),
+    meal: document.querySelector("#foodLogMeal").value,
+    name: document.querySelector("#foodLogName").value.trim(),
+    servings: Math.max(0.01, Number(document.querySelector("#foodLogServings").value) || 1),
+    calories: Math.max(0, Number(document.querySelector("#foodLogCalories").value) || 0),
+    protein: Math.max(0, Number(document.querySelector("#foodLogProtein").value) || 0),
+    carbs: Math.max(0, Number(document.querySelector("#foodLogCarbs").value) || 0),
+    fat: Math.max(0, Number(document.querySelector("#foodLogFat").value) || 0)
+  });
+  saveState();
+  document.querySelector("#foodLogDialog").close();
+  renderTracker();
+  showToast("Food added to the daily tracker.", { type: "success" });
+});
+
 document.addEventListener("click", async (event) => {
+  const addFoodButton = event.target.closest("#addFoodLogButton");
+  if (addFoodButton) {
+    openFoodLogDialog();
+    return;
+  }
+
+  const removeFoodButton = event.target.closest("[data-remove-food-log]");
+  if (removeFoodButton) {
+    state.foodLog = state.foodLog.filter((entry) => entry.id !== removeFoodButton.dataset.removeFoodLog);
+    saveState();
+    renderTracker();
+    return;
+  }
+
   const habitRow = event.target.closest("[data-habit-row]");
   if (habitRow && !event.target.closest("input, label, button, a, select, textarea")) {
     advanceHabitRow(habitRow.dataset.habitMember, habitRow.dataset.habitId);

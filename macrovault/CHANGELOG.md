@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.24
+
+- Added a daily food tracker with separate dated logs for each family member.
+- Added automatic nutrition entry from saved recipes and ingredients, plus manual food entry and adjustable servings.
+- Added calorie-goal progress and daily protein, carbohydrate, and fat totals grouped by meal.
+- Added responsive tracker layout and browser regression coverage for logging food.
+
 ## 0.9.23
 
 - Added kilograms (`kg`) to recipe ingredient quantity options.

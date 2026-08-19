@@ -74,8 +74,20 @@ function startServer() {
     });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
     await page.waitForSelector("#navTabs .nav-button");
-    assert.equal(await page.locator("#navTabs .nav-button").count(), 10);
+    assert.equal(await page.locator("#navTabs .nav-button").count(), 11);
     assert.equal(await page.locator("#pageTitle").textContent(), "Dashboard");
+
+    await page.getByRole("button", { name: "Food Tracker", exact: true }).click();
+    assert.equal(await page.locator("#pageTitle").textContent(), "Food Tracker");
+    await page.getByRole("button", { name: "Add food eaten" }).click();
+    await page.locator("#foodLogName").fill("Test snack");
+    await page.locator("#foodLogMeal").selectOption("snacks");
+    await page.locator("#foodLogCalories").fill("125");
+    await page.locator("#foodLogProtein").fill("4");
+    await page.locator("#foodLogForm button[value=default]").click();
+    await page.waitForSelector(".tracker-entry");
+    assert.match(await page.locator("#trackerSummary").textContent(), /125 kcal/);
+    assert.match(await page.locator(".tracker-entry").textContent(), /Test snack/);
 
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");

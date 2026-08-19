@@ -152,6 +152,114 @@ function renderDashboard() {
   }).join("");
 }
 
+const foodLogMeals = [
+  { id: "breakfast", label: "Breakfast" },
+  { id: "lunch", label: "Lunch" },
+  { id: "dinner", label: "Dinner" },
+  { id: "snacks", label: "Snacks & drinks" }
+];
+
+function selectedTrackerDate() {
+  return document.querySelector("#trackerDate")?.value || todayDateKey();
+}
+
+function selectedTrackerPerson() {
+  return document.querySelector("#trackerPerson")?.value || familyMemberNames(state)[0] || "";
+}
+
+function foodLogEntryTotals(entry) {
+  const servings = Math.max(0, Number(entry.servings) || 0);
+  return {
+    calories: roundNutrition(Number(entry.calories) * servings),
+    protein: roundNutrition(Number(entry.protein) * servings),
+    carbs: roundNutrition(Number(entry.carbs) * servings),
+    fat: roundNutrition(Number(entry.fat) * servings)
+  };
+}
+
+function foodLogTotals(entries) {
+  return entries.reduce((sum, entry) => {
+    const totals = foodLogEntryTotals(entry);
+    Object.keys(sum).forEach((key) => { sum[key] += totals[key]; });
+    return sum;
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+}
+
+function renderTracker() {
+  const dateInput = document.querySelector("#trackerDate");
+  const personInput = document.querySelector("#trackerPerson");
+  const date = dateInput.value || todayDateKey();
+  const previousPerson = personInput.value;
+  const names = familyMemberNames(state);
+  personInput.innerHTML = names.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+  personInput.value = names.includes(previousPerson) ? previousPerson : names[0] || "";
+  dateInput.value = date;
+  const person = personInput.value;
+  const entries = (state.foodLog || []).filter((entry) => entry.date === date && entry.person === person);
+  const totals = foodLogTotals(entries);
+  const goals = currentNutritionGoals();
+  const caloriePercent = goals.calories ? Math.min(100, Math.round((totals.calories / goals.calories) * 100)) : 0;
+  const remaining = Math.max(0, goals.calories - totals.calories);
+
+  document.querySelector("#trackerSummary").innerHTML = `
+    <div class="tracker-total-row">
+      <div><p class="eyebrow">${escapeHtml(person)} · ${escapeHtml(date)}</p><strong class="tracker-total">${roundNutrition(totals.calories)} kcal</strong></div>
+      <strong>${totals.calories > goals.calories ? `${roundNutrition(totals.calories - goals.calories)} kcal over` : `${roundNutrition(remaining)} kcal remaining`}</strong>
+    </div>
+    <div class="tracker-progress" role="progressbar" aria-label="Daily calorie progress" aria-valuemin="0" aria-valuemax="${goals.calories}" aria-valuenow="${totals.calories}"><span style="width:${caloriePercent}%"></span></div>
+    <div class="tracker-macros"><span>Goal: ${goals.calories} kcal</span><span>Protein: ${roundNutrition(totals.protein)} g</span><span>Carbs: ${roundNutrition(totals.carbs)} g</span><span>Fat: ${roundNutrition(totals.fat)} g</span></div>
+  `;
+
+  document.querySelector("#trackerMeals").innerHTML = foodLogMeals.map((meal) => {
+    const mealEntries = entries.filter((entry) => entry.meal === meal.id);
+    const mealTotals = foodLogTotals(mealEntries);
+    return `<section class="section-block tracker-meal">
+      <div class="section-heading"><h2>${meal.label}</h2><strong>${roundNutrition(mealTotals.calories)} kcal</strong></div>
+      ${mealEntries.length ? mealEntries.map((entry) => {
+        const entryTotals = foodLogEntryTotals(entry);
+        return `<div class="tracker-entry"><div><strong>${escapeHtml(entry.name)}</strong><small>${entry.servings} serving${Number(entry.servings) === 1 ? "" : "s"} · ${entryTotals.protein}g protein</small></div><strong>${entryTotals.calories} kcal</strong><button class="icon-button" data-remove-food-log="${escapeHtml(entry.id)}" type="button" aria-label="Remove ${escapeHtml(entry.name)}">×</button></div>`;
+      }).join("") : `<p class="tracker-empty">Nothing logged yet.</p>`}
+    </section>`;
+  }).join("");
+}
+
+function foodLogSourceOptions() {
+  const recipes = (state.recipes || []).map((recipe) => ({
+    value: `recipe:${recipe.id}`,
+    label: recipe.name,
+    calories: caloriesPerServing(recipe),
+    ...macrosPerServing(recipe)
+  }));
+  const ingredients = (state.ingredients || []).map((ingredient) => ({
+    value: `ingredient:${ingredient.id}`,
+    label: ingredient.name,
+    calories: Number(ingredient.nutrition?.calories) || 0,
+    protein: Number(ingredient.nutrition?.protein) || 0,
+    carbs: Number(ingredient.nutrition?.carbs) || 0,
+    fat: Number(ingredient.nutrition?.fat) || 0
+  }));
+  return [...recipes, ...ingredients].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function openFoodLogDialog() {
+  const options = foodLogSourceOptions();
+  const select = document.querySelector("#foodLogSource");
+  select.innerHTML = `<option value="">Manual entry</option>${options.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("")}`;
+  document.querySelector("#foodLogForm").reset();
+  document.querySelector("#foodLogServings").value = 1;
+  document.querySelector("#foodLogDialog").showModal();
+}
+
+function applyFoodLogSource() {
+  const selected = foodLogSourceOptions().find((item) => item.value === document.querySelector("#foodLogSource").value);
+  if (!selected) return;
+  document.querySelector("#foodLogName").value = selected.label;
+  document.querySelector("#foodLogCalories").value = selected.calories;
+  document.querySelector("#foodLogProtein").value = selected.protein;
+  document.querySelector("#foodLogCarbs").value = selected.carbs;
+  document.querySelector("#foodLogFat").value = selected.fat;
+}
+
 function recipeCard(recipe) {
   const tags = Array.isArray(recipe.tags) ? recipe.tags : [];
   const totals = recipeNutritionTotals(recipe);
