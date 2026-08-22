@@ -551,8 +551,6 @@ function plannerCellMarkup(day, slot) {
       <div class="planner-dish-list">
         ${selectedRecipes.length ? selectedRecipes.map((recipe) => {
           const nutritionIssue = plannerNutritionIssue(recipe);
-          const servings = plannerServingCount(day, slot.id, recipe.id);
-          const hasOverride = plannerHasServingOverride(day, slot.id, recipe.id);
           return `
           <article class="planner-dish">
             ${mealThumbnailMarkup(recipe, slot.label)}
@@ -563,13 +561,6 @@ function plannerCellMarkup(day, slot) {
                 : `<span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} · ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>`}
               <div class="planner-dish-chips">
                 <button class="planner-status-chip ${recipe.prepared ? "prepared" : ""}" data-toggle-recipe-prepared="${escapeHtml(recipe.id)}" type="button" aria-pressed="${recipe.prepared}">${recipe.prepared ? "Prepared" : "Not prepared"}</button>
-                <details class="planner-dish-options">
-                  <summary aria-label="Options for ${escapeHtml(recipe.name)}" title="Meal options">•••</summary>
-                  <div>
-                    <label>People override<input type="number" min="1" max="99" step="1" value="${servings}" data-planner-serving-count data-planner-day="${day}" data-planner-slot="${slot.id}" data-planner-recipe="${escapeHtml(recipe.id)}"></label>
-                    ${hasOverride ? `<button class="text-button" data-reset-planner-serving data-planner-day="${day}" data-planner-slot="${slot.id}" data-planner-recipe="${escapeHtml(recipe.id)}" type="button">Use day default</button>` : `<small>Using day default</small>`}
-                  </div>
-                </details>
               </div>
             </div>
             <button class="planner-remove-dish" data-remove-planner-recipe="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" type="button" aria-label="Remove ${escapeHtml(recipe.name)} from ${day} ${slot.label}" title="Remove dish">&times;</button>
@@ -647,13 +638,9 @@ function renderPlanner() {
       ${days.map((day) => {
         const dateKey = plannerWeekDateKey(day);
         const remaining = nutritionGoalRemainingForDay(day);
-        const dayPeople = plannerDayServingCount(day);
         const personCalories = plannedCaloriesPerPersonForDay(day);
         const personProtein = plannedProteinPerPersonForDay(day);
-        const householdCalories = plannedCaloriesForDay(day);
-        const householdGoal = goals.calories * dayPeople;
         const personProgress = goals.calories ? Math.min(100, Math.round((personCalories / goals.calories) * 100)) : 0;
-        const householdProgress = householdGoal ? Math.min(100, Math.round((householdCalories / householdGoal) * 100)) : 0;
         const nutritionWarnings = mealPlanSlots.flatMap((slot) => plannerRecipes(day, slot)).filter((recipe) => plannerNutritionIssue(recipe));
         const isToday = dateKey === todayKey;
         const expanded = !mobilePlanner || isToday || day === "Sunday";
@@ -662,19 +649,12 @@ function renderPlanner() {
             <summary>
               <div class="planner-day-heading" data-planner-row="${day}">
                 <h3>${day}${isToday ? `<span class="planner-today-badge">Today</span>` : ""}<small>${dateFromLocalKey(dateKey).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</small></h3>
-                <label class="planner-day-people">People<input type="number" min="1" max="99" step="1" value="${dayPeople}" data-planner-day-serving="${day}" aria-label="Default people eating on ${day}"></label>
                 <div class="planner-progress-summary">
                   <span class="planner-progress-set planner-person-progress">
-                    <small>Per person</small>
+                    <small>Daily nutrition · 1 person</small>
                     <strong>${formatPlannerNumber(personCalories, "kcal")} / ${formatPlannerNumber(goals.calories, "kcal")}</strong>
                     <i><b style="width:${personProgress}%"></b></i>
                     <em>${formatPlannerNumber(personProtein, "protein")}</em>
-                  </span>
-                  <span class="planner-progress-set">
-                    <small>Household</small>
-                    <strong>${formatPlannerNumber(householdCalories, "kcal")} / ${formatPlannerNumber(householdGoal, "kcal")}</strong>
-                    <i><b style="width:${householdProgress}%"></b></i>
-                    <em>${formatPlannerNumber(plannedProteinForDay(day), "protein")}</em>
                   </span>
                 </div>
                 <div class="planner-remaining ${remaining.met ? "met" : ""}">

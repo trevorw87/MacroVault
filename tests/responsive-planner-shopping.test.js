@@ -142,7 +142,8 @@ function startServer() {
     assert.ok(desktopPlannerAxis.gridScrollWidth <= desktopPlannerAxis.gridClientWidth + 1);
     assert.equal(new Set(desktopPlannerAxis.mealLabelStyles.map((style) => style.backgroundImage)).size, 5);
     assert.ok(desktopPlannerAxis.mealLabelStyles.every((style) => style.textAlign === "center" && style.alignItems === "center"));
-    assert.match(await page.locator('[data-planner-row="Sunday"] .planner-progress-summary').textContent(), /Per person.*Household/s);
+    assert.match(await page.locator('[data-planner-row="Sunday"] .planner-progress-summary').textContent(), /Daily nutrition.*1 person/s);
+    assert.doesNotMatch(await page.locator('[data-planner-row="Sunday"]').textContent(), /Household|People/);
     assert.equal(await page.locator(".planner-day-section.today").count(), 1);
     assert.equal(await page.locator(".planner-day-section.today .planner-today-badge").textContent(), "Today");
     assert.equal(
@@ -302,20 +303,8 @@ function startServer() {
     assert.doesNotMatch(nutritionPerServe, /\/ serve/);
     assert.ok(await mondayDish.locator(".planner-status-chip").isVisible());
     assert.equal(await mondayDish.locator(".planner-dish-options input").isVisible(), false);
-    const mondayDefaultPeople = page.getByLabel("Default people eating on Monday", { exact: true });
-    assert.equal(await mondayDefaultPeople.inputValue(), "4");
-    await mondayDefaultPeople.fill("5");
-    await mondayDefaultPeople.dispatchEvent("change");
-    assert.equal(await page.evaluate(() => plannerDayServingCount("Monday")), 5);
-    await mondayDish.locator(".planner-dish-options > summary").click();
-    const mondayOverride = mondayDish.locator("[data-planner-serving-count]");
-    assert.equal(await mondayOverride.inputValue(), "5");
-    await mondayOverride.fill("2");
-    await mondayOverride.dispatchEvent("change");
-    assert.equal(await page.evaluate(() => plannerServingCount("Monday", "dinner", "lemon-salmon")), 2);
-    await mondayDish.locator(".planner-dish-options > summary").click();
-    await mondayDish.getByRole("button", { name: "Use day default", exact: true }).click();
-    assert.equal(await page.evaluate(() => plannerServingCount("Monday", "dinner", "lemon-salmon")), 5);
+    assert.equal(await page.evaluate(() => plannerServingCount("Monday", "dinner", "lemon-salmon")), 1);
+    assert.equal(await mondayDish.locator(".planner-dish-options").count(), 0);
     await mondayDish.locator(".planner-status-chip").click();
     assert.equal(await page.evaluate(() => recipeById("lemon-salmon").prepared), true);
     await page.locator('[data-planner-mobile-day="Monday"] [data-planner-column="dinner"] .planner-add-dish > summary').click();

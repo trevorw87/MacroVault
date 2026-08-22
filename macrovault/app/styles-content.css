@@ -631,7 +631,7 @@
 
 .planner-day-people { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:.68rem; white-space:nowrap; }
 .planner-day-people input { width:54px; min-height:30px; padding:4px 6px; text-align:center; }
-.planner-progress-summary { display:grid; grid-template-columns:repeat(2,minmax(150px,1fr)); gap:8px; }
+.planner-progress-summary { display:grid; grid-template-columns:minmax(220px,520px); gap:8px; }
 .planner-progress-set { display:grid; grid-template-columns:1fr auto; gap:3px 8px; min-width:0; }
 .planner-progress-set small,
 .planner-progress-set em { color:var(--muted); font-size:.62rem; font-style:normal; font-weight:800; }
@@ -732,7 +732,7 @@
 .planner-day-section .planner-day-heading {
   position: static;
   display: grid;
-  grid-template-columns: minmax(110px, auto) auto minmax(320px, 1fr) minmax(150px, auto);
+  grid-template-columns: minmax(110px, auto) minmax(280px, 1fr) minmax(150px, auto);
   align-items: center;
   gap: 12px;
   min-height: 0;

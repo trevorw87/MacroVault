@@ -1411,9 +1411,7 @@ function plannerHasServingOverride(day, slotId, recipeId, nextState = state, wee
 }
 
 function plannerServingCount(day, slotId, recipeId, nextState = state, weekKey = nextState.selectedPlannerWeek) {
-  return Math.min(99, Math.max(1, Math.round(
-    Number(plannerWeekRecord(nextState, weekKey).plannerServings?.[day]?.[slotId]?.[recipeId]) || plannerDayServingCount(day, nextState, weekKey)
-  )));
+  return 1;
 }
 
 function selectPlannerWeek(weekKey, nextState = state) {

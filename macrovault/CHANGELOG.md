@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.31
+
+- Simplified the meal planner to one serving for one family member.
+- Removed planner people controls, per-meal overrides, household totals, and household goals.
+- Kept a single daily calorie and protein progress display.
+- Generated planner and shopping quantities from one serving while preserving recipe yield and per-serving calculations.
+- Simplified printed planner summaries and updated browser regression coverage.
+
 ## 0.9.30
 
 - Removed obsolete vertical space from desktop planner meal cards.

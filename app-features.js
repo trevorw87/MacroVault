@@ -475,8 +475,7 @@ function printWeekPlanner() {
     return `
       <th>
         <strong>${escapeHtml(day)}</strong>
-        <span>Household: ${formatPlannerNumber(plannedCaloriesForDay(day), "kcal")} / ${formatPlannerNumber(plannedProteinForDay(day), "protein")}</span>
-        <span>Per person: ${formatPlannerNumber(plannedCaloriesPerPersonForDay(day), "kcal")} / ${formatPlannerNumber(plannedProteinPerPersonForDay(day), "protein")}</span>
+        <span>1 person: ${formatPlannerNumber(plannedCaloriesPerPersonForDay(day), "kcal")} / ${formatPlannerNumber(plannedProteinPerPersonForDay(day), "protein")}</span>
         <em>${remaining.met ? "Goal met" : `Need ${formatPlannerNumber(remaining.calories, "kcal")} / ${formatPlannerNumber(remaining.protein, "protein")}`}</em>
       </th>
     `;
@@ -508,8 +507,7 @@ function printWeekPlanner() {
               <div class="meal-print-text">
                 ${recipes.length
                   ? recipes.map((item) => {
-                    const servings = plannerServingCount(day, slot.id, item.id);
-                    return `<strong>${escapeHtml(item.name)} (${servings} ${servings === 1 ? "person" : "people"})</strong>`;
+                    return `<strong>${escapeHtml(item.name)}</strong>`;
                   }).join("")
                   : "<strong>Not planned</strong>"}
                 ${recipes.length ? `<span>${formatPlannerNumber(calories, "kcal")} / ${formatPlannerNumber(protein, "protein")}</span>` : "<span>&nbsp;</span>"}
