@@ -423,13 +423,11 @@
   color: var(--ink);
   border: 1px solid var(--planner-label-border, rgba(111, 154, 86, 0.16));
   border-radius: 20px;
-  background:
-    radial-gradient(circle at 86% 18%, var(--planner-label-accent, rgba(244, 189, 59, 0.24)) 0 26px, transparent 27px),
-    linear-gradient(135deg, var(--planner-label-start, #fffaf0), var(--planner-label-end, #eef8ea));
+  background: linear-gradient(135deg, var(--planner-label-start, #fffaf0), var(--planner-label-end, #eef8ea));
   font-size: 0.95rem;
   font-weight: 950;
   text-align: center;
-  box-shadow: 0 9px 20px rgba(24, 63, 34, 0.05);
+  box-shadow: inset 0 3px 0 var(--planner-label-border, rgba(111, 154, 86, 0.16)), 0 5px 14px rgba(24, 63, 34, 0.04);
 }
 
 .planner-meal-label small {
@@ -593,8 +591,7 @@
   padding: 12px 10px;
   border: 1px solid rgba(111, 154, 86, 0.13);
   border-radius: 20px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 252, 244, 0.96));
+  background: #fff;
   box-shadow: 0 10px 24px rgba(24, 63, 34, 0.06);
 }
 
@@ -740,7 +737,7 @@
 
 .planner-day-section.today .planner-cell {
   border-color: rgba(57, 155, 63, 0.5);
-  background: linear-gradient(180deg, #fbfff8, #f1faeb);
+  background: #fff;
   box-shadow: 0 0 0 2px rgba(57, 155, 63, 0.12), 0 12px 26px rgba(57, 155, 63, 0.1);
 }
 
@@ -779,52 +776,35 @@
 .planner-slot-column[data-planner-column="beforeBreakfastDrink"],
 .planner-slot-column[data-planner-column="afterLunchDrink"],
 .planner-slot-column[data-planner-column="afterTreatDrink"] {
-  --planner-label-start: #e9f6ff;
-  --planner-label-end: #dcecff;
-  --planner-label-accent: rgba(76, 151, 224, 0.2);
-  --planner-label-border: rgba(58, 124, 190, 0.28);
+  --planner-label-start: #f2f8fc;
+  --planner-label-end: #e8f2f9;
+  --planner-label-border: rgba(58, 124, 190, 0.24);
 }
 
 .planner-slot-column[data-planner-column="breakfast"] {
-  --planner-label-start: #fff8d9;
-  --planner-label-end: #ffedb5;
-  --planner-label-accent: rgba(239, 174, 28, 0.25);
-  --planner-label-border: rgba(205, 145, 16, 0.28);
+  --planner-label-start: #fff4c9;
+  --planner-label-end: #ffe49a;
+  --planner-label-border: rgba(205, 145, 16, 0.42);
 }
 
-.planner-slot-column[data-planner-column="morningSnack"] {
-  --planner-label-start: #fff0e8;
-  --planner-label-end: #ffdcca;
-  --planner-label-accent: rgba(232, 112, 67, 0.22);
-  --planner-label-border: rgba(204, 92, 52, 0.25);
+.planner-slot-column[data-planner-column="morningSnack"],
+.planner-slot-column[data-planner-column="afternoonSnack"],
+.planner-slot-column[data-planner-column="eveningSnack"] {
+  --planner-label-start: #fff5ee;
+  --planner-label-end: #ffe5d3;
+  --planner-label-border: rgba(204, 108, 64, 0.25);
 }
 
 .planner-slot-column[data-planner-column="lunch"] {
-  --planner-label-start: #eaf8e8;
-  --planner-label-end: #d6efcf;
-  --planner-label-accent: rgba(77, 159, 72, 0.2);
-  --planner-label-border: rgba(63, 137, 58, 0.26);
-}
-
-.planner-slot-column[data-planner-column="afternoonSnack"] {
-  --planner-label-start: #fff3dc;
-  --planner-label-end: #ffe0ae;
-  --planner-label-accent: rgba(224, 139, 40, 0.23);
-  --planner-label-border: rgba(194, 113, 23, 0.27);
+  --planner-label-start: #e8f6e4;
+  --planner-label-end: #cce9c4;
+  --planner-label-border: rgba(63, 137, 58, 0.4);
 }
 
 .planner-slot-column[data-planner-column="dinner"] {
-  --planner-label-start: #f2ecff;
-  --planner-label-end: #dfd3fb;
-  --planner-label-accent: rgba(126, 87, 194, 0.2);
-  --planner-label-border: rgba(108, 72, 174, 0.26);
-}
-
-.planner-slot-column[data-planner-column="eveningSnack"] {
-  --planner-label-start: #ffedf5;
-  --planner-label-end: #ffd8e8;
-  --planner-label-accent: rgba(208, 75, 134, 0.2);
-  --planner-label-border: rgba(181, 60, 114, 0.25);
+  --planner-label-start: #eee8ff;
+  --planner-label-end: #d7caf5;
+  --planner-label-border: rgba(108, 72, 174, 0.4);
 }
 
 .planner-slot-column .planner-meal-label {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.28
+
+- Consolidated planner headers into five meaningful colour categories.
+- Gave Breakfast, Lunch, and Dinner distinct accents while sharing treatments across snacks and beverages.
+- Replaced decorative header bubbles with subtle category-coloured top accents.
+- Changed planner card bodies to neutral white for a calmer visual hierarchy.
+- Added responsive regression coverage for the simplified colour system.
+
 ## 0.9.27
 
 - Reduced the width of beverage periods in the desktop meal planner.

@@ -140,14 +140,14 @@ function startServer() {
     assert.equal(desktopPlannerAxis.mealGridColumns, 3);
     assert.equal(desktopPlannerAxis.documentWidth, desktopPlannerAxis.viewportWidth);
     assert.ok(desktopPlannerAxis.gridScrollWidth <= desktopPlannerAxis.gridClientWidth + 1);
-    assert.ok(new Set(desktopPlannerAxis.mealLabelStyles.map((style) => style.backgroundImage)).size >= 6);
+    assert.equal(new Set(desktopPlannerAxis.mealLabelStyles.map((style) => style.backgroundImage)).size, 5);
     assert.ok(desktopPlannerAxis.mealLabelStyles.every((style) => style.textAlign === "center" && style.alignItems === "center"));
     assert.match(await page.locator('[data-planner-row="Sunday"] .planner-totals').textContent(), /Household total.*Per person/s);
     assert.equal(await page.locator(".planner-day-section.today").count(), 1);
     assert.equal(await page.locator(".planner-day-section.today .planner-today-badge").textContent(), "Today");
-    assert.match(
-      await page.locator(".planner-day-section.today .planner-cell").first().evaluate((element) => getComputedStyle(element).backgroundImage),
-      /linear-gradient/
+    assert.equal(
+      await page.locator(".planner-day-section.today .planner-cell").first().evaluate((element) => getComputedStyle(element).backgroundColor),
+      "rgb(255, 255, 255)"
     );
     assert.ok(await page.locator("#plannerMonthGrid .planner-month-day").count() >= 35);
 
@@ -210,6 +210,14 @@ function startServer() {
     assert.ok(wideColumnWidths.beforeBreakfastDrink < wideColumnWidths.breakfast * 0.7, JSON.stringify(wideColumnWidths));
     assert.ok(wideColumnWidths.afterLunchDrink < wideColumnWidths.lunch * 0.7, JSON.stringify(wideColumnWidths));
     assert.ok(wideColumnWidths.afterTreatDrink < wideColumnWidths.dinner * 0.7, JSON.stringify(wideColumnWidths));
+    const plannerColors = await wideMealGrid.locator(":scope > .planner-slot-column").evaluateAll((columns) =>
+      Object.fromEntries(columns.map((column) => [column.dataset.plannerColumn, getComputedStyle(column.querySelector(".planner-meal-label")).backgroundImage]))
+    );
+    assert.equal(plannerColors.morningSnack, plannerColors.afternoonSnack);
+    assert.equal(plannerColors.afternoonSnack, plannerColors.eveningSnack);
+    assert.equal(plannerColors.beforeBreakfastDrink, plannerColors.afterLunchDrink);
+    assert.notEqual(plannerColors.breakfast, plannerColors.morningSnack);
+    assert.notEqual(plannerColors.lunch, plannerColors.dinner);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 1600);
     const wideAlignment = await wideMealGrid.evaluate((element) => {
       const spread = (values) => Math.max(...values) - Math.min(...values);
