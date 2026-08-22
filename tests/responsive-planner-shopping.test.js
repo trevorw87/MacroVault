@@ -204,6 +204,12 @@ function startServer() {
     await page.getByRole("button", { name: "Planner", exact: true }).click();
     const wideMealGrid = page.locator('[data-planner-mobile-day="Sunday"] .planner-day-meals');
     assert.equal(await wideMealGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 9);
+    const wideColumnWidths = await wideMealGrid.locator(":scope > .planner-slot-column").evaluateAll((columns) =>
+      Object.fromEntries(columns.map((column) => [column.dataset.plannerColumn, column.getBoundingClientRect().width]))
+    );
+    assert.ok(wideColumnWidths.beforeBreakfastDrink < wideColumnWidths.breakfast * 0.7, JSON.stringify(wideColumnWidths));
+    assert.ok(wideColumnWidths.afterLunchDrink < wideColumnWidths.lunch * 0.7, JSON.stringify(wideColumnWidths));
+    assert.ok(wideColumnWidths.afterTreatDrink < wideColumnWidths.dinner * 0.7, JSON.stringify(wideColumnWidths));
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 1600);
     const wideAlignment = await wideMealGrid.evaluate((element) => {
       const spread = (values) => Math.max(...values) - Math.min(...values);

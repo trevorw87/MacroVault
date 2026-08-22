@@ -751,7 +751,16 @@
 
 .planner-day-meals {
   display: grid;
-  grid-template-columns: repeat(9, minmax(0, 1fr));
+  grid-template-columns:
+    minmax(0, 0.62fr)
+    minmax(0, 1.1fr)
+    minmax(0, 0.9fr)
+    minmax(0, 1.1fr)
+    minmax(0, 0.62fr)
+    minmax(0, 0.9fr)
+    minmax(0, 1.1fr)
+    minmax(0, 0.9fr)
+    minmax(0, 0.62fr);
   align-items: stretch;
   gap: 10px;
   padding: 10px;

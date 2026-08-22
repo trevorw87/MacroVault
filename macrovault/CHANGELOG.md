@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.27
+
+- Reduced the width of beverage periods in the desktop meal planner.
+- Gave Breakfast, Lunch, and Dinner more room while retaining medium-width snack columns.
+- Preserved the existing tablet and mobile planner layouts.
+- Added responsive regression coverage for the new column proportions.
+
 ## 0.9.26
 
 - Prevented gram-based food entries from being saved without a grams-per-serving nutrition basis.
