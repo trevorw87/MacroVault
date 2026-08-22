@@ -96,6 +96,10 @@ function startServer() {
     assert.ok(recipeEditorLayout.ingredientsRight < recipeEditorLayout.imageLeft);
     assert.ok(recipeEditorLayout.ingredientsWidth < recipeEditorLayout.dialogWidth * 0.6);
     assert.ok(recipeEditorLayout.ingredientsHeight >= 250);
+    const ingredientFieldRows = await page.locator("#recipeIngredientNutrition .recipe-ingredient-row").first().locator(":scope > label").evaluateAll((labels) =>
+      labels.map((label) => Math.round(label.getBoundingClientRect().top))
+    );
+    assert.ok(Math.max(...ingredientFieldRows) - Math.min(...ingredientFieldRows) <= 1, "desktop ingredient fields should fit on one line");
     await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
 
     await page.getByRole("button", { name: "Planner", exact: true }).click();
@@ -206,13 +210,11 @@ function startServer() {
       const columns = [...element.querySelectorAll(":scope > .planner-slot-column")];
       return {
         labelBottomSpread: spread(columns.map((column) => column.querySelector(".planner-meal-label").getBoundingClientRect().bottom)),
-        dishHeightSpread: spread(columns.map((column) => column.querySelector(".planner-dish, .planner-empty-dish").getBoundingClientRect().height)),
-        selectBottomSpread: spread(columns.map((column) => column.querySelector("select").getBoundingClientRect().bottom))
+        dishHeightSpread: spread(columns.map((column) => column.querySelector(".planner-dish, .planner-empty-dish").getBoundingClientRect().height))
       };
     });
     assert.ok(wideAlignment.labelBottomSpread <= 1, JSON.stringify(wideAlignment));
     assert.ok(wideAlignment.dishHeightSpread <= 1, JSON.stringify(wideAlignment));
-    assert.ok(wideAlignment.selectBottomSpread <= 1, JSON.stringify(wideAlignment));
 
     await page.setViewportSize({ width: 900, height: 1000 });
     await page.reload({ waitUntil: "networkidle" });
@@ -270,26 +272,16 @@ function startServer() {
     });
     await page.reload({ waitUntil: "networkidle" });
     await page.getByRole("button", { name: "Planner", exact: true }).click();
-    await page.getByLabel("Add another dish to Monday Dinner", { exact: true }).selectOption("lemon-salmon");
+    await page.getByLabel("Choose Dinner for Monday", { exact: true }).selectOption("lemon-salmon");
     assert.deepEqual(
       await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).planner.Monday.dinner),
       ["lemon-salmon"]
     );
-    const mondayServingInput = page.getByLabel("People eating Lemon Garlic Salmon on Monday", { exact: true });
-    assert.equal(await mondayServingInput.inputValue(), "4");
-    assert.equal(Math.round(await mondayServingInput.locator("xpath=ancestor::article[1]").locator(".meal-thumb").evaluate((element) => element.getBoundingClientRect().width)), 90);
-    const nutritionPerServe = await mondayServingInput.locator("xpath=ancestor::article[1]").locator(".planner-recipe-nutrition").textContent();
+    const mondayDish = page.locator('[data-planner-mobile-day="Monday"] [data-planner-column="dinner"] .planner-dish');
+    assert.equal(Math.round(await mondayDish.locator(".meal-thumb").evaluate((element) => element.getBoundingClientRect().width)), 90);
+    const nutritionPerServe = await mondayDish.locator(".planner-recipe-nutrition").textContent();
     assert.match(nutritionPerServe, /kcal \/ serve/);
-    await mondayServingInput.fill("6");
-    await mondayServingInput.dispatchEvent("change");
-    assert.equal(
-      await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).plannerServings.Monday.dinner["lemon-salmon"]),
-      6
-    );
-    assert.equal(
-      await page.getByLabel("People eating Lemon Garlic Salmon on Monday", { exact: true }).locator("xpath=ancestor::article[1]").locator(".planner-recipe-nutrition").textContent(),
-      nutritionPerServe
-    );
+    assert.doesNotMatch(await mondayDish.textContent(), /People eating|Not prepared|Add another dish/);
 
     const expectedShoppingNames = await page.evaluate(() => {
       const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));

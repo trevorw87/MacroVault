@@ -96,6 +96,7 @@ document.querySelectorAll("#foodLogForm input[type=number]").forEach((input) => 
 document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
+  validateFoodLogGrams();
   if (!event.currentTarget.reportValidity()) return;
   state.foodLog.push({
     id: `food-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,

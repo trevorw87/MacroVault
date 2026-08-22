@@ -972,9 +972,14 @@ dialog::backdrop {
 
 .recipe-ingredient-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1.1fr) minmax(170px, 0.95fr) repeat(8, minmax(74px, 0.38fr));
+  grid-template-columns:
+    minmax(150px, 1.25fr)
+    minmax(160px, 1.2fr)
+    minmax(62px, 0.45fr)
+    minmax(72px, 0.5fr)
+    repeat(7, minmax(58px, 0.46fr));
   align-items: end;
-  gap: 10px;
+  gap: 8px;
   padding: 10px;
   border: 1px solid rgba(18, 26, 45, 0.08);
   border-radius: 14px;
@@ -1009,14 +1014,16 @@ dialog::backdrop {
 
 .recipe-ingredient-row label {
   gap: 4px;
-  font-size: 0.76rem;
+  font-size: 0.7rem;
+  white-space: nowrap;
 }
 
 .recipe-ingredient-row input,
 .recipe-ingredient-row select {
   min-height: 38px;
-  padding: 8px;
-  font-size: 0.86rem;
+  min-width: 0;
+  padding: 7px 6px;
+  font-size: 0.8rem;
 }
 
 .import-preview-image {

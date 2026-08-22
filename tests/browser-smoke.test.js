@@ -83,11 +83,14 @@ function startServer() {
     assert.equal(await page.locator("#foodLogServings").inputValue(), "1.00");
     await page.locator("#foodLogName").fill("Test snack");
     await page.locator("#foodLogMeal").selectOption("snacks");
-    await page.locator("#foodLogGrams").fill("150");
-    await page.locator("#foodLogGramsPerServing").fill("100");
-    assert.equal(await page.locator("#foodLogServings").inputValue(), "1.50");
     await page.locator("#foodLogCalories").fill("125");
     await page.locator("#foodLogProtein").fill("4");
+    await page.locator("#foodLogGrams").fill("150");
+    await page.locator("#foodLogForm button[value=default]").click();
+    assert.ok(await page.locator("#foodLogDialog").evaluate((dialog) => dialog.open));
+    assert.match(await page.locator("#foodLogGramsPerServing").evaluate((input) => input.validationMessage), /grams per serving/i);
+    await page.locator("#foodLogGramsPerServing").fill("100");
+    assert.equal(await page.locator("#foodLogServings").inputValue(), "1.50");
     await page.locator("#foodLogForm button[value=default]").click();
     await page.waitForSelector(".tracker-entry");
     assert.match(await page.locator("#trackerSummary").textContent(), /187\.5 kcal/);
@@ -483,15 +486,11 @@ function startServer() {
 
     await page.getByRole("button", { name: "Planner", exact: true }).click();
     await page.locator('[data-planner-mobile-day="Sunday"]').evaluate((element) => { element.open = true; });
-    await page.getByLabel("Add another dish to Sunday Dinner", { exact: true }).selectOption("lemon-salmon");
-    const sundayDinnerIds = await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).planner.Sunday.dinner);
-    assert.deepEqual(sundayDinnerIds, ["slow-cooker-beef", "lemon-salmon"]);
-    const sundayDinnerCell = page.getByLabel("Add another dish to Sunday Dinner", { exact: true }).locator("..");
+    const sundayDinnerCell = page.locator('[data-planner-mobile-day="Sunday"] [data-planner-column="dinner"]');
     assert.match(await sundayDinnerCell.textContent(), /Slow Cooker Beef Ragu/);
-    assert.match(await sundayDinnerCell.textContent(), /Lemon Garlic Salmon/);
+    assert.doesNotMatch(await sundayDinnerCell.textContent(), /People eating|Not prepared|Add another dish/);
     await page.getByRole("button", { name: "Shopping", exact: true }).click();
     const multiDishShoppingText = await page.locator("#shoppingList").textContent();
-    assert.match(multiDishShoppingText, /salmon/i);
     assert.match(multiDishShoppingText, /beef/i);
 
     await page.evaluate(() => {

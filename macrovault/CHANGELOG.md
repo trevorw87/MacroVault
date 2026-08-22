@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.26
+
+- Prevented gram-based food entries from being saved without a grams-per-serving nutrition basis.
+- Added clear inline guidance when gram information is incomplete.
+- Compressed desktop recipe ingredient nutrition fields into a single row while preserving responsive stacking.
+- Simplified populated planner cards by removing repeated people, preparation, and add-another-dish controls.
+- Kept a single meal selector on empty planner slots and updated browser regression coverage.
+
 ## 0.9.25
 
 - Added grams eaten and grams-per-serving fields to daily food entries.

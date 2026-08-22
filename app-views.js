@@ -252,6 +252,7 @@ function openFoodLogDialog() {
   document.querySelector("#foodLogForm").reset();
   document.querySelector("#foodLogServings").value = "1.00";
   document.querySelector("#foodLogGramNote").textContent = "Enter both gram values to calculate servings and nutrition automatically.";
+  document.querySelector("#foodLogGramsPerServing").setCustomValidity("");
   document.querySelector("#foodLogDialog").showModal();
 }
 
@@ -274,6 +275,22 @@ function applyFoodLogSource() {
   document.querySelector("#foodLogGramNote").textContent = selected.gramsPerServing
     ? `Nutrition is based on ${formatFoodLogNumber(selected.gramsPerServing)} g per serving.`
     : "Enter a gram serving size to calculate nutrition from grams eaten.";
+  validateFoodLogGrams();
+}
+
+function validateFoodLogGrams() {
+  const gramsInput = document.querySelector("#foodLogGrams");
+  const servingInput = document.querySelector("#foodLogGramsPerServing");
+  const grams = Number(gramsInput.value) || 0;
+  const gramsPerServing = Number(servingInput.value) || 0;
+  const missingServingSize = grams > 0 && gramsPerServing <= 0;
+  servingInput.setCustomValidity(missingServingSize
+    ? "Enter the grams per serving so MacroVault can calculate calories for the amount eaten."
+    : "");
+  if (missingServingSize) {
+    document.querySelector("#foodLogGramNote").textContent = "A gram serving size is required to calculate nutrition from grams eaten.";
+  }
+  return !missingServingSize;
 }
 
 function updateFoodLogServingsFromGrams() {
@@ -283,6 +300,7 @@ function updateFoodLogServingsFromGrams() {
     document.querySelector("#foodLogServings").value = formatFoodLogNumber(grams / gramsPerServing);
     document.querySelector("#foodLogGramNote").textContent = `${formatFoodLogNumber(grams)} g equals ${formatFoodLogNumber(grams / gramsPerServing)} servings.`;
   }
+  validateFoodLogGrams();
 }
 
 function recipeCard(recipe) {
@@ -398,7 +416,7 @@ function renderPrepared() {
     : `
       <section class="section-block prepared-empty">
         <h2>Nothing prepared yet</h2>
-        <p class="muted">Mark a recipe as “In freezer / prepared” from Recipes or the Planner and it will appear here.</p>
+        <p class="muted">Mark a recipe as “In freezer / prepared” from Recipes and it will appear here.</p>
         <button class="secondary-button" data-tab="recipes" type="button">Browse recipes</button>
       </section>
     `;
@@ -532,25 +550,12 @@ function plannerCellMarkup(day, slot) {
     <div class="planner-cell">
       <div class="planner-dish-list">
         ${selectedRecipes.length ? selectedRecipes.map((recipe) => {
-          const servings = plannerServingCount(day, slot.id, recipe.id);
           return `
           <article class="planner-dish">
             ${mealThumbnailMarkup(recipe, slot.label)}
             <div class="planner-meal-pick">
               <strong>${escapeHtml(recipe.name)}</strong>
               <span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} / serve · ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>
-              <label class="planner-serving-control">
-                <span>People eating</span>
-                <span class="planner-serving-stepper">
-                  <button data-planner-serving-step="-1" data-planner-day="${day}" data-planner-slot="${slot.id}" data-planner-recipe="${escapeHtml(recipe.id)}" type="button" aria-label="One fewer person eating ${escapeHtml(recipe.name)}">&minus;</button>
-                  <input type="number" min="1" max="99" step="1" value="${servings}" data-planner-serving-count data-planner-day="${day}" data-planner-slot="${slot.id}" data-planner-recipe="${escapeHtml(recipe.id)}" aria-label="People eating ${escapeHtml(recipe.name)} on ${day}">
-                  <button data-planner-serving-step="1" data-planner-day="${day}" data-planner-slot="${slot.id}" data-planner-recipe="${escapeHtml(recipe.id)}" type="button" aria-label="One more person eating ${escapeHtml(recipe.name)}">&plus;</button>
-                </span>
-              </label>
-              <label class="recipe-prepared-toggle planner-prepared-toggle">
-                <input type="checkbox" ${recipe.prepared ? "checked" : ""} data-recipe-prepared="${escapeHtml(recipe.id)}">
-                <span>${recipe.prepared ? "In freezer / prepared" : "Not prepared"}</span>
-              </label>
             </div>
             <button class="planner-remove-dish" data-remove-planner-recipe="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" type="button" aria-label="Remove ${escapeHtml(recipe.name)} from ${day} ${slot.label}" title="Remove dish">&times;</button>
           </article>
@@ -562,10 +567,12 @@ function plannerCellMarkup(day, slot) {
           </div>
         `}
       </div>
-      <select id="${controlId}" aria-label="Add another dish to ${day} ${slot.label}" data-planner-add-day="${day}" data-planner-add-slot="${slot.id}" ${options ? "" : "disabled"}>
-        <option value="">${selectedRecipes.length ? "Add another dish" : `Choose ${slot.label.toLowerCase()}`}</option>
-        ${options}
-      </select>
+      ${selectedRecipes.length ? "" : `
+        <select id="${controlId}" aria-label="Choose ${slot.label} for ${day}" data-planner-add-day="${day}" data-planner-add-slot="${slot.id}" ${options ? "" : "disabled"}>
+          <option value="">Choose ${slot.label.toLowerCase()}</option>
+          ${options}
+        </select>
+      `}
     </div>
   `;
 }
