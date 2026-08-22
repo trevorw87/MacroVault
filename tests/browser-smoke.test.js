@@ -488,7 +488,21 @@ function startServer() {
     await page.locator('[data-planner-mobile-day="Sunday"]').evaluate((element) => { element.open = true; });
     const sundayDinnerCell = page.locator('[data-planner-mobile-day="Sunday"] [data-planner-column="dinner"]');
     assert.match(await sundayDinnerCell.textContent(), /Slow Cooker Beef Ragu/);
-    assert.doesNotMatch(await sundayDinnerCell.textContent(), /People eating|Not prepared|Add another dish/);
+    assert.ok(await sundayDinnerCell.locator(".planner-status-chip").isVisible());
+    assert.ok(await sundayDinnerCell.locator(".planner-add-dish > summary").isVisible());
+    assert.equal(await sundayDinnerCell.locator(".planner-add-dish > select").isVisible(), false);
+    const implausibleNutrition = await page.evaluate(() => {
+      const recipe = { id: "implausible", name: "Implausible meal", servings: 1, calories: 5001, macros: { protein: 20, carbs: 0, fat: 0 } };
+      state.recipes.push(recipe);
+      state.planner.Tuesday.dinner = [recipe.id];
+      state.plannerServings.Tuesday.dinner = {};
+      const result = { issue: plannerNutritionIssue(recipe), total: mealSlotCalories("Tuesday", mealPlanSlots.find((slot) => slot.id === "dinner")) };
+      state.planner.Tuesday.dinner = [];
+      state.recipes = state.recipes.filter((item) => item.id !== recipe.id);
+      return result;
+    });
+    assert.match(implausibleNutrition.issue, /too high/i);
+    assert.equal(implausibleNutrition.total, 0);
     await page.getByRole("button", { name: "Shopping", exact: true }).click();
     const multiDishShoppingText = await page.locator("#shoppingList").textContent();
     assert.match(multiDishShoppingText, /beef/i);

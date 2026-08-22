@@ -626,7 +626,39 @@
   font-size: 0.7rem;
   font-weight: 900;
   line-height: 1.15;
+  white-space: nowrap;
 }
+
+.planner-day-people { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:.68rem; white-space:nowrap; }
+.planner-day-people input { width:54px; min-height:30px; padding:4px 6px; text-align:center; }
+.planner-progress-summary { display:grid; grid-template-columns:repeat(2,minmax(150px,1fr)); gap:8px; }
+.planner-progress-set { display:grid; grid-template-columns:1fr auto; gap:3px 8px; min-width:0; }
+.planner-progress-set small,
+.planner-progress-set em { color:var(--muted); font-size:.62rem; font-style:normal; font-weight:800; }
+.planner-progress-set strong { min-height:0; padding:0; color:var(--ink); background:transparent; font-size:.72rem; }
+.planner-progress-set i { grid-column:1 / -1; height:5px; overflow:hidden; border-radius:999px; background:#e7eee5; }
+.planner-progress-set i b { display:block; height:100%; border-radius:inherit; background:var(--green); }
+.planner-person-progress i b { background:#8b69c5; }
+.planner-day-warning,
+.planner-nutrition-warning { border:0; color:#9a4c15; background:#fff0dc; font-size:.66rem; font-weight:900; }
+.planner-day-warning { padding:6px 9px; border-radius:999px; }
+.planner-nutrition-warning { justify-self:center; padding:4px 8px; border-radius:999px; }
+.planner-dish-chips { display:flex; align-items:center; justify-content:center; gap:5px; }
+.planner-status-chip { min-height:24px; padding:3px 7px; border:1px solid #dce5da; border-radius:999px; color:var(--muted); background:#f7f9f6; font-size:.62rem; font-weight:850; }
+.planner-status-chip.prepared { color:var(--green-dark); border-color:#b7ddb3; background:#e8f7e4; }
+.planner-dish-options,
+.planner-add-dish { position:relative; }
+.planner-dish-options > summary,
+.planner-add-dish > summary { display:grid; place-items:center; width:26px; height:26px; border:1px solid #dce5da; border-radius:999px; color:var(--green-dark); background:#fff; cursor:pointer; font-size:.76rem; font-weight:950; list-style:none; }
+.planner-dish-options > summary::-webkit-details-marker,
+.planner-add-dish > summary::-webkit-details-marker { display:none; }
+.planner-dish-options > div,
+.planner-add-dish > select { position:absolute; z-index:5; right:0; bottom:calc(100% + 5px); width:190px; padding:9px; border:1px solid #dce5da; border-radius:12px; background:#fff; box-shadow:0 12px 28px rgba(18,26,45,.16); }
+.planner-dish-options > div { display:grid; gap:7px; text-align:left; }
+.planner-dish-options input { min-height:34px; }
+.planner-dish-options small { color:var(--muted); font-size:.65rem; }
+.planner-add-dish { display:flex; justify-content:center; }
+.planner-add-dish > select { bottom:auto; top:calc(100% + 5px); }
 
 .planner-cell select {
   min-width: 0;
@@ -700,7 +732,7 @@
 .planner-day-section .planner-day-heading {
   position: static;
   display: grid;
-  grid-template-columns: minmax(110px, auto) auto minmax(180px, 1fr);
+  grid-template-columns: minmax(110px, auto) auto minmax(320px, 1fr) minmax(150px, auto);
   align-items: center;
   gap: 12px;
   min-height: 0;

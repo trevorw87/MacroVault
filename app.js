@@ -314,6 +314,26 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  const resetPlannerServingButton = event.target.closest("[data-reset-planner-serving]");
+  if (resetPlannerServingButton) {
+    const { plannerDay, plannerSlot, plannerRecipe } = resetPlannerServingButton.dataset;
+    delete state.plannerServings?.[plannerDay]?.[plannerSlot]?.[plannerRecipe];
+    state.bought = [];
+    saveState();
+    render();
+    return;
+  }
+
+  const toggleRecipePreparedButton = event.target.closest("[data-toggle-recipe-prepared]");
+  if (toggleRecipePreparedButton) {
+    const recipe = recipeById(toggleRecipePreparedButton.dataset.toggleRecipePrepared);
+    if (!recipe) return;
+    recipe.prepared = !recipe.prepared;
+    saveState();
+    render();
+    return;
+  }
+
   const editButton = event.target.closest("[data-edit-recipe]");
   if (editButton) {
     const recipe = recipeById(editButton.dataset.editRecipe);
@@ -479,6 +499,17 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  const plannerDayServingInput = event.target.closest("[data-planner-day-serving]");
+  if (plannerDayServingInput) {
+    const day = plannerDayServingInput.dataset.plannerDayServing;
+    state.plannerDayServings ||= {};
+    state.plannerDayServings[day] = Math.min(99, Math.max(1, Math.round(Number(plannerDayServingInput.value) || 1)));
+    state.bought = [];
+    saveState();
+    render();
+    return;
+  }
+
   const plannerMonthInput = event.target.closest("#plannerMonth");
   if (plannerMonthInput) {
     state.plannerMonth = normalizedMonthKey(plannerMonthInput.value);
@@ -508,7 +539,7 @@ document.addEventListener("change", (event) => {
     state.plannerServings[plannerDay] ||= {};
     state.plannerServings[plannerDay][plannerSlot] ||= {};
     if (plannerSelect.value) {
-      state.plannerServings[plannerDay][plannerSlot][plannerSelect.value] = householdServingCount();
+      delete state.plannerServings[plannerDay][plannerSlot][plannerSelect.value];
     }
     state.consumed[plannerDay] ||= {};
     state.bought = [];
@@ -526,6 +557,9 @@ document.addEventListener("change", (event) => {
     state.plannerServings[plannerDay][plannerSlot][plannerRecipe] = Math.min(99, Math.max(1,
       Math.round(Number(plannerServingInput.value) || 1)
     ));
+    if (state.plannerServings[plannerDay][plannerSlot][plannerRecipe] === plannerDayServingCount(plannerDay)) {
+      delete state.plannerServings[plannerDay][plannerSlot][plannerRecipe];
+    }
     state.bought = [];
     saveState();
     render();

@@ -1455,6 +1455,10 @@ textarea:focus-visible,
 
   .planner-mobile-day .planner-totals { flex-direction: row; }
 
+  .planner-mobile-day .planner-progress-summary { grid-template-columns: 1fr; }
+
+  .planner-mobile-day .planner-day-people { justify-self: start; }
+
   .planner-mobile-day .planner-remaining {
     justify-self: start;
     text-align: left;

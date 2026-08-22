@@ -607,19 +607,21 @@ function shiftMonthKey(value, monthsToAdd) {
 }
 
 function emptyPlannerWeekRecord() {
-  return { planner: {}, plannerServings: {}, consumed: {} };
+  return { planner: {}, plannerServings: {}, plannerDayServings: {}, consumed: {} };
 }
 
 function normalizePlannerWeekRecord(nextState, value = {}) {
   const record = value && typeof value === "object" ? value : {};
   const planner = record.planner && typeof record.planner === "object" ? record.planner : {};
   const plannerServings = record.plannerServings && typeof record.plannerServings === "object" ? record.plannerServings : {};
+  const plannerDayServings = record.plannerDayServings && typeof record.plannerDayServings === "object" ? record.plannerDayServings : {};
   const consumed = record.consumed && typeof record.consumed === "object" ? record.consumed : {};
   const defaultPlannerServings = Math.max(1, familyMemberNames(nextState).length || 1);
   days.forEach((day) => {
     if (typeof planner[day] === "string") planner[day] = { dinner: planner[day] };
     planner[day] ||= {};
     plannerServings[day] ||= {};
+    plannerDayServings[day] = Math.min(99, Math.max(1, Math.round(Number(plannerDayServings[day]) || defaultPlannerServings)));
     consumed[day] ||= {};
     if (!planner[day].afterLunchDrink && planner[day].beforeLunchDrink) planner[day].afterLunchDrink = planner[day].beforeLunchDrink;
     if (!planner[day].afterTreatDrink && planner[day].afterDinnerDrink) planner[day].afterTreatDrink = planner[day].afterDinnerDrink;
@@ -639,14 +641,13 @@ function normalizePlannerWeekRecord(nextState, value = {}) {
       const servingCounts = plannerServings[day][slot.id] && typeof plannerServings[day][slot.id] === "object"
         ? plannerServings[day][slot.id]
         : {};
-      plannerServings[day][slot.id] = Object.fromEntries(planner[day][slot.id].map((recipeId) => [
-        recipeId,
-        Math.min(99, Math.max(1, Math.round(Number(servingCounts[recipeId]) || defaultPlannerServings)))
-      ]));
+      plannerServings[day][slot.id] = Object.fromEntries(planner[day][slot.id]
+        .map((recipeId) => [recipeId, Math.min(99, Math.max(1, Math.round(Number(servingCounts[recipeId]) || plannerDayServings[day])))])
+        .filter(([, count]) => count !== plannerDayServings[day]));
       consumed[day][slot.id] = Boolean(consumed[day][slot.id]);
     });
   });
-  return { planner, plannerServings, consumed };
+  return { planner, plannerServings, plannerDayServings, consumed };
 }
 
 function activatePlannerWeek(nextState, weekKey) {
@@ -656,6 +657,7 @@ function activatePlannerWeek(nextState, weekKey) {
   nextState.selectedPlannerWeek = normalizedKey;
   nextState.planner = nextState.plannerWeeks[normalizedKey].planner;
   nextState.plannerServings = nextState.plannerWeeks[normalizedKey].plannerServings;
+  nextState.plannerDayServings = nextState.plannerWeeks[normalizedKey].plannerDayServings;
   nextState.consumed = nextState.plannerWeeks[normalizedKey].consumed;
   return nextState.plannerWeeks[normalizedKey];
 }
@@ -1136,6 +1138,7 @@ function normalizeState(nextState) {
   const legacyPlannerWeek = {
     planner: nextState.planner && typeof nextState.planner === "object" ? nextState.planner : {},
     plannerServings: nextState.plannerServings && typeof nextState.plannerServings === "object" ? nextState.plannerServings : {},
+    plannerDayServings: nextState.plannerDayServings && typeof nextState.plannerDayServings === "object" ? nextState.plannerDayServings : {},
     consumed: nextState.consumed && typeof nextState.consumed === "object" ? nextState.consumed : {}
   };
   const savedPlannerWeeks = nextState.plannerWeeks && typeof nextState.plannerWeeks === "object"
@@ -1375,6 +1378,7 @@ function plannerWeekRecord(nextState = state, weekKey = nextState.selectedPlanne
   return {
     planner: nextState.planner || {},
     plannerServings: nextState.plannerServings || {},
+    plannerDayServings: nextState.plannerDayServings || {},
     consumed: nextState.consumed || {}
   };
 }
@@ -1396,9 +1400,19 @@ function householdServingCount(nextState = state) {
   return Math.max(1, familyMemberNames(nextState).length || 1);
 }
 
+function plannerDayServingCount(day, nextState = state, weekKey = nextState.selectedPlannerWeek) {
+  return Math.min(99, Math.max(1, Math.round(
+    Number(plannerWeekRecord(nextState, weekKey).plannerDayServings?.[day]) || householdServingCount(nextState)
+  )));
+}
+
+function plannerHasServingOverride(day, slotId, recipeId, nextState = state, weekKey = nextState.selectedPlannerWeek) {
+  return Number.isFinite(Number(plannerWeekRecord(nextState, weekKey).plannerServings?.[day]?.[slotId]?.[recipeId]));
+}
+
 function plannerServingCount(day, slotId, recipeId, nextState = state, weekKey = nextState.selectedPlannerWeek) {
   return Math.min(99, Math.max(1, Math.round(
-    Number(plannerWeekRecord(nextState, weekKey).plannerServings?.[day]?.[slotId]?.[recipeId]) || householdServingCount(nextState)
+    Number(plannerWeekRecord(nextState, weekKey).plannerServings?.[day]?.[slotId]?.[recipeId]) || plannerDayServingCount(day, nextState, weekKey)
   )));
 }
 
@@ -1437,7 +1451,6 @@ function plannerRecipeUsageCounts(nextState = state) {
 
 function autoFillSelectedPlannerWeek(nextState = state, random = Math.random) {
   const usageCounts = plannerRecipeUsageCounts(nextState);
-  const household = householdServingCount(nextState);
   let filled = 0;
   days.forEach((day) => mealPlanSlots.forEach((slot) => {
     if (plannerRecipeIds(day, slot.id, nextState).length) return;
@@ -1447,7 +1460,7 @@ function autoFillSelectedPlannerWeek(nextState = state, random = Math.random) {
     const leastUsed = candidates.filter((recipe) => (usageCounts.get(recipe.id) || 0) === minimumUsage);
     const recipe = leastUsed[Math.min(leastUsed.length - 1, Math.floor(random() * leastUsed.length))];
     nextState.planner[day][slot.id] = [recipe.id];
-    nextState.plannerServings[day][slot.id] = { [recipe.id]: household };
+    nextState.plannerServings[day][slot.id] = {};
     nextState.consumed[day][slot.id] = false;
     usageCounts.set(recipe.id, (usageCounts.get(recipe.id) || 0) + 1);
     filled += 1;
@@ -2336,6 +2349,24 @@ function caloriesPerServing(recipe) {
   return roundNutrition(recipeTotalCalories(recipe) / recipeServings(recipe));
 }
 
+const plannerNutritionLimits = { calories: 3000, protein: 300 };
+
+function plannerNutritionIssue(recipe) {
+  const calories = caloriesPerServing(recipe);
+  const protein = macrosPerServing(recipe).protein;
+  if (calories > plannerNutritionLimits.calories) return `Calories look too high (${formatPlannerNumber(calories, "kcal")} / serve)`;
+  if (protein > plannerNutritionLimits.protein) return `Protein looks too high (${formatPlannerNumber(protein, "protein")} / serve)`;
+  return "";
+}
+
+function plannerSafeCaloriesPerServing(recipe) {
+  return plannerNutritionIssue(recipe) ? 0 : caloriesPerServing(recipe);
+}
+
+function plannerSafeProteinPerServing(recipe) {
+  return plannerNutritionIssue(recipe) ? 0 : macrosPerServing(recipe).protein;
+}
+
 function recipeNutritionTotals(recipe) {
   return {
     calories: recipeTotalCalories(recipe),
@@ -2439,22 +2470,22 @@ function ingredientsForServing(recipe) {
 
 function mealSlotCalories(day, slot) {
   return roundNutrition(plannerRecipes(day, slot)
-    .reduce((sum, recipe) => sum + caloriesPerServing(recipe) * plannerServingCount(day, slot.id, recipe.id), 0));
+    .reduce((sum, recipe) => sum + plannerSafeCaloriesPerServing(recipe) * plannerServingCount(day, slot.id, recipe.id), 0));
 }
 
 function mealSlotProtein(day, slot) {
   return roundNutrition(plannerRecipes(day, slot)
-    .reduce((sum, recipe) => sum + macrosPerServing(recipe).protein * plannerServingCount(day, slot.id, recipe.id), 0));
+    .reduce((sum, recipe) => sum + plannerSafeProteinPerServing(recipe) * plannerServingCount(day, slot.id, recipe.id), 0));
 }
 
 function mealSlotCaloriesPerPerson(day, slot) {
   return roundNutrition(plannerRecipes(day, slot)
-    .reduce((sum, recipe) => sum + caloriesPerServing(recipe), 0));
+    .reduce((sum, recipe) => sum + plannerSafeCaloriesPerServing(recipe), 0));
 }
 
 function mealSlotProteinPerPerson(day, slot) {
   return roundNutrition(plannerRecipes(day, slot)
-    .reduce((sum, recipe) => sum + macrosPerServing(recipe).protein, 0));
+    .reduce((sum, recipe) => sum + plannerSafeProteinPerServing(recipe), 0));
 }
 
 function plannedCaloriesForDay(day) {

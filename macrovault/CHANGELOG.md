@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.29
+
+- Moved default people counts into each planner day header with optional per-meal overrides.
+- Added compact one-line calorie and protein labels and smaller preparation status chips.
+- Hid additional-dish selectors behind compact `+` actions.
+- Reworked day summaries into separate per-person and household calorie progress displays.
+- Excluded implausible per-serving nutrition values from daily totals and surfaced correction warnings.
+- Preserved existing planner data and added browser coverage for defaults, overrides, progress, and validation.
+
 ## 0.9.28
 
 - Consolidated planner headers into five meaningful colour categories.
