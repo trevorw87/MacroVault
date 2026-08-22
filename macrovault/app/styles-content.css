@@ -791,8 +791,8 @@
     minmax(0, 0.9fr)
     minmax(0, 0.62fr);
   align-items: stretch;
-  gap: 10px;
-  padding: 10px;
+  gap: 8px;
+  padding: 8px;
   border-top: 1px solid rgba(111, 154, 86, 0.14);
 }
 
@@ -800,7 +800,7 @@
   display: grid;
   grid-template-rows: 64px minmax(0, 1fr);
   align-content: stretch;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
   height: 100%;
 }
@@ -848,20 +848,21 @@
 
 .planner-slot-column .planner-cell {
   grid-template-rows: minmax(0, 1fr) auto;
-  min-height: 270px;
+  min-height: 0;
   height: 100%;
-  padding: 9px 7px;
+  padding: 7px 6px;
   border-radius: 15px;
 }
 
 .planner-slot-column .planner-dish-list {
-  grid-auto-rows: minmax(286px, auto);
+  grid-auto-rows: 232px;
   align-content: start;
 }
 
 .planner-slot-column .planner-dish,
 .planner-slot-column .planner-empty-dish {
-  min-height: 286px;
+  min-height: 232px;
+  height: 232px;
 }
 
 .planner-slot-column .planner-dish {
@@ -873,6 +874,14 @@
   width: 90px;
   height: 90px;
   border-radius: 21px;
+}
+
+.planner-slot-column[data-planner-column="beforeBreakfastDrink"] .meal-thumb,
+.planner-slot-column[data-planner-column="afterLunchDrink"] .meal-thumb,
+.planner-slot-column[data-planner-column="afterTreatDrink"] .meal-thumb {
+  width: 76px;
+  height: 76px;
+  border-radius: 18px;
 }
 
 .planner-slot-column .planner-meal-pick strong {
@@ -936,7 +945,9 @@
   min-height: 32px;
   max-height: 32px;
   overflow: hidden;
+  max-width: 100%;
   text-align: center;
+  text-overflow: ellipsis;
 }
 
 .planner-slot-column .planner-prepared-toggle {

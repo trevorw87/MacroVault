@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.30
+
+- Removed obsolete vertical space from desktop planner meal cards.
+- Tightened planner padding and gaps while keeping card rows aligned.
+- Reduced beverage thumbnail sizes to suit their narrower columns.
+- Kept compact nutrition labels on one line with safe overflow handling.
+- Preserved existing tablet and mobile layouts and added spacing regression coverage.
+
 ## 0.9.29
 
 - Moved default people counts into each planner day header with optional per-meal overrides.

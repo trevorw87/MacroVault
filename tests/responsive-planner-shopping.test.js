@@ -229,6 +229,10 @@ function startServer() {
     });
     assert.ok(wideAlignment.labelBottomSpread <= 1, JSON.stringify(wideAlignment));
     assert.ok(wideAlignment.dishHeightSpread <= 1, JSON.stringify(wideAlignment));
+    assert.ok(Math.max(...await wideMealGrid.locator(".planner-dish, .planner-empty-dish").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().height))) <= 250);
+    const beverageThumbWidth = await wideMealGrid.locator('[data-planner-column="beforeBreakfastDrink"] .meal-thumb').first().evaluate((element) => element.getBoundingClientRect().width);
+    const breakfastThumbWidth = await wideMealGrid.locator('[data-planner-column="breakfast"] .meal-thumb').first().evaluate((element) => element.getBoundingClientRect().width);
+    assert.ok(beverageThumbWidth < breakfastThumbWidth);
 
     await page.setViewportSize({ width: 900, height: 1000 });
     await page.reload({ waitUntil: "networkidle" });
