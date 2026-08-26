@@ -362,6 +362,34 @@ function startServer() {
       renderPlanner();
     });
     await page.locator('[data-planner-mobile-day="Monday"] > summary').click();
+    await page.locator('[data-planner-mobile-day="Monday"] [data-planner-column="lunch"] [data-quick-meal-day]').click();
+    const quickIngredients = await page.evaluate(() => state.ingredients.slice(0, 2).map((ingredient) => ({ id: ingredient.id, name: ingredient.name })));
+    await page.locator("[data-quick-meal-ingredient]").nth(0).selectOption(quickIngredients[0].id);
+    await page.locator("[data-quick-meal-ingredient]").nth(1).selectOption(quickIngredients[1].id);
+    await page.locator("#quickMealName").fill("Steak and lettuce");
+    await page.locator("#quickMealForm button[value=default]").click();
+    const quickMealResult = await page.evaluate(() => {
+      const id = plannerRecipeIds("Monday", "lunch")[0];
+      const recipe = recipeById(id);
+      return {
+        id,
+        quickMeal: recipe.quickMeal,
+        ingredientCount: recipe.ingredientRefs.length,
+        calories: caloriesPerServing(recipe),
+        shoppingNames: getShoppingItems().map((item) => item.name)
+      };
+    });
+    assert.equal(quickMealResult.quickMeal, true);
+    assert.equal(quickMealResult.ingredientCount, 2);
+    assert.ok(quickMealResult.calories >= 0);
+    assert.ok(quickIngredients.every((ingredient) => quickMealResult.shoppingNames.some((name) => name.toLowerCase().includes(ingredient.name.toLowerCase()))));
+    await page.evaluate((quickMealId) => {
+      state.planner.Monday.lunch = [];
+      state.recipes = state.recipes.filter((recipe) => recipe.id !== quickMealId);
+      state.bought = [];
+      saveState({ skipBackup: true });
+      renderPlanner();
+    }, quickMealResult.id);
     await page.getByLabel("Choose Dinner for Monday", { exact: true }).selectOption("lemon-salmon");
     assert.deepEqual(
       await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).planner.Monday.dinner),

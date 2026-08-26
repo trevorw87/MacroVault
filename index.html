@@ -6,7 +6,7 @@
     <title>MacroVault</title>
     <meta name="theme-color" content="#399b3f">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=137">
+    <link rel="stylesheet" href="styles.css?v=138">
   </head>
   <body>
     <div class="app-shell">
@@ -706,13 +706,27 @@
       </form>
     </dialog>
 
+    <dialog id="quickMealDialog">
+      <form method="dialog" class="recipe-form quick-meal-form" id="quickMealForm">
+        <div class="dialog-heading">
+          <div><h2>Add ingredients only</h2><p class="muted">Combine saved ingredients into a simple planner meal.</p></div>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+        <label>Meal name (optional)<input id="quickMealName" maxlength="100" placeholder="e.g. Steak and lettuce"></label>
+        <div class="quick-meal-rows" id="quickMealRows"></div>
+        <button class="secondary-button" id="addQuickMealIngredient" type="button">Add another ingredient</button>
+        <p class="muted">Nutrition and shopping quantities use the saved serving for each ingredient.</p>
+        <menu><button class="secondary-button" value="cancel" type="submit">Cancel</button><button class="primary-button" value="default" type="submit">Add to planner</button></menu>
+      </form>
+    </dialog>
+
     <script src="zxing-browser.min.js?v=107"></script>
     <script src="barcode-nutrition.js?v=114"></script>
     <script src="frontend-utils.js?v=116"></script>
-    <script src="app-core.js?v=137"></script>
-    <script src="app-views.js?v=137"></script>
-    <script src="app-editors.js?v=137"></script>
-    <script src="app-features.js?v=137"></script>
-    <script src="app.js?v=137"></script>
+    <script src="app-core.js?v=138"></script>
+    <script src="app-views.js?v=138"></script>
+    <script src="app-editors.js?v=138"></script>
+    <script src="app-features.js?v=138"></script>
+    <script src="app.js?v=138"></script>
   </body>
 </html>

@@ -594,6 +594,7 @@ function plannerCellMarkup(day, slot) {
           ${options}
         </select>
       `}
+      <button class="planner-quick-meal-button" type="button" data-quick-meal-day="${day}" data-quick-meal-slot="${slot.id}">+ Ingredients only</button>
     </div>
   `;
 }

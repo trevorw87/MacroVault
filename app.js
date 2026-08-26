@@ -1,4 +1,32 @@
 // MacroVault rendering orchestration, event wiring, and application startup.
+let quickMealContext = null;
+
+function quickMealIngredientRow(index, ingredientId = "") {
+  const options = [...state.ingredients]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((ingredient) => `<option value="${escapeHtml(ingredient.id)}" ${ingredient.id === ingredientId ? "selected" : ""}>${escapeHtml(ingredient.name)}</option>`)
+    .join("");
+  return `<div class="quick-meal-row" data-quick-meal-row>
+    <label>Ingredient<select data-quick-meal-ingredient required><option value="">Choose ingredient</option>${options}</select></label>
+    <label>Servings<input data-quick-meal-servings type="number" min="0.25" max="20" step="0.25" value="1" required></label>
+    <button class="icon-button" type="button" data-remove-quick-meal-row aria-label="Remove ingredient">&times;</button>
+  </div>`;
+}
+
+function addQuickMealRow(ingredientId = "") {
+  const rows = document.querySelector("#quickMealRows");
+  rows.insertAdjacentHTML("beforeend", quickMealIngredientRow(rows.children.length, ingredientId));
+}
+
+function openQuickMealDialog(day, slotId) {
+  quickMealContext = { day, slotId };
+  document.querySelector("#quickMealName").value = "";
+  document.querySelector("#quickMealRows").innerHTML = "";
+  addQuickMealRow();
+  addQuickMealRow();
+  document.querySelector("#quickMealDialog").showModal();
+}
+
 function renderActiveView() {
   const renderers = {
     dashboard: renderDashboard,
@@ -167,6 +195,22 @@ document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
 });
 
 document.addEventListener("click", async (event) => {
+  const quickMealButton = event.target.closest("[data-quick-meal-day][data-quick-meal-slot]");
+  if (quickMealButton) {
+    openQuickMealDialog(quickMealButton.dataset.quickMealDay, quickMealButton.dataset.quickMealSlot);
+    return;
+  }
+
+  const removeQuickMealRowButton = event.target.closest("[data-remove-quick-meal-row]");
+  if (removeQuickMealRowButton) {
+    const rows = document.querySelectorAll("[data-quick-meal-row]");
+    if (rows.length <= 1) {
+      showToast("A quick meal needs at least one ingredient.", { type: "warning" });
+      return;
+    }
+    removeQuickMealRowButton.closest("[data-quick-meal-row]").remove();
+    return;
+  }
   const smartPlanButton = event.target.closest("#smartPlanButton");
   if (smartPlanButton) {
     const goals = currentNutritionGoals();
@@ -778,6 +822,74 @@ document.querySelector("#smartPlannerForm").addEventListener("submit", (event) =
   document.querySelector("#smartPlannerDialog").close();
   renderPlanner();
   showToast(added ? `Smart plan added ${added} nutrition-matched meal${added === 1 ? "" : "s"}.` : "No suitable recipes were available to add.", { type: added ? "success" : "warning" });
+});
+
+document.querySelector("#addQuickMealIngredient").addEventListener("click", () => addQuickMealRow());
+
+document.querySelector("#quickMealForm").addEventListener("submit", (event) => {
+  if (event.submitter?.value === "cancel") return;
+  event.preventDefault();
+  if (!quickMealContext) return;
+  const selected = [...document.querySelectorAll("[data-quick-meal-row]")].map((row) => {
+    const ingredient = ingredientById(row.querySelector("[data-quick-meal-ingredient]").value);
+    const servings = Math.min(20, Math.max(0.25, Number(row.querySelector("[data-quick-meal-servings]").value) || 1));
+    return ingredient ? { ingredient, servings } : null;
+  }).filter(Boolean);
+  if (!selected.length) {
+    showToast("Choose at least one saved ingredient.", { type: "warning" });
+    return;
+  }
+  const slot = mealPlanSlots.find((item) => item.id === quickMealContext.slotId);
+  if (!slot) return;
+  const totals = selected.reduce((sum, item) => {
+    const nutrition = scaleNutrition(item.ingredient.nutrition || {}, item.servings);
+    Object.keys(sum).forEach((key) => { sum[key] += Number(nutrition[key]) || 0; });
+    return sum;
+  }, { calories: 0, protein: 0, carbs: 0, sugar: 0, fibre: 0, fat: 0, sodium: 0 });
+  const customName = document.querySelector("#quickMealName").value.trim();
+  const name = (customName || selected.map((item) => item.ingredient.name).join(" & ")).slice(0, 100);
+  const recipe = {
+    id: `quick-meal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    name,
+    category: slot.category,
+    categories: [slot.category],
+    tags: ["quick meal", "ingredients only"],
+    ingredients: selected.map(({ ingredient, servings }) => {
+      const amount = roundNutrition((Number(ingredient.serving?.amount) || 1) * servings);
+      return `${amount} ${ingredient.serving?.unit || "each"} ${ingredient.name}`;
+    }),
+    originalIngredients: [],
+    ingredientRefs: selected.map(({ ingredient, servings }) => ({
+      ingredientId: ingredient.id,
+      line: ingredient.name,
+      usedAmount: roundNutrition((Number(ingredient.serving?.amount) || 1) * servings),
+      usedUnit: ingredient.serving?.unit || "each"
+    })),
+    method: "Combine and serve.",
+    servings: 1,
+    calories: roundNutrition(totals.calories),
+    macros: { protein: roundNutrition(totals.protein), carbs: roundNutrition(totals.carbs), fat: roundNutrition(totals.fat) },
+    nutrition: { sugar: roundNutrition(totals.sugar), fibre: roundNutrition(totals.fibre), sodium: roundNutrition(totals.sodium) },
+    imageUrl: selected.find((item) => item.ingredient.imageUrl)?.ingredient.imageUrl || "",
+    favourite: false,
+    prepared: false,
+    art: "custom",
+    quickMeal: true
+  };
+  state.recipes.unshift(recipe);
+  state.planner[quickMealContext.day] ||= {};
+  state.planner[quickMealContext.day][quickMealContext.slotId] = [...plannerRecipeIds(quickMealContext.day, quickMealContext.slotId), recipe.id];
+  state.plannerServings[quickMealContext.day] ||= {};
+  state.plannerServings[quickMealContext.day][quickMealContext.slotId] ||= {};
+  state.consumed[quickMealContext.day] ||= {};
+  state.consumed[quickMealContext.day][quickMealContext.slotId] = false;
+  state.bought = [];
+  syncIngredientsAndRecipeLinks(state);
+  saveState();
+  document.querySelector("#quickMealDialog").close();
+  quickMealContext = null;
+  renderPlanner();
+  showToast(`${name} was added to ${slot.label}.`, { type: "success" });
 });
 
 document.querySelector("#recipeSearch").addEventListener("input", renderRecipes);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.40
+
+- Added ingredient-only quick meals to every planner slot.
+- Calculated nutrition from saved ingredient servings and included quantities in shopping.
+- Saved ingredient combinations as editable quick meals compatible with Smart Planner.
+
 ## 0.9.39
 
 - Changed the planner to a daily-focus accordion with only one menu open at a time.
