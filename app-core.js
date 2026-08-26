@@ -37,6 +37,7 @@ const tabs = [
   { id: "prepared", label: "In Freezer / Prepared", icon: "prepared" },
   { id: "shopping", label: "Shopping", icon: "shopping" },
   { id: "kids", label: "Family", icon: "family" },
+  { id: "familyGoals", label: "Family Goals", icon: "goals" },
   { id: "private", label: "Private", icon: "private" },
   { id: "site", label: "Site", icon: "storage" },
   { id: "settings", label: "Settings", icon: "settings" }
@@ -50,6 +51,7 @@ const iconPaths = {
   prepared: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 10h16M12 12v7M8.5 14l7 4M15.5 14l-7 4"/>',
   shopping: '<path d="M6 8h15l-2 8H8L6 4H3"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/>',
   family: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2"/><path d="M3 20c0-4 2-7 6-7s6 3 6 7M15 15c3 0 5 2 5 5"/>',
+  goals: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/><path d="m15 9 6-6M17 3h4v4"/>',
   private: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
   storage: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.1 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2V9.6h.09A1.7 1.7 0 0 0 3.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 8 4.1a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V2h4v.09A1.7 1.7 0 0 0 14.5 3.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 18.9 8c.12.39.35.74.66 1 .3.25.69.4 1.1.4H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/>',
@@ -405,6 +407,7 @@ const sampleState = {
     Sunday: { dinner: "slow-cooker-beef" }
   },
   kids: structuredClone(defaultFamilyMembers),
+  familyGoals: { now: [], fiveYears: [], tenYears: [] },
   recipes: [
     ...defaultRecipeSeeds
   ]
@@ -1114,6 +1117,19 @@ function normalizeState(nextState) {
   nextState.familyRewards = nextState.familyRewards && typeof nextState.familyRewards === "object"
     ? nextState.familyRewards
     : {};
+  const savedFamilyGoals = nextState.familyGoals && typeof nextState.familyGoals === "object"
+    ? nextState.familyGoals
+    : {};
+  nextState.familyGoals = Object.fromEntries(["now", "fiveYears", "tenYears"].map((horizon) => [
+    horizon,
+    (Array.isArray(savedFamilyGoals[horizon]) ? savedFamilyGoals[horizon] : [])
+      .map((goal, index) => ({
+        id: String(goal?.id || `goal-${horizon}-${index}`),
+        text: String(goal?.text || "").trim().slice(0, 180),
+        completed: Boolean(goal?.completed)
+      }))
+      .filter((goal) => goal.text)
+  ]));
   nextState.rewardChartMonth = normalizedMonthKey(nextState.rewardChartMonth);
   ensureHealthExerciseForToday(nextState);
   const memberNames = familyMemberNames(nextState);

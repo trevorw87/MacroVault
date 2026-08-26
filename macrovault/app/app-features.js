@@ -570,6 +570,41 @@ function printWeekPlanner() {
   printWindow.document.close();
 }
 
+function renderFamilyGoals() {
+  const grid = document.querySelector("#familyGoalsGrid");
+  const horizons = [
+    { id: "now", title: "Now", subtitle: "What we are working toward today", marker: "01" },
+    { id: "fiveYears", title: "5 Years", subtitle: "Where we hope to be in five years", marker: "05" },
+    { id: "tenYears", title: "10 Years", subtitle: "The life we want to build together", marker: "10" }
+  ];
+  grid.innerHTML = horizons.map((horizon) => {
+    const goals = state.familyGoals?.[horizon.id] || [];
+    return `
+      <section class="family-goal-card section-block" data-goal-horizon="${horizon.id}">
+        <div class="family-goal-heading">
+          <span class="family-goal-marker" aria-hidden="true">${horizon.marker}</span>
+          <div><h2>${horizon.title}</h2><p class="muted">${horizon.subtitle}</p></div>
+        </div>
+        <div class="family-goal-list">
+          ${goals.length ? goals.map((goal) => `
+            <div class="family-goal-item ${goal.completed ? "completed" : ""}">
+              <label>
+                <input type="checkbox" data-family-goal-toggle="${escapeHtml(goal.id)}" ${goal.completed ? "checked" : ""}>
+                <span>${escapeHtml(goal.text)}</span>
+              </label>
+              <button class="icon-button family-goal-delete" type="button" data-family-goal-delete="${escapeHtml(goal.id)}" aria-label="Delete ${escapeHtml(goal.text)}">&times;</button>
+            </div>
+          `).join("") : '<p class="family-goal-empty muted">No goals added yet. Start with one meaningful step.</p>'}
+        </div>
+        <form class="family-goal-form" data-family-goal-form="${horizon.id}">
+          <label class="sr-only" for="familyGoal-${horizon.id}">Add a ${horizon.title} family goal</label>
+          <input id="familyGoal-${horizon.id}" maxlength="180" placeholder="Add a family goal..." required>
+          <button class="primary-button" type="submit">Add goal</button>
+        </form>
+      </section>`;
+  }).join("");
+}
+
 function printRecipe(recipeId) {
   const recipe = recipeById(recipeId);
   if (!recipe) {

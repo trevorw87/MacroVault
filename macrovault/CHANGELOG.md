@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.32
+
+- Added a persistent Family Goals page for Now, 5 Years, and 10 Years.
+- Added controls to create, complete, and remove shared family goals.
+- Added responsive goal cards and refreshed offline assets for existing installations.
+
 ## 0.9.31
 
 - Simplified the meal planner to one serving for one family member.

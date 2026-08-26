@@ -9,6 +9,7 @@ function renderActiveView() {
     prepared: renderPrepared,
     shopping: renderShopping,
     kids: renderKids,
+    familyGoals: renderFamilyGoals,
     private: renderPrivate,
     site: renderSite,
     settings: renderSettings
@@ -119,6 +120,15 @@ document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
 });
 
 document.addEventListener("click", async (event) => {
+  const deleteFamilyGoalButton = event.target.closest("[data-family-goal-delete]");
+  if (deleteFamilyGoalButton) {
+    const horizon = deleteFamilyGoalButton.closest("[data-goal-horizon]")?.dataset.goalHorizon;
+    if (!state.familyGoals?.[horizon]) return;
+    state.familyGoals[horizon] = state.familyGoals[horizon].filter((goal) => goal.id !== deleteFamilyGoalButton.dataset.familyGoalDelete);
+    saveState();
+    renderFamilyGoals();
+    return;
+  }
   const addFoodButton = event.target.closest("#addFoodLogButton");
   if (addFoodButton) {
     openFoodLogDialog();
@@ -499,6 +509,16 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  const familyGoalToggle = event.target.closest("[data-family-goal-toggle]");
+  if (familyGoalToggle) {
+    const horizon = familyGoalToggle.closest("[data-goal-horizon]")?.dataset.goalHorizon;
+    const goal = state.familyGoals?.[horizon]?.find((item) => item.id === familyGoalToggle.dataset.familyGoalToggle);
+    if (!goal) return;
+    goal.completed = familyGoalToggle.checked;
+    saveState();
+    renderFamilyGoals();
+    return;
+  }
   const plannerDayServingInput = event.target.closest("[data-planner-day-serving]");
   if (plannerDayServingInput) {
     const day = plannerDayServingInput.dataset.plannerDayServing;
@@ -612,6 +632,24 @@ document.addEventListener("change", (event) => {
     render();
   }
 
+});
+
+document.addEventListener("submit", (event) => {
+  const familyGoalForm = event.target.closest("[data-family-goal-form]");
+  if (!familyGoalForm) return;
+  event.preventDefault();
+  const horizon = familyGoalForm.dataset.familyGoalForm;
+  const input = familyGoalForm.querySelector("input");
+  const text = input.value.trim().slice(0, 180);
+  if (!text || !state.familyGoals?.[horizon]) return;
+  state.familyGoals[horizon].push({
+    id: `goal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    text,
+    completed: false
+  });
+  saveState();
+  renderFamilyGoals();
+  document.querySelector(`#familyGoal-${horizon}`)?.focus();
 });
 
 document.querySelector("#recipeSearch").addEventListener("input", renderRecipes);

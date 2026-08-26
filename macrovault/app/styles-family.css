@@ -1,4 +1,46 @@
 /* MacroVault family, private, settings, dialogs, and editor layouts. */
+.family-goals-intro {
+  overflow: hidden;
+  position: relative;
+  padding: clamp(22px, 4vw, 40px);
+  background: linear-gradient(135deg, #edf7e8, #fff8e8);
+}
+
+.family-goals-intro::after {
+  content: "";
+  position: absolute;
+  width: 190px;
+  height: 190px;
+  right: -55px;
+  top: -75px;
+  border: 28px solid rgba(82, 131, 75, 0.1);
+  border-radius: 50%;
+}
+
+.family-goals-intro h2 { margin: 4px 0 8px; font-size: clamp(1.55rem, 3vw, 2.3rem); }
+.family-goals-intro p:last-child { max-width: 680px; margin-bottom: 0; }
+
+.family-goals-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.family-goal-card { display: flex; flex-direction: column; gap: 20px; min-width: 0; border-top: 5px solid var(--green); }
+.family-goal-card:nth-child(2) { border-top-color: #d49a3a; }
+.family-goal-card:nth-child(3) { border-top-color: #6d67a8; }
+.family-goal-heading { display: flex; align-items: center; gap: 12px; }
+.family-goal-heading h2, .family-goal-heading p { margin: 0; }
+.family-goal-marker { display: grid; place-items: center; flex: 0 0 50px; height: 50px; border-radius: 16px; background: var(--green-soft); color: var(--green-dark); font-weight: 900; font-size: 1.05rem; }
+.family-goal-card:nth-child(2) .family-goal-marker { background: #fff0d5; color: #8b5b13; }
+.family-goal-card:nth-child(3) .family-goal-marker { background: #eeebff; color: #4f4989; }
+.family-goal-list { display: grid; align-content: start; gap: 9px; flex: 1; }
+.family-goal-item { display: flex; align-items: center; gap: 8px; padding: 10px 8px 10px 12px; border: 1px solid rgba(18, 26, 45, 0.09); border-radius: 13px; background: rgba(255,255,255,.75); }
+.family-goal-item label { display: flex; align-items: flex-start; gap: 10px; flex: 1; cursor: pointer; line-height: 1.4; }
+.family-goal-item input { flex: 0 0 auto; margin-top: 3px; accent-color: var(--green); }
+.family-goal-item.completed span { color: var(--muted); text-decoration: line-through; }
+.family-goal-delete { width: 32px; min-width: 32px; height: 32px; color: var(--muted); font-size: 1.3rem; }
+.family-goal-empty { margin: 4px 0; padding: 16px; border: 1px dashed rgba(18, 26, 45, .16); border-radius: 13px; text-align: center; }
+.family-goal-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+
+@media (max-width: 960px) { .family-goals-grid { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .family-goal-form { grid-template-columns: 1fr; } }
+
 .lunchbox-day {
   display: grid;
   gap: 10px;

@@ -74,7 +74,7 @@ function startServer() {
     });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
     await page.waitForSelector("#navTabs .nav-button");
-    assert.equal(await page.locator("#navTabs .nav-button").count(), 11);
+    assert.equal(await page.locator("#navTabs .nav-button").count(), 12);
     assert.equal(await page.locator("#pageTitle").textContent(), "Dashboard");
 
     await page.getByRole("button", { name: "Food Tracker", exact: true }).click();
