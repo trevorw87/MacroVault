@@ -1986,6 +1986,22 @@ span.ingredient-usage,
 .tracker-controls { display:flex; gap:1rem; align-items:end; flex-wrap:wrap; margin-bottom:1rem; }
 .tracker-controls label { min-width:12rem; flex:1; }
 .tracker-summary { margin-bottom:1rem; }
+.daily-template { margin-bottom:1rem; }
+.dashboard-nutrition-template { position:relative; }
+.dashboard-template-person { display:flex; justify-content:flex-end; margin-bottom:.25rem; }
+.dashboard-template-person label { display:flex; align-items:center; gap:.55rem; color:var(--muted, #667066); }
+.dashboard-template-person select { min-width:9rem; }
+.daily-template-heading { align-items:flex-start; }
+.daily-template-score { color:var(--primary, #399b3f); white-space:nowrap; }
+.daily-template-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; }
+.daily-template-item { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:.75rem; padding:.85rem; border:1px solid var(--border, #dde3dd); border-radius:1rem; background:var(--surface, #fff); }
+.daily-template-item.complete { border-color:var(--primary, #399b3f); background:color-mix(in srgb, var(--primary, #399b3f) 8%, var(--surface, #fff)); }
+.daily-template-icon { font-size:1.5rem; }
+.daily-template-item small { display:block; margin-top:.15rem; color:var(--muted, #667066); }
+.daily-template-stepper { display:flex; align-items:center; gap:.55rem; }
+.daily-template-stepper button { width:2rem; height:2rem; border:1px solid var(--border, #dde3dd); border-radius:50%; background:var(--surface, #fff); color:var(--text, #263126); font:inherit; font-weight:700; cursor:pointer; }
+.daily-template-stepper button:disabled { opacity:.35; cursor:default; }
+.daily-template-note { margin:.85rem 0 0; color:var(--muted, #667066); font-size:.9rem; }
 .tracker-total-row { display:flex; justify-content:space-between; gap:1rem; align-items:center; flex-wrap:wrap; }
 .tracker-total { font-size:clamp(1.6rem,4vw,2.5rem); }
 .tracker-progress { height:.75rem; border-radius:999px; background:var(--surface-soft, #e8eee8); overflow:hidden; margin:.8rem 0; }
@@ -1996,4 +2012,4 @@ span.ingredient-usage,
 .tracker-entry { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:.75rem; align-items:center; padding:.75rem 0; border-top:1px solid var(--border, #dde3dd); }
 .tracker-entry small { display:block; color:var(--muted, #667066); margin-top:.15rem; }
 .tracker-empty { color:var(--muted, #667066); padding:1rem 0; }
-@media (max-width:700px) { .tracker-meals { grid-template-columns:1fr; } }
+@media (max-width:700px) { .tracker-meals, .daily-template-grid { grid-template-columns:1fr; } }

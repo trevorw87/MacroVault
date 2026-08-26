@@ -212,6 +212,20 @@ document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
 });
 
 document.addEventListener("click", async (event) => {
+  const nutritionHabitButton = event.target.closest("[data-nutrition-habit][data-nutrition-change]");
+  if (nutritionHabitButton) {
+    const context = nutritionHabitButton.closest("[data-daily-nutrition-context]");
+    const date = context?.dataset.nutritionDate || document.querySelector("#trackerDate").value || todayDateKey();
+    const person = context?.dataset.nutritionPerson || document.querySelector("#trackerPerson").value;
+    const counts = dailyNutritionCounts(date, person);
+    const habitId = nutritionHabitButton.dataset.nutritionHabit;
+    if (setDailyNutritionCount(date, person, habitId, (counts[habitId] || 0) + Number(nutritionHabitButton.dataset.nutritionChange))) {
+      saveState();
+      if (state.activeTab === "dashboard") renderDashboard();
+      else renderTracker();
+    }
+    return;
+  }
   const quickMealButton = event.target.closest("[data-quick-meal-day][data-quick-meal-slot]");
   if (quickMealButton) {
     openQuickMealDialog(quickMealButton.dataset.quickMealDay, quickMealButton.dataset.quickMealSlot);
@@ -943,6 +957,11 @@ document.querySelector("#dailyProteinGoal").addEventListener("change", (event) =
   state.nutritionGoals.protein = Math.max(0, Number(event.target.value) || defaultDailyNutritionGoals.protein);
   saveState();
   renderPlanner();
+});
+document.querySelector("#dashboardNutritionPerson").addEventListener("change", (event) => {
+  const section = document.querySelector(".dashboard-nutrition-template");
+  section.dataset.nutritionPerson = event.target.value;
+  renderDailyNutritionTemplate(document.querySelector("#dashboardNutritionTemplate"), todayDateKey(), event.target.value);
 });
 
 document.querySelector("#addRecipeButton").addEventListener("click", () => openRecipeDialog());

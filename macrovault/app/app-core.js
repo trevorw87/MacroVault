@@ -88,6 +88,15 @@ const defaultDailyNutritionGoals = {
   protein: 130
 };
 
+const dailyFoodGroupTemplate = [
+  { id: "vegetables", label: "Vegetables", target: 3, unit: "cups", icon: "🥦" },
+  { id: "fruit", label: "Whole fruit", target: 2, unit: "servings", icon: "🍎" },
+  { id: "protein", label: "Protein foods", target: 3, unit: "palm portions", icon: "🥚" },
+  { id: "wholegrains", label: "Whole grains / legumes", target: 2, unit: "servings", icon: "🌾" },
+  { id: "calcium", label: "Calcium-rich foods", target: 2, unit: "servings", icon: "🥛" },
+  { id: "water", label: "Water", target: 8, unit: "glasses", icon: "💧" }
+];
+
 const defaultConfiguration = {
   appName: "MacroVault",
   householdName: "Healthy Family",
@@ -1051,6 +1060,7 @@ function normalizeState(nextState) {
   nextState.configuration.householdName = String(nextState.configuration.householdName || defaultConfiguration.householdName).trim().slice(0, 60);
   nextState.configuration.profileName = String(nextState.configuration.profileName || defaultConfiguration.profileName).trim().slice(0, 40);
   nextState.imageLibrary ||= {};
+  nextState.dailyNutritionChecks ||= {};
   nextState.nutritionGoals = {
     ...defaultDailyNutritionGoals,
     ...(nextState.nutritionGoals || {})
@@ -2685,6 +2695,24 @@ function currentNutritionGoals() {
     ...defaultDailyNutritionGoals,
     ...(state.nutritionGoals || {})
   };
+}
+
+function dailyNutritionCounts(date, person) {
+  const saved = state.dailyNutritionChecks?.[date]?.[person] || {};
+  return Object.fromEntries(dailyFoodGroupTemplate.map((item) => [
+    item.id,
+    Math.max(0, Math.min(item.target, Number(saved[item.id]) || 0))
+  ]));
+}
+
+function setDailyNutritionCount(date, person, habitId, nextCount) {
+  const item = dailyFoodGroupTemplate.find((entry) => entry.id === habitId);
+  if (!item || !date || !person) return false;
+  state.dailyNutritionChecks ||= {};
+  state.dailyNutritionChecks[date] ||= {};
+  state.dailyNutritionChecks[date][person] ||= {};
+  state.dailyNutritionChecks[date][person][habitId] = Math.max(0, Math.min(item.target, Number(nextCount) || 0));
+  return true;
 }
 
 function formatPlannerNumber(value, unit) {

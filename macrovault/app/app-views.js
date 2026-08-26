@@ -105,6 +105,18 @@ function renderDashboard() {
     `;
   }).join("");
 
+  const dashboardNutritionPerson = document.querySelector("#dashboardNutritionPerson");
+  const dashboardPeople = familyMemberNames(state);
+  const previousNutritionPerson = dashboardNutritionPerson.value;
+  dashboardNutritionPerson.innerHTML = dashboardPeople.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+  dashboardNutritionPerson.value = dashboardPeople.includes(previousNutritionPerson)
+    ? previousNutritionPerson
+    : dashboardPeople.includes(state.configuration?.profileName) ? state.configuration.profileName : dashboardPeople[0] || "";
+  const dashboardTemplateSection = document.querySelector(".dashboard-nutrition-template");
+  dashboardTemplateSection.dataset.nutritionDate = todayDateKey();
+  dashboardTemplateSection.dataset.nutritionPerson = dashboardNutritionPerson.value;
+  renderDailyNutritionTemplate(document.querySelector("#dashboardNutritionTemplate"), todayDateKey(), dashboardNutritionPerson.value);
+
   const plannedCount = days.filter((day) => mealPlanSlots.some((slot) => plannerRecipeIds(day, slot.id, state, dashboardWeek).length)).length;
   const shoppingCount = getShoppingItems().length;
   const shoppingCounter = document.querySelector("#shoppingCount");
@@ -185,6 +197,37 @@ function foodLogTotals(entries) {
   }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
 }
 
+function renderDailyNutritionTemplate(container, date, person) {
+  const nutritionCounts = dailyNutritionCounts(date, person);
+  const completedTargets = dailyFoodGroupTemplate.filter((item) => nutritionCounts[item.id] >= item.target).length;
+  container.innerHTML = `
+    <div class="section-heading daily-template-heading">
+      <div>
+        <p class="eyebrow">Daily nutrition template</p>
+        <h2>Healthy slimming basics</h2>
+        <p class="muted">Tap + as you eat or drink each portion. This complements your calorie and protein totals.</p>
+      </div>
+      <strong class="daily-template-score">${completedTargets}/${dailyFoodGroupTemplate.length} complete</strong>
+    </div>
+    <div class="daily-template-grid">
+      ${dailyFoodGroupTemplate.map((item) => {
+        const count = nutritionCounts[item.id];
+        const complete = count >= item.target;
+        return `<article class="daily-template-item ${complete ? "complete" : ""}">
+          <span class="daily-template-icon" aria-hidden="true">${item.icon}</span>
+          <div><strong>${item.label}</strong><small>${count} of ${item.target} ${item.unit}</small></div>
+          <div class="daily-template-stepper" aria-label="${item.label} portions">
+            <button type="button" data-nutrition-habit="${item.id}" data-nutrition-change="-1" aria-label="Remove one ${item.label} portion" ${count <= 0 ? "disabled" : ""}>−</button>
+            <strong>${count}</strong>
+            <button type="button" data-nutrition-habit="${item.id}" data-nutrition-change="1" aria-label="Add one ${item.label} portion" ${complete ? "disabled" : ""}>+</button>
+          </div>
+        </article>`;
+      }).join("")}
+    </div>
+    <p class="daily-template-note">Fruit and vegetables together provide a baseline of at least five portions. Choose whole fruit rather than juice; water needs vary with heat, exercise, and medical advice.</p>
+  `;
+}
+
 function renderTracker() {
   const dateInput = document.querySelector("#trackerDate");
   const personInput = document.querySelector("#trackerPerson");
@@ -209,6 +252,8 @@ function renderTracker() {
     <div class="tracker-progress" role="progressbar" aria-label="Daily calorie progress" aria-valuemin="0" aria-valuemax="${goals.calories}" aria-valuenow="${totals.calories}"><span style="width:${caloriePercent}%"></span></div>
     <div class="tracker-macros"><span>Goal: ${goals.calories} kcal</span><span>Protein: ${roundNutrition(totals.protein)} g</span><span>Carbs: ${roundNutrition(totals.carbs)} g</span><span>Fat: ${roundNutrition(totals.fat)} g</span></div>
   `;
+
+  renderDailyNutritionTemplate(document.querySelector("#dailyNutritionTemplate"), date, person);
 
   document.querySelector("#trackerMeals").innerHTML = foodLogMeals.map((meal) => {
     const mealEntries = entries.filter((entry) => entry.meal === meal.id);

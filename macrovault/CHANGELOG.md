@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.42
+
+- Added a daily nutrition template to the Dashboard for vegetables, fruit, protein foods, whole grains or legumes, calcium-rich foods, and water.
+- Saved checklist progress separately for each family member and date.
+- Added quick portion controls and clear completion feedback for each daily target.
+
 ## 0.9.41
 
 - Displayed saved serving sizes and calculated total quantities in ingredient-only meals.
