@@ -638,8 +638,8 @@ function renderPlanner() {
   if (proteinGoalInput && document.activeElement !== proteinGoalInput) proteinGoalInput.value = goals.protein;
 
   document.querySelector("#plannerWeekLabel").textContent = plannerWeekLabel();
-  const mobilePlanner = window.matchMedia("(max-width: 760px)").matches;
   const todayKey = todayDateKey();
+  const focusedDay = plannerFocusedDay();
   document.querySelector("#plannerGrid").innerHTML = `
     <div class="planner-week planner-mobile">
       ${days.map((day) => {
@@ -650,7 +650,7 @@ function renderPlanner() {
         const personProgress = goals.calories ? Math.min(100, Math.round((personCalories / goals.calories) * 100)) : 0;
         const nutritionWarnings = mealPlanSlots.flatMap((slot) => plannerRecipes(day, slot)).filter((recipe) => plannerNutritionIssue(recipe));
         const isToday = dateKey === todayKey;
-        const expanded = !mobilePlanner || isToday || day === "Sunday";
+        const expanded = day === focusedDay;
         return `
           <details class="planner-day-section planner-mobile-day ${isToday ? "today" : ""}" data-planner-mobile-day="${day}" ${expanded ? "open" : ""}>
             <summary>

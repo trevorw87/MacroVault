@@ -1262,6 +1262,8 @@ textarea {
 }
 
 .planner-smart-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.planner-focus-note { display: flex; align-items: center; gap: 10px; margin: -2px 0 12px; padding: 9px 12px; border: 1px solid rgba(40,126,205,.14); border-radius: 12px; color: var(--muted); background: #f4f9fd; font-size: .8rem; }
+.planner-focus-note strong { color: #1d659f; }
 .smart-planner-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(140px, .55fr); gap: 12px; }
 .smart-planner-target { margin: 0; padding: 12px 14px; border-radius: 12px; color: var(--green-dark); background: var(--green-soft); font-weight: 900; }
 .planner-balance-day { justify-self: end; min-height: 34px; padding: 6px 10px; border: 1px solid rgba(57,155,63,.22); border-radius: 10px; color: var(--green-dark); background: #fff; font-weight: 850; }
@@ -1277,6 +1279,7 @@ textarea {
 @media (max-width: 760px) {
   .planner-smart-actions,
   .planner-smart-actions button { width: 100%; }
+  .planner-focus-note { align-items: start; flex-direction: column; gap: 2px; }
   .smart-planner-options { grid-template-columns: 1fr; }
   .planner-day-section .planner-day-heading { grid-template-columns: minmax(0, 1fr); }
   .planner-balance-day { justify-self: stretch; }

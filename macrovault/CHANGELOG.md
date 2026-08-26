@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.39
+
+- Changed the planner to a daily-focus accordion with only one menu open at a time.
+- Opened today's menu automatically while retaining compact nutrition summaries for other days.
+- Remembered the selected day and defaulted future weeks to Sunday.
+
 ## 0.9.38
 
 - Added Smart Planner week generation around daily calorie and protein targets.

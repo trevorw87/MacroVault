@@ -1175,6 +1175,9 @@ function normalizeState(nextState) {
   }
   activatePlannerWeek(nextState, selectedPlannerWeek);
   nextState.plannerMonth = normalizedMonthKey(nextState.plannerMonth || selectedPlannerWeek.slice(0, 7));
+  nextState.plannerFocusDay = days.includes(nextState.plannerFocusDay)
+    ? nextState.plannerFocusDay
+    : (selectedPlannerWeek === currentPlannerWeekKey() ? days[new Date().getDay()] : "Sunday");
   Object.entries(nextState.kids || {}).forEach(([name, kid]) => {
     kid.stars = Math.min(5, Math.max(0, Number(kid.stars) || 0));
     kid.goal = String(kid.goal || "");
@@ -1432,6 +1435,7 @@ function plannerServingCount(day, slotId, recipeId, nextState = state, weekKey =
 function selectPlannerWeek(weekKey, nextState = state) {
   const selectedKey = plannerWeekKeyForDate(weekKey);
   activatePlannerWeek(nextState, selectedKey);
+  nextState.plannerFocusDay = selectedKey === currentPlannerWeekKey() ? days[new Date().getDay()] : "Sunday";
   nextState.plannerMonth = selectedKey.slice(0, 7);
   nextState.bought = [];
   return selectedKey;
@@ -2360,6 +2364,11 @@ function macrosPerServing(recipe) {
 
 function caloriesPerServing(recipe) {
   return roundNutrition(recipeTotalCalories(recipe) / recipeServings(recipe));
+}
+
+function plannerFocusedDay(nextState = state) {
+  if (days.includes(nextState.plannerFocusDay)) return nextState.plannerFocusDay;
+  return nextState.selectedPlannerWeek === currentPlannerWeekKey() ? days[new Date().getDay()] : "Sunday";
 }
 
 const smartPlannerRequiredSlots = new Set(["breakfast", "lunch", "dinner"]);

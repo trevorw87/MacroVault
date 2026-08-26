@@ -564,6 +564,19 @@ document.addEventListener("error", (event) => {
   }
 }, true);
 
+document.addEventListener("toggle", (event) => {
+  const daySection = event.target.closest?.("[data-planner-mobile-day]");
+  if (!daySection?.open || state.activeTab !== "planner") return;
+  const day = daySection.dataset.plannerMobileDay;
+  document.querySelectorAll("[data-planner-mobile-day][open]").forEach((section) => {
+    if (section !== daySection) section.open = false;
+  });
+  if (state.plannerFocusDay !== day) {
+    state.plannerFocusDay = day;
+    saveState();
+  }
+}, true);
+
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   navigator.serviceWorker.register("service-worker.js").catch((error) => {
     console.warn("Unable to register MacroVault for offline use", error);

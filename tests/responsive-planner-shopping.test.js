@@ -147,6 +147,8 @@ function startServer() {
     await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
 
     await page.getByRole("button", { name: "Planner", exact: true }).click();
+    assert.equal(await page.locator(".planner-day-section[open]").count(), 1);
+    assert.equal(await page.locator(".planner-day-section.today[open]").count(), 1);
     const desktopPlannerAxis = await page.evaluate(() => {
       const sunday = document.querySelector('[data-planner-mobile-day="Sunday"]');
       const mealGrid = sunday.querySelector(".planner-day-meals");
@@ -247,6 +249,8 @@ function startServer() {
     await page.setViewportSize({ width: 1600, height: 1000 });
     await page.reload({ waitUntil: "networkidle" });
     await page.getByRole("button", { name: "Planner", exact: true }).click();
+    await page.locator('[data-planner-mobile-day="Sunday"] > summary').click();
+    assert.equal(await page.locator(".planner-day-section[open]").count(), 1);
     const wideMealGrid = page.locator('[data-planner-mobile-day="Sunday"] .planner-day-meals');
     assert.equal(await wideMealGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 9);
     const wideColumnWidths = await wideMealGrid.locator(":scope > .planner-slot-column").evaluateAll((columns) =>
@@ -357,6 +361,7 @@ function startServer() {
       saveState({ skipBackup: true });
       renderPlanner();
     });
+    await page.locator('[data-planner-mobile-day="Monday"] > summary').click();
     await page.getByLabel("Choose Dinner for Monday", { exact: true }).selectOption("lemon-salmon");
     assert.deepEqual(
       await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).planner.Monday.dinner),
