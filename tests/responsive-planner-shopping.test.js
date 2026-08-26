@@ -60,6 +60,50 @@ function startServer() {
     assert.equal(desktopLayout.clippedMealCards, 0);
     assert.equal(desktopLayout.clippedFamilyValues, 0);
 
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await page.getByRole("button", { name: "Family", exact: true }).click();
+    const iPadPortraitFamily = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll("#kidsLayout .kid-habit-card")];
+      const first = cards[0].getBoundingClientRect();
+      const second = cards[1].getBoundingClientRect();
+      const row = cards[0].querySelector(".habit-row").getBoundingClientRect();
+      const checkbox = cards[0].querySelector(".habit-check span").getBoundingClientRect();
+      return {
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        stacked: second.top >= first.bottom,
+        rowWidth: row.width,
+        cardWidth: first.width,
+        checkboxWidth: checkbox.width
+      };
+    });
+    assert.equal(iPadPortraitFamily.documentWidth, iPadPortraitFamily.viewportWidth);
+    assert.equal(iPadPortraitFamily.stacked, true);
+    assert.ok(iPadPortraitFamily.rowWidth <= iPadPortraitFamily.cardWidth);
+    assert.ok(iPadPortraitFamily.checkboxWidth >= 30);
+
+    await page.setViewportSize({ width: 1024, height: 768 });
+    const iPadLandscapeFamily = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll("#kidsLayout .kid-habit-card")];
+      const first = cards[0].getBoundingClientRect();
+      const second = cards[1].getBoundingClientRect();
+      const row = cards[0].querySelector(".habit-row").getBoundingClientRect();
+      const checks = cards[0].querySelector(".habit-checks").getBoundingClientRect();
+      return {
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        sideBySide: Math.abs(first.top - second.top) < 2,
+        checksInsideRow: checks.right <= row.right + 1,
+        rowHeight: row.height
+      };
+    });
+    assert.equal(iPadLandscapeFamily.documentWidth, iPadLandscapeFamily.viewportWidth);
+    assert.equal(iPadLandscapeFamily.sideBySide, true);
+    assert.equal(iPadLandscapeFamily.checksInsideRow, true);
+    assert.ok(iPadLandscapeFamily.rowHeight <= 64);
+
+    await page.setViewportSize({ width: 1440, height: 1000 });
+
     await page.getByRole("button", { name: "Ingredients", exact: true }).click();
     const ingredientToolbarLayout = await page.evaluate(() => {
       const search = document.querySelector("#ingredientSearchForm").getBoundingClientRect();

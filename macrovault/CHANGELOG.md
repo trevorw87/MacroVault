@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.37
+
+- Optimized the Family page for iPad portrait and landscape layouts.
+- Stacked family cards and reward charts in portrait while retaining compact landscape columns.
+- Enlarged habit touch controls and prevented horizontal overflow at tablet sizes.
+
 ## 0.9.36
 
 - Removed the Food Tracker and Family Goals pages from app navigation.
