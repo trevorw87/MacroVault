@@ -250,6 +250,7 @@ function startServer() {
     await page.reload({ waitUntil: "networkidle" });
     await page.getByRole("button", { name: "Planner", exact: true }).click();
     await page.locator('[data-planner-mobile-day="Sunday"] > summary').click();
+    await page.waitForFunction(() => document.querySelectorAll(".planner-day-section[open]").length === 1);
     assert.equal(await page.locator(".planner-day-section[open]").count(), 1);
     const wideMealGrid = page.locator('[data-planner-mobile-day="Sunday"] .planner-day-meals');
     assert.equal(await wideMealGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 9);
@@ -365,6 +366,10 @@ function startServer() {
     await page.locator('[data-planner-mobile-day="Monday"] [data-planner-column="lunch"] [data-quick-meal-day]').click();
     const quickIngredients = await page.evaluate(() => state.ingredients.slice(0, 2).map((ingredient) => ({ id: ingredient.id, name: ingredient.name })));
     await page.locator("[data-quick-meal-ingredient]").nth(0).selectOption(quickIngredients[0].id);
+    assert.match(await page.locator("[data-quick-serving-info]").nth(0).textContent(), /Serving size:.*Total:/);
+    await page.locator("[data-quick-meal-servings]").nth(0).fill("2");
+    const doubledServingText = await page.locator("[data-quick-serving-info]").nth(0).textContent();
+    assert.match(doubledServingText, /Serving size:.*Total:/);
     await page.locator("[data-quick-meal-ingredient]").nth(1).selectOption(quickIngredients[1].id);
     await page.locator("#quickMealName").fill("Steak and lettuce");
     await page.locator("#quickMealForm button[value=default]").click();

@@ -106,6 +106,11 @@ function startServer() {
       await page.locator("#recipeIngredientNutrition .recipe-ingredient-thumbnail .ingredient-image").count(),
       await recipeIngredientRows.count()
     );
+    assert.match(await recipeIngredientRows.first().locator("[data-recipe-serving-info]").textContent(), /Serving size:.*Recipe uses:/);
+    const firstRecipeAmount = recipeIngredientRows.first().locator('[data-recipe-ingredient-field="usedAmount"]');
+    await firstRecipeAmount.fill(String(Math.max(0.01, Number(await firstRecipeAmount.inputValue()) * 2)));
+    await firstRecipeAmount.dispatchEvent("input");
+    assert.match(await recipeIngredientRows.first().locator("[data-recipe-serving-info]").textContent(), /Serving size:.*Recipe uses:.*servings?/);
     await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
 
     const explicitIngredientSelection = await page.evaluate(() => {

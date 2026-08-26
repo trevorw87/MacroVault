@@ -4,13 +4,30 @@ let quickMealContext = null;
 function quickMealIngredientRow(index, ingredientId = "") {
   const options = [...state.ingredients]
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map((ingredient) => `<option value="${escapeHtml(ingredient.id)}" ${ingredient.id === ingredientId ? "selected" : ""}>${escapeHtml(ingredient.name)}</option>`)
+    .map((ingredient) => {
+      const amount = formatScaledNumber(Number(ingredient.serving?.amount) || 1);
+      const unit = ingredient.serving?.unit || "each";
+      return `<option value="${escapeHtml(ingredient.id)}" ${ingredient.id === ingredientId ? "selected" : ""}>${escapeHtml(`${ingredient.name} — ${amount} ${unit}`)}</option>`;
+    })
     .join("");
   return `<div class="quick-meal-row" data-quick-meal-row>
-    <label>Ingredient<select data-quick-meal-ingredient required><option value="">Choose ingredient</option>${options}</select></label>
+    <label>Ingredient<select data-quick-meal-ingredient required><option value="">Choose ingredient</option>${options}</select><small data-quick-serving-info>Select an ingredient to see its serving size.</small></label>
     <label>Servings<input data-quick-meal-servings type="number" min="0.25" max="20" step="0.25" value="1" required></label>
     <button class="icon-button" type="button" data-remove-quick-meal-row aria-label="Remove ingredient">&times;</button>
   </div>`;
+}
+
+function updateQuickMealServingInfo(row) {
+  const ingredient = ingredientById(row.querySelector("[data-quick-meal-ingredient]").value);
+  const info = row.querySelector("[data-quick-serving-info]");
+  if (!ingredient) {
+    info.textContent = "Select an ingredient to see its serving size.";
+    return;
+  }
+  const servings = Math.min(20, Math.max(0.25, Number(row.querySelector("[data-quick-meal-servings]").value) || 1));
+  const servingAmount = Number(ingredient.serving?.amount) || 1;
+  const unit = ingredient.serving?.unit || "each";
+  info.textContent = `Serving size: ${formatScaledNumber(servingAmount)} ${unit} · Total: ${formatScaledNumber(servingAmount * servings)} ${unit}`;
 }
 
 function addQuickMealRow(ingredientId = "") {
@@ -642,6 +659,11 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  const quickMealField = event.target.closest("[data-quick-meal-ingredient], [data-quick-meal-servings]");
+  if (quickMealField) {
+    updateQuickMealServingInfo(quickMealField.closest("[data-quick-meal-row]"));
+    return;
+  }
   const familyGoalText = event.target.closest("[data-family-goal-text]");
   if (familyGoalText) {
     const horizon = familyGoalText.closest("[data-goal-horizon]")?.dataset.goalHorizon;
@@ -786,6 +808,8 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("input", (event) => {
+  const quickMealServings = event.target.closest("[data-quick-meal-servings]");
+  if (quickMealServings) updateQuickMealServingInfo(quickMealServings.closest("[data-quick-meal-row]"));
   const familyGoalText = event.target.closest("[data-family-goal-text]");
   if (familyGoalText) resizeFamilyGoalText(familyGoalText);
 });

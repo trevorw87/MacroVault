@@ -1278,6 +1278,7 @@ textarea {
 .planner-quick-meal-button { width: 100%; min-height: 34px; padding: 6px 8px; border: 1px dashed rgba(57,155,63,.3); border-radius: 10px; color: var(--green-dark); background: #f7fcf5; font-size: .72rem; font-weight: 900; }
 .quick-meal-rows { display: grid; gap: 9px; }
 .quick-meal-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px 38px; align-items: end; gap: 8px; }
+.quick-meal-row [data-quick-serving-info] { color: var(--green-dark); font-size: .72rem; line-height: 1.25; }
 .quick-meal-row .icon-button { width: 38px; height: 44px; }
 
 @media (max-width: 760px) {

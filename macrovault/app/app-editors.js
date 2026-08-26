@@ -536,7 +536,7 @@ function renderRecipeIngredientNutritionEditor() {
       const rowScale = nutritionScale(usedAmount, usedUnit, serving);
       const usedNutrition = scaleNutrition(nutrition, rowScale);
       const ingredientOptions = state.ingredients.map((candidate) => `
-        <option value="${candidate.id}" ${ingredient?.id === candidate.id ? "selected" : ""}>${escapeHtml(candidate.name)}${candidate.label ? ` - ${escapeHtml(candidate.label)}` : ""}</option>
+        <option value="${candidate.id}" ${ingredient?.id === candidate.id ? "selected" : ""}>${escapeHtml(candidate.name)}${candidate.label ? ` - ${escapeHtml(candidate.label)}` : ""} — ${escapeHtml(`${formatScaledNumber(Number(candidate.serving?.amount) || 1)} ${candidate.serving?.unit || "each"}`)}</option>
       `).join("");
       return `
         <article class="recipe-ingredient-row" data-ingredient-name="${escapeHtml(item.name)}" data-serving-amount="${serving.amount}" data-serving-unit="${serving.unit}" data-base-calories="${Number(nutrition.calories) || 0}" data-base-protein="${Number(nutrition.protein) || 0}" data-base-carbs="${Number(nutrition.carbs) || 0}" data-base-sugar="${Number(nutrition.sugar) || 0}" data-base-fibre="${Number(nutrition.fibre) || 0}" data-base-fat="${Number(nutrition.fat) || 0}" data-base-sodium="${Number(nutrition.sodium) || 0}">
@@ -545,6 +545,7 @@ function renderRecipeIngredientNutritionEditor() {
             <div class="recipe-ingredient-copy">
               <strong>${escapeHtml(item.name)}</strong>
               <span class="muted" data-recipe-ingredient-link-copy>${ingredient ? `Linked to ${escapeHtml(ingredient.name)} - row nutrition is for amount used` : "Will be added to ingredients"}</span>
+              <span class="recipe-serving-info" data-recipe-serving-info>Serving size: ${escapeHtml(`${formatScaledNumber(Number(serving.amount) || 1)} ${serving.unit || "each"}`)} · Recipe uses: ${escapeHtml(`${formatScaledNumber(usedAmount)} ${usedUnit}`)} (${formatScaledNumber(rowScale)} serving${rowScale === 1 ? "" : "s"})</span>
             </div>
           </div>
           <label>
@@ -609,6 +610,10 @@ function recipeIngredientRowScale(row) {
 
 function refreshRecipeIngredientRowNutrition(row) {
   const scale = recipeIngredientRowScale(row);
+  const usedAmount = Number(row.querySelector('[data-recipe-ingredient-field="usedAmount"]')?.value || 0);
+  const usedUnit = row.querySelector('[data-recipe-ingredient-field="usedUnit"]')?.value || "each";
+  const servingAmount = Number(row.dataset.servingAmount) || 1;
+  const servingUnit = row.dataset.servingUnit || "each";
   const scaled = scaleNutrition({
     calories: Number(row.dataset.baseCalories) || 0,
     protein: Number(row.dataset.baseProtein) || 0,
@@ -625,6 +630,8 @@ function refreshRecipeIngredientRowNutrition(row) {
   row.querySelector('[data-recipe-ingredient-field="fibre"]').value = scaled.fibre;
   row.querySelector('[data-recipe-ingredient-field="fat"]').value = scaled.fat;
   row.querySelector('[data-recipe-ingredient-field="sodium"]').value = scaled.sodium;
+  const servingInfo = row.querySelector("[data-recipe-serving-info]");
+  if (servingInfo) servingInfo.textContent = `Serving size: ${formatScaledNumber(servingAmount)} ${servingUnit} · Recipe uses: ${formatScaledNumber(usedAmount)} ${usedUnit} (${formatScaledNumber(scale)} serving${scale === 1 ? "" : "s"})`;
 }
 
 function refreshRecipeIngredientRowFromSelection(row) {

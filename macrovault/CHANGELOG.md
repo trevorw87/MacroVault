@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.41
+
+- Displayed saved serving sizes and calculated total quantities in ingredient-only meals.
+- Added serving quantities to ingredient dropdown options.
+- Displayed saved serving size, recipe amount, and equivalent servings for recipe ingredients.
+
 ## 0.9.40
 
 - Added ingredient-only quick meals to every planner slot.
