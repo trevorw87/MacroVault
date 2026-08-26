@@ -1987,13 +1987,13 @@ span.ingredient-usage,
 .tracker-controls label { min-width:12rem; flex:1; }
 .tracker-summary { margin-bottom:1rem; }
 .daily-template { margin-bottom:1rem; }
-.dashboard-nutrition-template { position:relative; }
+.dashboard-nutrition-template { grid-area:nutrition; position:relative; width:100%; min-width:0; }
 .dashboard-template-person { display:flex; justify-content:flex-end; margin-bottom:.25rem; }
 .dashboard-template-person label { display:flex; align-items:center; gap:.55rem; color:var(--muted, #667066); }
 .dashboard-template-person select { min-width:9rem; }
 .daily-template-heading { align-items:flex-start; }
 .daily-template-score { color:var(--primary, #399b3f); white-space:nowrap; }
-.daily-template-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; }
+.daily-template-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; width:100%; min-width:0; }
 .daily-template-item { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:.75rem; padding:.85rem; border:1px solid var(--border, #dde3dd); border-radius:1rem; background:var(--surface, #fff); }
 .daily-template-item.complete { border-color:var(--primary, #399b3f); background:color-mix(in srgb, var(--primary, #399b3f) 8%, var(--surface, #fff)); }
 .daily-template-icon { font-size:1.5rem; }

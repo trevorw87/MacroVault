@@ -211,6 +211,7 @@
     grid-template-areas:
       "dinner dinner"
       "kids kids"
+      "nutrition nutrition"
       "reset reset"
       "actions actions";
     min-height: 0;
@@ -314,6 +315,7 @@
     grid-template-areas:
       "dinner"
       "kids"
+      "nutrition"
       "reset"
       "actions";
   }

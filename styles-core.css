@@ -316,9 +316,10 @@ menu {
 .family-dashboard {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-template-rows: minmax(310px, 1fr) minmax(92px, auto);
+  grid-template-rows: minmax(310px, 1fr) auto minmax(92px, auto);
   grid-template-areas:
     "dinner dinner dinner dinner dinner dinner dinner kids kids kids kids kids"
+    "nutrition nutrition nutrition nutrition nutrition nutrition nutrition nutrition nutrition nutrition nutrition nutrition"
     "reset reset reset reset actions actions actions actions actions actions actions actions";
   gap: 14px;
   min-height: 0;

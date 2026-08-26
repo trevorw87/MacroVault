@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.43
+
+- Fixed the Dashboard nutrition template occupying a narrow implicit grid column.
+- Made the nutrition checklist span the available width across desktop, tablet, and phone layouts.
+
 ## 0.9.42
 
 - Added a daily nutrition template to the Dashboard for vegetables, fruit, protein foods, whole grains or legumes, calcium-rich foods, and water.
