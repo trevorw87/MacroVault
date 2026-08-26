@@ -167,6 +167,35 @@ document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
 });
 
 document.addEventListener("click", async (event) => {
+  const smartPlanButton = event.target.closest("#smartPlanButton");
+  if (smartPlanButton) {
+    const goals = currentNutritionGoals();
+    document.querySelector("#smartPlannerTarget").textContent = `Daily target: ${formatPlannerNumber(goals.calories, "kcal")} and ${formatPlannerNumber(goals.protein, "protein")}.`;
+    document.querySelector("#smartPlannerDialog").showModal();
+    return;
+  }
+
+  const smartBalanceDayButton = event.target.closest("[data-smart-balance-day]");
+  if (smartBalanceDayButton) {
+    const day = smartBalanceDayButton.dataset.smartBalanceDay;
+    const added = smartPlanDay(day, { keepExisting: true, preferPrepared: true, maxRepeats: 2 }, plannerRecipeUsageCounts(), state);
+    saveState();
+    renderPlanner();
+    showToast(added ? `${day} was balanced with ${added} suggested meal${added === 1 ? "" : "s"}.` : `${day} has no empty slots with suitable recipes.`, { type: added ? "success" : "warning" });
+    return;
+  }
+
+  const smartSwapButton = event.target.closest("[data-smart-swap]");
+  if (smartSwapButton) {
+    const { plannerDay: day, plannerSlot: slotId, currentRecipe, smartSwap: replacementId } = smartSwapButton.dataset;
+    state.planner[day][slotId] = plannerRecipeIds(day, slotId).map((id) => id === currentRecipe ? replacementId : id);
+    delete state.plannerServings?.[day]?.[slotId]?.[currentRecipe];
+    state.bought = [];
+    saveState();
+    renderPlanner();
+    showToast("Meal swapped with a nutrition-matched alternative.", { type: "success" });
+    return;
+  }
   const deleteFamilyGoalButton = event.target.closest("[data-family-goal-delete]");
   if (deleteFamilyGoalButton) {
     const horizon = deleteFamilyGoalButton.closest("[data-goal-horizon]")?.dataset.goalHorizon;
@@ -722,6 +751,20 @@ document.addEventListener("submit", (event) => {
   saveState();
   renderFamilyGoals();
   document.querySelector(`#familyGoal-${horizon}`)?.focus();
+});
+
+document.querySelector("#smartPlannerForm").addEventListener("submit", (event) => {
+  if (event.submitter?.value === "cancel") return;
+  event.preventDefault();
+  const added = smartPlanSelectedWeek({
+    keepExisting: document.querySelector("#smartKeepMeals").checked,
+    preferPrepared: document.querySelector("#smartPreferPrepared").checked,
+    maxRepeats: document.querySelector("#smartMaxRepeats").value
+  });
+  saveState();
+  document.querySelector("#smartPlannerDialog").close();
+  renderPlanner();
+  showToast(added ? `Smart plan added ${added} nutrition-matched meal${added === 1 ? "" : "s"}.` : "No suitable recipes were available to add.", { type: added ? "success" : "warning" });
 });
 
 document.querySelector("#recipeSearch").addEventListener("input", renderRecipes);

@@ -1261,6 +1261,27 @@ textarea {
   font-weight: 850;
 }
 
+.planner-smart-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.smart-planner-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(140px, .55fr); gap: 12px; }
+.smart-planner-target { margin: 0; padding: 12px 14px; border-radius: 12px; color: var(--green-dark); background: var(--green-soft); font-weight: 900; }
+.planner-balance-day { justify-self: end; min-height: 34px; padding: 6px 10px; border: 1px solid rgba(57,155,63,.22); border-radius: 10px; color: var(--green-dark); background: #fff; font-weight: 850; }
+.planner-day-section .planner-day-heading { grid-template-columns: minmax(110px, auto) minmax(260px, 1fr) minmax(145px, auto) auto; }
+.planner-swap-menu { position: relative; }
+.planner-swap-menu summary { cursor: pointer; list-style: none; padding: 5px 9px; border: 1px solid rgba(40,126,205,.2); border-radius: 999px; color: #1d659f; background: #eef7ff; font-size: .76rem; font-weight: 900; }
+.planner-swap-menu summary::-webkit-details-marker { display: none; }
+.planner-swap-menu > div { position: absolute; z-index: 12; bottom: calc(100% + 5px); left: 0; display: grid; width: min(280px, 70vw); padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: var(--shadow); }
+.planner-swap-menu button { display: grid; gap: 2px; padding: 9px; border: 0; border-radius: 8px; text-align: left; color: var(--ink); background: transparent; }
+.planner-swap-menu button:hover { background: var(--green-soft); }
+.planner-swap-menu small { color: var(--muted); }
+
+@media (max-width: 760px) {
+  .planner-smart-actions,
+  .planner-smart-actions button { width: 100%; }
+  .smart-planner-options { grid-template-columns: 1fr; }
+  .planner-day-section .planner-day-heading { grid-template-columns: minmax(0, 1fr); }
+  .planner-balance-day { justify-self: stretch; }
+}
+
 .planner-period-controls,
 .planner-week-navigation,
 .planner-month-heading,

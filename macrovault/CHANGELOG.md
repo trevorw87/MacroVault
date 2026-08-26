@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.38
+
+- Added Smart Planner week generation around daily calorie and protein targets.
+- Added options to keep existing meals, prefer prepared food, and limit weekly repeats.
+- Added one-day balancing, protein top-ups, and ranked meal-swap alternatives.
+- Kept smart planning integrated with saved weeks and the existing shopping list.
+
 ## 0.9.37
 
 - Optimized the Family page for iPad portrait and landscape layouts.

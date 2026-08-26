@@ -6,7 +6,7 @@
     <title>MacroVault</title>
     <meta name="theme-color" content="#399b3f">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=135">
+    <link rel="stylesheet" href="styles.css?v=136">
   </head>
   <body>
     <div class="app-shell">
@@ -129,7 +129,10 @@
               <button class="secondary-button" id="nextPlannerWeekButton" type="button">Next week</button>
               <button class="text-button" id="currentPlannerWeekButton" type="button">This week</button>
             </div>
-            <button class="primary-button" id="autoFillPlannerButton" type="button">Auto-fill empty boxes</button>
+            <div class="planner-smart-actions">
+              <button class="primary-button" id="smartPlanButton" type="button">Create smart plan</button>
+              <button class="secondary-button" id="autoFillPlannerButton" type="button">Fill empty boxes</button>
+            </div>
           </div>
           <div class="planner-actions">
             <label>
@@ -685,13 +688,30 @@
       </form>
     </dialog>
 
+    <dialog id="smartPlannerDialog">
+      <form method="dialog" class="recipe-form smart-planner-form" id="smartPlannerForm">
+        <div class="dialog-heading">
+          <div><h2>Create a smart plan</h2><p class="muted">Build a varied week around your calorie and protein targets.</p></div>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+        <div class="smart-planner-options">
+          <label class="dialog-check"><input id="smartKeepMeals" type="checkbox" checked><span>Keep meals already planned</span></label>
+          <label class="dialog-check"><input id="smartPreferPrepared" type="checkbox" checked><span>Prefer meals already prepared</span></label>
+          <label>Maximum repeats per week<input id="smartMaxRepeats" type="number" min="1" max="7" value="2"></label>
+        </div>
+        <p class="smart-planner-target" id="smartPlannerTarget"></p>
+        <p class="muted">Breakfast, lunch, and dinner are always planned. Snacks and drinks are added when they improve the daily target match.</p>
+        <menu><button class="secondary-button" value="cancel" type="submit">Cancel</button><button class="primary-button" value="default" type="submit">Build my week</button></menu>
+      </form>
+    </dialog>
+
     <script src="zxing-browser.min.js?v=107"></script>
     <script src="barcode-nutrition.js?v=114"></script>
     <script src="frontend-utils.js?v=116"></script>
-    <script src="app-core.js?v=135"></script>
-    <script src="app-views.js?v=135"></script>
-    <script src="app-editors.js?v=135"></script>
-    <script src="app-features.js?v=135"></script>
-    <script src="app.js?v=135"></script>
+    <script src="app-core.js?v=136"></script>
+    <script src="app-views.js?v=136"></script>
+    <script src="app-editors.js?v=136"></script>
+    <script src="app-features.js?v=136"></script>
+    <script src="app.js?v=136"></script>
   </body>
 </html>

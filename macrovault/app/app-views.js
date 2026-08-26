@@ -551,6 +551,7 @@ function plannerCellMarkup(day, slot) {
       <div class="planner-dish-list">
         ${selectedRecipes.length ? selectedRecipes.map((recipe) => {
           const nutritionIssue = plannerNutritionIssue(recipe);
+          const alternatives = nutritionIssue ? [] : plannerAlternativeRecipes(day, slot, recipe);
           return `
           <article class="planner-dish">
             ${mealThumbnailMarkup(recipe, slot.label)}
@@ -561,6 +562,12 @@ function plannerCellMarkup(day, slot) {
                 : `<span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} · ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>`}
               <div class="planner-dish-chips">
                 <button class="planner-status-chip ${recipe.prepared ? "prepared" : ""}" data-toggle-recipe-prepared="${escapeHtml(recipe.id)}" type="button" aria-pressed="${recipe.prepared}">${recipe.prepared ? "Prepared" : "Not prepared"}</button>
+                ${alternatives.length ? `<details class="planner-swap-menu">
+                  <summary>Swap</summary>
+                  <div>${alternatives.map((alternative) => `<button type="button" data-smart-swap="${escapeHtml(alternative.id)}" data-current-recipe="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}">
+                    <strong>${escapeHtml(alternative.name)}</strong><small>${formatPlannerNumber(caloriesPerServing(alternative), "kcal")} · ${formatPlannerNumber(macrosPerServing(alternative).protein, "protein")}</small>
+                  </button>`).join("")}</div>
+                </details>` : ""}
               </div>
             </div>
             <button class="planner-remove-dish" data-remove-planner-recipe="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" type="button" aria-label="Remove ${escapeHtml(recipe.name)} from ${day} ${slot.label}" title="Remove dish">&times;</button>
@@ -664,6 +671,7 @@ function renderPlanner() {
                     ? "Daily goal met"
                     : `Still need ${formatPlannerNumber(remaining.calories, "kcal")} / ${formatPlannerNumber(remaining.protein, "protein")}`}
                 </div>
+                <button class="planner-balance-day" type="button" data-smart-balance-day="${day}">Balance day</button>
               </div>
             </summary>
             <div class="planner-day-meals planner-mobile-slots">

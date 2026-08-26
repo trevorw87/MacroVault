@@ -335,6 +335,28 @@ function startServer() {
     });
     await page.reload({ waitUntil: "networkidle" });
     await page.getByRole("button", { name: "Planner", exact: true }).click();
+    await page.getByRole("button", { name: "Create smart plan" }).click();
+    assert.match(await page.locator("#smartPlannerTarget").textContent(), /2,000 kcal.*130.*protein/);
+    await page.locator("#smartPlannerForm button[value=default]").click();
+    const smartPlanResult = await page.evaluate(() => {
+      const plannedCounts = days.map((day) => mealPlanSlots.reduce((sum, slot) => sum + plannerRecipeIds(day, slot.id).length, 0));
+      return {
+        minimumMeals: Math.min(...plannedCounts),
+        coreSlotsFilled: days.every((day) => ["breakfast", "lunch", "dinner"].every((slot) => plannerRecipeIds(day, slot).length)),
+        nutritionDays: days.filter((day) => plannedCaloriesPerPersonForDay(day) > 0 && plannedProteinPerPersonForDay(day) > 0).length,
+        dailyNutrition: days.map((day) => [day, plannedCaloriesPerPersonForDay(day), plannedProteinPerPersonForDay(day)])
+      };
+    });
+    assert.ok(smartPlanResult.minimumMeals >= 3);
+    assert.equal(smartPlanResult.coreSlotsFilled, true);
+    assert.equal(smartPlanResult.nutritionDays, 7);
+    assert.ok(smartPlanResult.dailyNutrition.filter(([, calories, protein]) => calories >= 1600 && calories <= 2400 && protein >= 95 && protein <= 170).length >= 5, JSON.stringify(smartPlanResult.dailyNutrition));
+    await page.evaluate(() => {
+      days.forEach((day) => { state.planner[day] = {}; });
+      state.bought = [];
+      saveState({ skipBackup: true });
+      renderPlanner();
+    });
     await page.getByLabel("Choose Dinner for Monday", { exact: true }).selectOption("lemon-salmon");
     assert.deepEqual(
       await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).planner.Monday.dinner),
@@ -346,6 +368,7 @@ function startServer() {
     assert.match(nutritionPerServe, /kcal.*g protein/);
     assert.doesNotMatch(nutritionPerServe, /\/ serve/);
     assert.ok(await mondayDish.locator(".planner-status-chip").isVisible());
+    assert.ok(await mondayDish.locator(".planner-swap-menu").isVisible());
     assert.equal(await mondayDish.locator(".planner-dish-options input").isVisible(), false);
     assert.equal(await page.evaluate(() => plannerServingCount("Monday", "dinner", "lemon-salmon")), 1);
     assert.equal(await mondayDish.locator(".planner-dish-options").count(), 0);

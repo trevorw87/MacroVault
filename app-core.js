@@ -2362,6 +2362,160 @@ function caloriesPerServing(recipe) {
   return roundNutrition(recipeTotalCalories(recipe) / recipeServings(recipe));
 }
 
+const smartPlannerRequiredSlots = new Set(["breakfast", "lunch", "dinner"]);
+
+function smartPlannerRecipeScore(recipe, slot, usageCounts, options) {
+  const calories = plannerSafeCaloriesPerServing(recipe);
+  const protein = plannerSafeProteinPerServing(recipe);
+  const allocation = {
+    breakfast: [0.22, 0.2], lunch: [0.28, 0.3], dinner: [0.32, 0.34],
+    morningSnack: [0.07, 0.06], afternoonSnack: [0.07, 0.06], eveningSnack: [0.06, 0.04],
+    beforeBreakfastDrink: [0.02, 0], afterLunchDrink: [0.02, 0], afterTreatDrink: [0.02, 0]
+  }[slot.id] || [0.1, 0.1];
+  const targets = currentNutritionGoals();
+  const calorieFit = Math.abs(calories - targets.calories * allocation[0]) / Math.max(1, targets.calories);
+  const proteinFit = Math.abs(protein - targets.protein * allocation[1]) / Math.max(1, targets.protein);
+  const repeats = Math.max(0, (usageCounts.get(recipe.id) || 0) + 1 - options.maxRepeats);
+  return calorieFit + proteinFit * 1.35 + repeats * 0.3 - (options.preferPrepared && recipe.prepared ? 0.08 : 0);
+}
+
+function smartPlannerDayScore(calories, protein, choices, usageCounts, options) {
+  const targets = currentNutritionGoals();
+  const calorieGap = Math.abs(calories - targets.calories) / Math.max(1, targets.calories);
+  const proteinGap = Math.abs(protein - targets.protein) / Math.max(1, targets.protein);
+  const calorieOvershoot = Math.max(0, calories - targets.calories) / Math.max(1, targets.calories);
+  const proteinShortfall = Math.max(0, targets.protein - protein) / Math.max(1, targets.protein);
+  const repeatPenalty = choices.reduce((sum, choice) => choice.recipe
+    ? sum + Math.max(0, (usageCounts.get(choice.recipe.id) || 0) + 1 - options.maxRepeats) * 0.22
+    : sum, 0);
+  const preparedBonus = options.preferPrepared
+    ? choices.filter((choice) => choice.recipe?.prepared).length * 0.025
+    : 0;
+  return calorieGap + proteinGap * 1.55 + calorieOvershoot * 0.7 + proteinShortfall * 0.45 + repeatPenalty - preparedBonus;
+}
+
+function smartPlannerTopUpDay(day, usageCounts, options, nextState = state) {
+  const targets = currentNutritionGoals();
+  let added = 0;
+  for (let pass = 0; pass < 3; pass += 1) {
+    const calories = plannedCaloriesPerPersonForDay(day);
+    const protein = plannedProteinPerPersonForDay(day);
+    if (calories >= targets.calories - 100 && protein >= targets.protein - 10) break;
+    const currentScore = Math.abs(calories - targets.calories) / Math.max(1, targets.calories)
+      + Math.abs(protein - targets.protein) / Math.max(1, targets.protein) * 2
+      + Math.max(0, calories - targets.calories) / Math.max(1, targets.calories);
+    const suggestions = mealPlanSlots.flatMap((slot) => {
+      const selected = new Set(plannerRecipeIds(day, slot.id, nextState));
+      return (nextState.recipes || [])
+        .filter((recipe) => recipeBelongsToCategory(recipe, slot.category) && !selected.has(recipe.id)
+          && !plannerNutritionIssue(recipe) && plannerSafeCaloriesPerServing(recipe) > 0)
+        .map((recipe) => {
+          const nextCalories = calories + plannerSafeCaloriesPerServing(recipe);
+          const nextProtein = protein + plannerSafeProteinPerServing(recipe);
+          const repeats = Math.max(0, (usageCounts.get(recipe.id) || 0) + 1 - options.maxRepeats);
+          const score = Math.abs(nextCalories - targets.calories) / Math.max(1, targets.calories)
+            + Math.abs(nextProtein - targets.protein) / Math.max(1, targets.protein) * 2
+            + Math.max(0, nextCalories - targets.calories) / Math.max(1, targets.calories)
+            + repeats * 0.3 - (options.preferPrepared && recipe.prepared ? 0.04 : 0);
+          return { slot, recipe, score };
+        });
+    }).sort((a, b) => a.score - b.score);
+    const best = suggestions[0];
+    if (!best || best.score >= currentScore - 0.015) break;
+    nextState.planner[day][best.slot.id] = [...plannerRecipeIds(day, best.slot.id, nextState), best.recipe.id];
+    usageCounts.set(best.recipe.id, (usageCounts.get(best.recipe.id) || 0) + 1);
+    added += 1;
+  }
+  return added;
+}
+
+function smartPlanDay(day, options, usageCounts, nextState = state) {
+  nextState.planner[day] ||= {};
+  nextState.plannerServings[day] ||= {};
+  nextState.consumed[day] ||= {};
+  if (!options.keepExisting) {
+    mealPlanSlots.forEach((slot) => {
+      nextState.planner[day][slot.id] = [];
+      nextState.plannerServings[day][slot.id] = {};
+      nextState.consumed[day][slot.id] = false;
+    });
+  }
+  const existingRecipes = mealPlanSlots.flatMap((slot) => plannerRecipes(day, slot, nextState));
+  let baseCalories = existingRecipes.reduce((sum, recipe) => sum + plannerSafeCaloriesPerServing(recipe), 0);
+  let baseProtein = existingRecipes.reduce((sum, recipe) => sum + plannerSafeProteinPerServing(recipe), 0);
+  const openSlots = mealPlanSlots.filter((slot) => !plannerRecipeIds(day, slot.id, nextState).length);
+  let beam = [{ calories: baseCalories, protein: baseProtein, choices: [] }];
+  openSlots.forEach((slot, slotIndex) => {
+    const candidates = (nextState.recipes || [])
+      .filter((recipe) => recipeBelongsToCategory(recipe, slot.category) && !plannerNutritionIssue(recipe) && plannerSafeCaloriesPerServing(recipe) > 0)
+      .sort((a, b) => smartPlannerRecipeScore(a, slot, usageCounts, options) - smartPlannerRecipeScore(b, slot, usageCounts, options))
+      .slice(0, 12);
+    const optional = !smartPlannerRequiredSlots.has(slot.id);
+    const choices = optional ? [null, ...candidates] : candidates;
+    if (!choices.length) return;
+    beam = beam.flatMap((entry) => choices.map((recipe) => ({
+      calories: entry.calories + (recipe ? plannerSafeCaloriesPerServing(recipe) : 0),
+      protein: entry.protein + (recipe ? plannerSafeProteinPerServing(recipe) : 0),
+      choices: [...entry.choices, { slot, recipe }]
+    }))).sort((a, b) => {
+      const progress = (slotIndex + 1) / Math.max(1, openSlots.length);
+      const targets = currentNutritionGoals();
+      const partialScore = (entry) => Math.abs(entry.calories - targets.calories * progress) / Math.max(1, targets.calories)
+        + Math.abs(entry.protein - targets.protein * progress) / Math.max(1, targets.protein) * 1.4;
+      return partialScore(a) - partialScore(b);
+    }).slice(0, 180);
+  });
+  const best = beam.sort((a, b) => smartPlannerDayScore(a.calories, a.protein, a.choices, usageCounts, options)
+    - smartPlannerDayScore(b.calories, b.protein, b.choices, usageCounts, options))[0];
+  if (!best) return 0;
+  let added = 0;
+  best.choices.forEach(({ slot, recipe }) => {
+    if (!recipe) return;
+    nextState.planner[day][slot.id] = [recipe.id];
+    nextState.plannerServings[day][slot.id] = {};
+    nextState.consumed[day][slot.id] = false;
+    usageCounts.set(recipe.id, (usageCounts.get(recipe.id) || 0) + 1);
+    added += 1;
+  });
+  added += smartPlannerTopUpDay(day, usageCounts, options, nextState);
+  return added;
+}
+
+function smartPlanSelectedWeek(options = {}, nextState = state) {
+  const normalizedOptions = {
+    keepExisting: options.keepExisting !== false,
+    preferPrepared: options.preferPrepared !== false,
+    maxRepeats: Math.min(7, Math.max(1, Number(options.maxRepeats) || 2))
+  };
+  const usageCounts = new Map();
+  if (normalizedOptions.keepExisting) {
+    days.forEach((day) => mealPlanSlots.forEach((slot) => plannerRecipeIds(day, slot.id, nextState).forEach((id) => {
+      usageCounts.set(id, (usageCounts.get(id) || 0) + 1);
+    })));
+  }
+  const added = days.reduce((sum, day) => sum + smartPlanDay(day, normalizedOptions, usageCounts, nextState), 0);
+  nextState.bought = [];
+  return added;
+}
+
+function plannerAlternativeRecipes(day, slot, currentRecipe, limit = 3) {
+  const goals = currentNutritionGoals();
+  const dayCaloriesWithout = plannedCaloriesPerPersonForDay(day) - plannerSafeCaloriesPerServing(currentRecipe);
+  const dayProteinWithout = plannedProteinPerPersonForDay(day) - plannerSafeProteinPerServing(currentRecipe);
+  return recipesForSlot(slot)
+    .filter((recipe) => recipe.id !== currentRecipe.id && !plannerNutritionIssue(recipe) && plannerSafeCaloriesPerServing(recipe) > 0)
+    .map((recipe) => {
+      const calorieGap = Math.abs(dayCaloriesWithout + plannerSafeCaloriesPerServing(recipe) - goals.calories) / Math.max(1, goals.calories);
+      const proteinGap = Math.abs(dayProteinWithout + plannerSafeProteinPerServing(recipe) - goals.protein) / Math.max(1, goals.protein);
+      const similarity = Math.abs(plannerSafeCaloriesPerServing(recipe) - plannerSafeCaloriesPerServing(currentRecipe)) / Math.max(1, goals.calories)
+        + Math.abs(plannerSafeProteinPerServing(recipe) - plannerSafeProteinPerServing(currentRecipe)) / Math.max(1, goals.protein);
+      return { recipe, score: calorieGap + proteinGap * 1.5 + similarity * 0.35 - (recipe.prepared ? 0.03 : 0) };
+    })
+    .sort((a, b) => a.score - b.score)
+    .slice(0, limit)
+    .map((item) => item.recipe);
+}
+
 const plannerNutritionLimits = { calories: 3000, protein: 300 };
 
 function plannerNutritionIssue(recipe) {
