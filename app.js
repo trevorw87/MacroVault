@@ -84,6 +84,53 @@ function advanceHabitRow(name, habitId) {
   render();
 }
 
+let draggedFamilyGoal = null;
+
+document.addEventListener("dragstart", (event) => {
+  const handle = event.target.closest("[data-family-goal-drag]");
+  if (!handle) return;
+  const item = handle.closest("[data-family-goal-id]");
+  const horizon = handle.closest("[data-goal-horizon]")?.dataset.goalHorizon;
+  if (!item || !state.familyGoals?.[horizon]) return;
+  draggedFamilyGoal = { id: handle.dataset.familyGoalDrag, horizon };
+  item.classList.add("dragging");
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", handle.dataset.familyGoalDrag);
+});
+
+document.addEventListener("dragover", (event) => {
+  const item = event.target.closest("[data-family-goal-id]");
+  const horizon = item?.closest("[data-goal-horizon]")?.dataset.goalHorizon;
+  if (!item || !draggedFamilyGoal || horizon !== draggedFamilyGoal.horizon || item.dataset.familyGoalId === draggedFamilyGoal.id) return;
+  event.preventDefault();
+  document.querySelectorAll(".family-goal-item.drag-over").forEach((goal) => goal.classList.remove("drag-over"));
+  item.classList.add("drag-over");
+  event.dataTransfer.dropEffect = "move";
+});
+
+document.addEventListener("drop", (event) => {
+  const target = event.target.closest("[data-family-goal-id]");
+  const horizon = target?.closest("[data-goal-horizon]")?.dataset.goalHorizon;
+  if (!target || !draggedFamilyGoal || horizon !== draggedFamilyGoal.horizon) return;
+  event.preventDefault();
+  const goals = state.familyGoals[horizon];
+  const fromIndex = goals.findIndex((goal) => goal.id === draggedFamilyGoal.id);
+  const targetIndex = goals.findIndex((goal) => goal.id === target.dataset.familyGoalId);
+  if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return;
+  const [movedGoal] = goals.splice(fromIndex, 1);
+  const targetAfterRemoval = goals.findIndex((goal) => goal.id === target.dataset.familyGoalId);
+  const placeAfter = event.clientY > target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+  goals.splice(targetAfterRemoval + (placeAfter ? 1 : 0), 0, movedGoal);
+  saveState();
+  renderFamilyGoals();
+  draggedFamilyGoal = null;
+});
+
+document.addEventListener("dragend", () => {
+  draggedFamilyGoal = null;
+  document.querySelectorAll(".family-goal-item.dragging, .family-goal-item.drag-over").forEach((goal) => goal.classList.remove("dragging", "drag-over"));
+});
+
 document.querySelector("#trackerDate").addEventListener("change", renderTracker);
 document.querySelector("#trackerPerson").addEventListener("change", renderTracker);
 document.querySelector("#foodLogSource").addEventListener("change", applyFoodLogSource);

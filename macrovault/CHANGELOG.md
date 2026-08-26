@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.33
+
+- Fixed Family Goals checkbox sizing so goal text remains fully visible.
+- Improved goal-row wrapping, alignment, and add-goal form layout.
+- Added persistent drag-and-drop ordering within each goal horizon.
+
 ## 0.9.32
 
 - Added a persistent Family Goals page for Now, 5 Years, and 10 Years.

@@ -77,6 +77,27 @@ function startServer() {
     assert.equal(await page.locator("#navTabs .nav-button").count(), 12);
     assert.equal(await page.locator("#pageTitle").textContent(), "Dashboard");
 
+    await page.getByRole("button", { name: "Family Goals", exact: true }).click();
+    await page.getByLabel("Add a Now family goal").fill("Plan a family camping holiday together");
+    await page.locator('[data-family-goal-form="now"]').getByRole("button", { name: "Add goal" }).click();
+    const visibleGoal = page.locator('[data-goal-horizon="now"] .family-goal-item').first();
+    assert.match(await visibleGoal.textContent(), /Plan a family camping holiday together/);
+    const goalLayout = await visibleGoal.evaluate((item) => {
+      const label = item.querySelector("label").getBoundingClientRect();
+      const checkbox = item.querySelector('input[type="checkbox"]').getBoundingClientRect();
+      const text = item.querySelector("label span").getBoundingClientRect();
+      return { labelWidth: label.width, checkboxWidth: checkbox.width, textWidth: text.width };
+    });
+    assert.ok(goalLayout.labelWidth > 180);
+    assert.ok(goalLayout.checkboxWidth <= 20);
+    assert.ok(goalLayout.textWidth > 80);
+    await page.getByLabel("Add a Now family goal").fill("Create a weekly family tradition");
+    await page.locator('[data-family-goal-form="now"]').getByRole("button", { name: "Add goal" }).click();
+    const goalHandles = page.locator('[data-goal-horizon="now"] [data-family-goal-drag]');
+    await goalHandles.nth(1).dragTo(goalHandles.nth(0));
+    assert.match(await page.locator('[data-goal-horizon="now"] .family-goal-item').first().textContent(), /Create a weekly family tradition/);
+    assert.match(await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).familyGoals.now[0].text), /Create a weekly family tradition/);
+
     await page.getByRole("button", { name: "Food Tracker", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Food Tracker");
     await page.getByRole("button", { name: "Add food eaten" }).click();

@@ -587,7 +587,8 @@ function renderFamilyGoals() {
         </div>
         <div class="family-goal-list">
           ${goals.length ? goals.map((goal) => `
-            <div class="family-goal-item ${goal.completed ? "completed" : ""}">
+            <div class="family-goal-item ${goal.completed ? "completed" : ""}" data-family-goal-id="${escapeHtml(goal.id)}">
+              <span class="family-goal-drag-handle" draggable="true" data-family-goal-drag="${escapeHtml(goal.id)}" title="Drag to reorder" aria-label="Drag ${escapeHtml(goal.text)} to reorder">&#8942;&#8942;</span>
               <label>
                 <input type="checkbox" data-family-goal-toggle="${escapeHtml(goal.id)}" ${goal.completed ? "checked" : ""}>
                 <span>${escapeHtml(goal.text)}</span>
@@ -597,8 +598,7 @@ function renderFamilyGoals() {
           `).join("") : '<p class="family-goal-empty muted">No goals added yet. Start with one meaningful step.</p>'}
         </div>
         <form class="family-goal-form" data-family-goal-form="${horizon.id}">
-          <label class="sr-only" for="familyGoal-${horizon.id}">Add a ${horizon.title} family goal</label>
-          <input id="familyGoal-${horizon.id}" maxlength="180" placeholder="Add a family goal..." required>
+          <input id="familyGoal-${horizon.id}" maxlength="180" placeholder="Add a family goal..." aria-label="Add a ${horizon.title} family goal" required>
           <button class="primary-button" type="submit">Add goal</button>
         </form>
       </section>`;
