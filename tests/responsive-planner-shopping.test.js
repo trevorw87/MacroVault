@@ -170,15 +170,12 @@ function startServer() {
       };
     });
     assert.deepEqual(desktopPlannerAxis.mealColumns, [
-      "beforeBreakfastDrink",
       "breakfast",
       "morningSnack",
       "lunch",
-      "afterLunchDrink",
       "afternoonSnack",
       "dinner",
-      "eveningSnack",
-      "afterTreatDrink"
+      "eveningSnack"
     ]);
     assert.equal(desktopPlannerAxis.firstDayRow, "Sunday");
     assert.equal(desktopPlannerAxis.daySections, 7);
@@ -186,7 +183,7 @@ function startServer() {
     assert.equal(desktopPlannerAxis.mealGridColumns, 3);
     assert.equal(desktopPlannerAxis.documentWidth, desktopPlannerAxis.viewportWidth);
     assert.ok(desktopPlannerAxis.gridScrollWidth <= desktopPlannerAxis.gridClientWidth + 1);
-    assert.equal(new Set(desktopPlannerAxis.mealLabelStyles.map((style) => style.backgroundImage)).size, 5);
+    assert.equal(new Set(desktopPlannerAxis.mealLabelStyles.map((style) => style.backgroundImage)).size, 4);
     assert.ok(desktopPlannerAxis.mealLabelStyles.every((style) => style.textAlign === "center" && style.alignItems === "center"));
     assert.match(await page.locator('[data-planner-row="Sunday"] .planner-progress-summary').textContent(), /Daily nutrition.*1 person/s);
     assert.doesNotMatch(await page.locator('[data-planner-row="Sunday"]').textContent(), /Household|People/);
@@ -253,19 +250,17 @@ function startServer() {
     await page.waitForFunction(() => document.querySelectorAll(".planner-day-section[open]").length === 1);
     assert.equal(await page.locator(".planner-day-section[open]").count(), 1);
     const wideMealGrid = page.locator('[data-planner-mobile-day="Sunday"] .planner-day-meals');
-    assert.equal(await wideMealGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 9);
+    assert.equal(await wideMealGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 6);
     const wideColumnWidths = await wideMealGrid.locator(":scope > .planner-slot-column").evaluateAll((columns) =>
       Object.fromEntries(columns.map((column) => [column.dataset.plannerColumn, column.getBoundingClientRect().width]))
     );
-    assert.ok(wideColumnWidths.beforeBreakfastDrink < wideColumnWidths.breakfast * 0.7, JSON.stringify(wideColumnWidths));
-    assert.ok(wideColumnWidths.afterLunchDrink < wideColumnWidths.lunch * 0.7, JSON.stringify(wideColumnWidths));
-    assert.ok(wideColumnWidths.afterTreatDrink < wideColumnWidths.dinner * 0.7, JSON.stringify(wideColumnWidths));
+    assert.ok(wideColumnWidths.breakfast > wideColumnWidths.morningSnack, JSON.stringify(wideColumnWidths));
+    assert.ok(wideColumnWidths.lunch > wideColumnWidths.afternoonSnack, JSON.stringify(wideColumnWidths));
     const plannerColors = await wideMealGrid.locator(":scope > .planner-slot-column").evaluateAll((columns) =>
       Object.fromEntries(columns.map((column) => [column.dataset.plannerColumn, getComputedStyle(column.querySelector(".planner-meal-label")).backgroundImage]))
     );
     assert.equal(plannerColors.morningSnack, plannerColors.afternoonSnack);
     assert.equal(plannerColors.afternoonSnack, plannerColors.eveningSnack);
-    assert.equal(plannerColors.beforeBreakfastDrink, plannerColors.afterLunchDrink);
     assert.notEqual(plannerColors.breakfast, plannerColors.morningSnack);
     assert.notEqual(plannerColors.lunch, plannerColors.dinner);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 1600);
@@ -280,10 +275,6 @@ function startServer() {
     assert.ok(wideAlignment.labelBottomSpread <= 1, JSON.stringify(wideAlignment));
     assert.ok(wideAlignment.dishHeightSpread <= 1, JSON.stringify(wideAlignment));
     assert.ok(Math.max(...await wideMealGrid.locator(".planner-dish, .planner-empty-dish").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().height))) <= 250);
-    const beverageThumbWidth = await wideMealGrid.locator('[data-planner-column="beforeBreakfastDrink"] .meal-thumb').first().evaluate((element) => element.getBoundingClientRect().width);
-    const breakfastThumbWidth = await wideMealGrid.locator('[data-planner-column="breakfast"] .meal-thumb').first().evaluate((element) => element.getBoundingClientRect().width);
-    assert.ok(beverageThumbWidth < breakfastThumbWidth);
-
     await page.setViewportSize({ width: 900, height: 1000 });
     await page.reload({ waitUntil: "networkidle" });
     const tabletNavTopSpread = await page.locator("#navTabs .nav-button").evaluateAll((buttons) => {
@@ -306,7 +297,7 @@ function startServer() {
     await page.reload({ waitUntil: "networkidle" });
     await page.getByRole("button", { name: "Planner", exact: true }).click();
     assert.equal(await page.locator(".planner-mobile-day").count(), 7);
-    assert.equal(await page.locator('.planner-mobile-day[data-planner-mobile-day="Sunday"] .planner-mobile-slot').count(), 9);
+    assert.equal(await page.locator('.planner-mobile-day[data-planner-mobile-day="Sunday"] .planner-mobile-slot').count(), 6);
     assert.equal(await page.locator(".planner-table").count(), 0);
     const mobileLayout = await page.evaluate(() => {
       const navTops = [...document.querySelectorAll("#navTabs .nav-button")].map((button) => Math.round(button.getBoundingClientRect().top));

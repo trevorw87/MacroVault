@@ -781,15 +781,12 @@
 .planner-day-meals {
   display: grid;
   grid-template-columns:
-    minmax(0, 0.62fr)
     minmax(0, 1.1fr)
     minmax(0, 0.9fr)
     minmax(0, 1.1fr)
-    minmax(0, 0.62fr)
     minmax(0, 0.9fr)
     minmax(0, 1.1fr)
-    minmax(0, 0.9fr)
-    minmax(0, 0.62fr);
+    minmax(0, 0.9fr);
   align-items: stretch;
   gap: 8px;
   padding: 8px;
@@ -803,14 +800,6 @@
   gap: 6px;
   min-width: 0;
   height: 100%;
-}
-
-.planner-slot-column[data-planner-column="beforeBreakfastDrink"],
-.planner-slot-column[data-planner-column="afterLunchDrink"],
-.planner-slot-column[data-planner-column="afterTreatDrink"] {
-  --planner-label-start: #f2f8fc;
-  --planner-label-end: #e8f2f9;
-  --planner-label-border: rgba(58, 124, 190, 0.24);
 }
 
 .planner-slot-column[data-planner-column="breakfast"] {
@@ -874,14 +863,6 @@
   width: 90px;
   height: 90px;
   border-radius: 21px;
-}
-
-.planner-slot-column[data-planner-column="beforeBreakfastDrink"] .meal-thumb,
-.planner-slot-column[data-planner-column="afterLunchDrink"] .meal-thumb,
-.planner-slot-column[data-planner-column="afterTreatDrink"] .meal-thumb {
-  width: 76px;
-  height: 76px;
-  border-radius: 18px;
 }
 
 .planner-slot-column .planner-meal-pick strong {

@@ -62,15 +62,12 @@ function iconMarkup(name) {
 
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const mealPlanSlots = [
-  { id: "beforeBreakfastDrink", label: "Beverages", category: "hotBeverage", timing: "Before Breakfast" },
   { id: "breakfast", label: "Breakfast", category: "breakfast" },
   { id: "morningSnack", label: "Morning Snack", category: "morningSnack" },
   { id: "lunch", label: "Lunch", category: "lunch" },
-  { id: "afterLunchDrink", label: "Beverages", category: "hotBeverage", timing: "After Lunch" },
   { id: "afternoonSnack", label: "Afternoon Snack", category: "afternoonSnack" },
   { id: "dinner", label: "Dinner", category: "dinner" },
-  { id: "eveningSnack", label: "After Dinner Treat", category: "afterDinnerTreat" },
-  { id: "afterTreatDrink", label: "Beverages", category: "hotBeverage", timing: "After Dinner Treat" }
+  { id: "eveningSnack", label: "After Dinner Treat", category: "afterDinnerTreat" }
 ];
 
 const recipeCategories = [
@@ -2389,7 +2386,6 @@ function smartPlannerRecipeScore(recipe, slot, usageCounts, options) {
   const allocation = {
     breakfast: [0.22, 0.2], lunch: [0.28, 0.3], dinner: [0.32, 0.34],
     morningSnack: [0.07, 0.06], afternoonSnack: [0.07, 0.06], eveningSnack: [0.06, 0.04],
-    beforeBreakfastDrink: [0.02, 0], afterLunchDrink: [0.02, 0], afterTreatDrink: [0.02, 0]
   }[slot.id] || [0.1, 0.1];
   const targets = currentNutritionGoals();
   const calorieFit = Math.abs(calories - targets.calories * allocation[0]) / Math.max(1, targets.calories);

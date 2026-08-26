@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.44
+
+- Removed the three beverage columns from the weekly planner.
+- Expanded the six remaining food slots across the available planner width.
+- Retained saved beverage recipes outside the planner.
+
 ## 0.9.43
 
 - Fixed the Dashboard nutrition template occupying a narrow implicit grid column.
