@@ -1126,7 +1126,8 @@ function normalizeState(nextState) {
       .map((goal, index) => ({
         id: String(goal?.id || `goal-${horizon}-${index}`),
         text: String(goal?.text || "").trim().slice(0, 180),
-        completed: Boolean(goal?.completed)
+        completed: Boolean(goal?.completed),
+        category: ["important", "nice", "dreams"].includes(goal?.category) ? goal.category : "important"
       }))
       .filter((goal) => goal.text)
   ]));

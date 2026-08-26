@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.34
+
+- Added Important Goals, Nice to Do, and Dreams categories to every family-goal horizon.
+- Added a goal-type selector when creating new goals.
+- Preserved existing goals under Important Goals and retained saved goal ordering.
+
 ## 0.9.33
 
 - Fixed Family Goals checkbox sizing so goal text remains fully visible.

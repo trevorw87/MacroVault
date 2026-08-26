@@ -572,6 +572,11 @@ function printWeekPlanner() {
 
 function renderFamilyGoals() {
   const grid = document.querySelector("#familyGoalsGrid");
+  const categories = [
+    { id: "important", label: "Important Goals", icon: "!" },
+    { id: "nice", label: "Nice to Do", icon: "+" },
+    { id: "dreams", label: "Dreams", icon: "&#10022;" }
+  ];
   const horizons = [
     { id: "now", title: "Now", subtitle: "What we are working toward today", marker: "01" },
     { id: "fiveYears", title: "5 Years", subtitle: "Where we hope to be in five years", marker: "05" },
@@ -586,19 +591,30 @@ function renderFamilyGoals() {
           <div><h2>${horizon.title}</h2><p class="muted">${horizon.subtitle}</p></div>
         </div>
         <div class="family-goal-list">
-          ${goals.length ? goals.map((goal) => `
-            <div class="family-goal-item ${goal.completed ? "completed" : ""}" data-family-goal-id="${escapeHtml(goal.id)}">
-              <span class="family-goal-drag-handle" draggable="true" data-family-goal-drag="${escapeHtml(goal.id)}" title="Drag to reorder" aria-label="Drag ${escapeHtml(goal.text)} to reorder">&#8942;&#8942;</span>
-              <label>
-                <input type="checkbox" data-family-goal-toggle="${escapeHtml(goal.id)}" ${goal.completed ? "checked" : ""}>
-                <span>${escapeHtml(goal.text)}</span>
-              </label>
-              <button class="icon-button family-goal-delete" type="button" data-family-goal-delete="${escapeHtml(goal.id)}" aria-label="Delete ${escapeHtml(goal.text)}">&times;</button>
-            </div>
-          `).join("") : '<p class="family-goal-empty muted">No goals added yet. Start with one meaningful step.</p>'}
+          ${categories.map((category) => {
+            const categoryGoals = goals.filter((goal) => goal.category === category.id);
+            return `<section class="family-goal-category ${category.id}" data-goal-category="${category.id}">
+              <h3><span aria-hidden="true">${category.icon}</span>${category.label}</h3>
+              <div class="family-goal-category-list">
+                ${categoryGoals.length ? categoryGoals.map((goal) => `
+                  <div class="family-goal-item ${goal.completed ? "completed" : ""}" data-family-goal-id="${escapeHtml(goal.id)}">
+                    <span class="family-goal-drag-handle" draggable="true" data-family-goal-drag="${escapeHtml(goal.id)}" title="Drag to reorder" aria-label="Drag ${escapeHtml(goal.text)} to reorder">&#8942;&#8942;</span>
+                    <label>
+                      <input type="checkbox" data-family-goal-toggle="${escapeHtml(goal.id)}" ${goal.completed ? "checked" : ""}>
+                      <span>${escapeHtml(goal.text)}</span>
+                    </label>
+                    <button class="icon-button family-goal-delete" type="button" data-family-goal-delete="${escapeHtml(goal.id)}" aria-label="Delete ${escapeHtml(goal.text)}">&times;</button>
+                  </div>
+                `).join("") : '<p class="family-goal-empty muted">Nothing here yet.</p>'}
+              </div>
+            </section>`;
+          }).join("")}
         </div>
         <form class="family-goal-form" data-family-goal-form="${horizon.id}">
           <input id="familyGoal-${horizon.id}" maxlength="180" placeholder="Add a family goal..." aria-label="Add a ${horizon.title} family goal" required>
+          <select aria-label="Goal type">
+            ${categories.map((category) => `<option value="${category.id}">${category.label}</option>`).join("")}
+          </select>
           <button class="primary-button" type="submit">Add goal</button>
         </form>
       </section>`;

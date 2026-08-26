@@ -687,12 +687,14 @@ document.addEventListener("submit", (event) => {
   event.preventDefault();
   const horizon = familyGoalForm.dataset.familyGoalForm;
   const input = familyGoalForm.querySelector("input");
+  const category = familyGoalForm.querySelector("select").value;
   const text = input.value.trim().slice(0, 180);
   if (!text || !state.familyGoals?.[horizon]) return;
   state.familyGoals[horizon].push({
     id: `goal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
     text,
-    completed: false
+    completed: false,
+    category: ["important", "nice", "dreams"].includes(category) ? category : "important"
   });
   saveState();
   renderFamilyGoals();
