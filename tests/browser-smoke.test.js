@@ -74,51 +74,8 @@ function startServer() {
     });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
     await page.waitForSelector("#navTabs .nav-button");
-    assert.equal(await page.locator("#navTabs .nav-button").count(), 12);
+    assert.equal(await page.locator("#navTabs .nav-button").count(), 10);
     assert.equal(await page.locator("#pageTitle").textContent(), "Dashboard");
-
-    await page.getByRole("button", { name: "Family Goals", exact: true }).click();
-    await page.getByLabel("Add a Now family goal").fill("Plan a family camping holiday together");
-    await page.locator('[data-family-goal-form="now"]').getByRole("button", { name: "Add goal" }).click();
-    const visibleGoal = page.locator('[data-goal-horizon="now"] .family-goal-item').first();
-    assert.match(await visibleGoal.textContent(), /Plan a family camping holiday together/);
-    const goalLayout = await visibleGoal.evaluate((item) => {
-      const label = item.querySelector("textarea").getBoundingClientRect();
-      const checkbox = item.querySelector('input[type="checkbox"]').getBoundingClientRect();
-      const text = item.querySelector("textarea").getBoundingClientRect();
-      return { labelWidth: label.width, checkboxWidth: checkbox.width, textWidth: text.width };
-    });
-    assert.ok(goalLayout.labelWidth > 80);
-    assert.ok(goalLayout.checkboxWidth <= 20);
-    assert.ok(goalLayout.textWidth > 80);
-    await visibleGoal.getByLabel("Edit goal").fill("Plan two family camping holidays together");
-    await visibleGoal.getByLabel("Edit goal").blur();
-    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).familyGoals.now[0].text), "Plan two family camping holidays together");
-    await page.getByLabel("Add a Now family goal").fill("Create a weekly family tradition");
-    await page.locator('[data-family-goal-form="now"]').getByLabel("Goal type").selectOption("nice");
-    await page.locator('[data-family-goal-form="now"]').getByRole("button", { name: "Add goal" }).click();
-    assert.match(await page.locator('[data-goal-horizon="now"] [data-goal-category="nice"]').textContent(), /Create a weekly family tradition/);
-    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("macrovault.mvp.v1")).familyGoals.now.find((goal) => goal.text.includes("weekly")).category), "nice");
-
-    await page.getByRole("button", { name: "Food Tracker", exact: true }).click();
-    assert.equal(await page.locator("#pageTitle").textContent(), "Food Tracker");
-    await page.getByRole("button", { name: "Add food eaten" }).click();
-    assert.equal(await page.locator("#foodLogServings").inputValue(), "1.00");
-    await page.locator("#foodLogName").fill("Test snack");
-    await page.locator("#foodLogMeal").selectOption("snacks");
-    await page.locator("#foodLogCalories").fill("125");
-    await page.locator("#foodLogProtein").fill("4");
-    await page.locator("#foodLogGrams").fill("150");
-    await page.locator("#foodLogForm button[value=default]").click();
-    assert.ok(await page.locator("#foodLogDialog").evaluate((dialog) => dialog.open));
-    assert.match(await page.locator("#foodLogGramsPerServing").evaluate((input) => input.validationMessage), /grams per serving/i);
-    await page.locator("#foodLogGramsPerServing").fill("100");
-    assert.equal(await page.locator("#foodLogServings").inputValue(), "1.50");
-    await page.locator("#foodLogForm button[value=default]").click();
-    await page.waitForSelector(".tracker-entry");
-    assert.match(await page.locator("#trackerSummary").textContent(), /187\.5 kcal/);
-    assert.match(await page.locator(".tracker-entry").textContent(), /Test snack/);
-    assert.match(await page.locator(".tracker-entry").textContent(), /150.00 g/);
 
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");

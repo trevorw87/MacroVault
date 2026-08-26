@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.36
+
+- Removed the Food Tracker and Family Goals pages from app navigation.
+- Reduced the primary navigation to ten focused pages.
+- Preserved existing tracker and family-goal data for safe rollback or future use.
+
 ## 0.9.35
 
 - Made family-goal text directly editable inside each goal box.
