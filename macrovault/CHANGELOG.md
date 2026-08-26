@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.35
+
+- Made family-goal text directly editable inside each goal box.
+- Automatically expanded editable fields so longer goals remain visible.
+- Saved edits on leaving the field and prevented blank goal names.
+
 ## 0.9.34
 
 - Added Important Goals, Nice to Do, and Dreams categories to every family-goal horizon.

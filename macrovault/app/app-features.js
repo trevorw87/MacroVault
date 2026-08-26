@@ -599,10 +599,8 @@ function renderFamilyGoals() {
                 ${categoryGoals.length ? categoryGoals.map((goal) => `
                   <div class="family-goal-item ${goal.completed ? "completed" : ""}" data-family-goal-id="${escapeHtml(goal.id)}">
                     <span class="family-goal-drag-handle" draggable="true" data-family-goal-drag="${escapeHtml(goal.id)}" title="Drag to reorder" aria-label="Drag ${escapeHtml(goal.text)} to reorder">&#8942;&#8942;</span>
-                    <label>
-                      <input type="checkbox" data-family-goal-toggle="${escapeHtml(goal.id)}" ${goal.completed ? "checked" : ""}>
-                      <span>${escapeHtml(goal.text)}</span>
-                    </label>
+                    <input type="checkbox" data-family-goal-toggle="${escapeHtml(goal.id)}" aria-label="Mark ${escapeHtml(goal.text)} complete" ${goal.completed ? "checked" : ""}>
+                    <textarea class="family-goal-text" data-family-goal-text="${escapeHtml(goal.id)}" maxlength="180" rows="1" aria-label="Edit goal">${escapeHtml(goal.text)}</textarea>
                     <button class="icon-button family-goal-delete" type="button" data-family-goal-delete="${escapeHtml(goal.id)}" aria-label="Delete ${escapeHtml(goal.text)}">&times;</button>
                   </div>
                 `).join("") : '<p class="family-goal-empty muted">Nothing here yet.</p>'}
@@ -619,6 +617,12 @@ function renderFamilyGoals() {
         </form>
       </section>`;
   }).join("");
+  grid.querySelectorAll("[data-family-goal-text]").forEach(resizeFamilyGoalText);
+}
+
+function resizeFamilyGoalText(field) {
+  field.style.height = "auto";
+  field.style.height = `${Math.min(160, Math.max(28, field.scrollHeight))}px`;
 }
 
 function printRecipe(recipeId) {

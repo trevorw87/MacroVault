@@ -556,6 +556,24 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  const familyGoalText = event.target.closest("[data-family-goal-text]");
+  if (familyGoalText) {
+    const horizon = familyGoalText.closest("[data-goal-horizon]")?.dataset.goalHorizon;
+    const goal = state.familyGoals?.[horizon]?.find((item) => item.id === familyGoalText.dataset.familyGoalText);
+    if (!goal) return;
+    const text = familyGoalText.value.trim().slice(0, 180);
+    if (!text) {
+      familyGoalText.value = goal.text;
+      showToast("A family goal cannot be blank.", { type: "warning" });
+      return;
+    }
+    goal.text = text;
+    familyGoalText.value = text;
+    saveState();
+    showToast("Family goal updated.", { type: "success" });
+    return;
+  }
+
   const familyGoalToggle = event.target.closest("[data-family-goal-toggle]");
   if (familyGoalToggle) {
     const horizon = familyGoalToggle.closest("[data-goal-horizon]")?.dataset.goalHorizon;
@@ -679,6 +697,11 @@ document.addEventListener("change", (event) => {
     render();
   }
 
+});
+
+document.addEventListener("input", (event) => {
+  const familyGoalText = event.target.closest("[data-family-goal-text]");
+  if (familyGoalText) resizeFamilyGoalText(familyGoalText);
 });
 
 document.addEventListener("submit", (event) => {
