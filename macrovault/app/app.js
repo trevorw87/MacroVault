@@ -178,6 +178,12 @@ document.addEventListener("dragend", () => {
 
 document.querySelector("#trackerDate").addEventListener("change", renderTracker);
 document.querySelector("#trackerPerson").addEventListener("change", renderTracker);
+document.querySelector("#trackerCalorieGoal").addEventListener("change", (event) => {
+  state.nutritionGoals ||= { ...defaultDailyNutritionGoals };
+  state.nutritionGoals.calories = Math.max(1, Number(event.target.value) || defaultDailyNutritionGoals.calories);
+  saveState();
+  renderTracker();
+});
 document.querySelector("#foodLogSource").addEventListener("change", applyFoodLogSource);
 document.querySelector("#foodLogGrams").addEventListener("input", updateFoodLogServingsFromGrams);
 document.querySelector("#foodLogGramsPerServing").addEventListener("input", updateFoodLogServingsFromGrams);

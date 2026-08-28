@@ -1964,7 +1964,10 @@ span.ingredient-usage,
   background: #fff;
   box-shadow: var(--shadow-soft);
 }
-.tracker-controls { display:flex; gap:1rem; align-items:end; flex-wrap:wrap; margin-bottom:1rem; }
+.food-log-intro { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin-bottom:1rem; padding:.25rem .15rem; }
+.food-log-intro h2 { margin:.15rem 0 .25rem; font-size:clamp(1.7rem,4vw,2.5rem); }
+.food-log-intro p { margin-bottom:0; }
+.tracker-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; align-items:end; margin-bottom:1rem; }
 .tracker-controls label { min-width:12rem; flex:1; }
 .tracker-summary { margin-bottom:1rem; }
 .daily-template { margin-bottom:1rem; }
@@ -1983,9 +1986,16 @@ span.ingredient-usage,
 .daily-template-stepper button { width:2rem; height:2rem; border:1px solid var(--border, #dde3dd); border-radius:50%; background:var(--surface, #fff); color:var(--text, #263126); font:inherit; font-weight:700; cursor:pointer; }
 .daily-template-stepper button:disabled { opacity:.35; cursor:default; }
 .daily-template-note { margin:.85rem 0 0; color:var(--muted, #667066); font-size:.9rem; }
-.tracker-total-row { display:flex; justify-content:space-between; gap:1rem; align-items:center; flex-wrap:wrap; }
-.tracker-total { font-size:clamp(1.6rem,4vw,2.5rem); }
-.tracker-progress { height:.75rem; border-radius:999px; background:var(--surface-soft, #e8eee8); overflow:hidden; margin:.8rem 0; }
+.tracker-summary-date { margin-bottom:.75rem; }
+.tracker-calorie-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.75rem; }
+.tracker-calorie-cards article { padding:1rem; border:1px solid var(--border, #dde3dd); border-radius:1rem; background:var(--surface-soft, #f5f8f4); }
+.tracker-calorie-cards span,.tracker-calorie-cards small { display:block; color:var(--muted, #667066); }
+.tracker-calorie-cards strong { display:inline-block; margin:.2rem .25rem 0 0; font-size:clamp(1.65rem,4vw,2.5rem); line-height:1; }
+.tracker-calorie-cards .remaining { border-color:rgba(57,155,63,.35); background:rgba(57,155,63,.08); }
+.tracker-calorie-cards .remaining strong { color:var(--primary, #287c32); }
+.tracker-calorie-cards .over { border-color:rgba(190,65,55,.35); background:rgba(190,65,55,.08); }
+.tracker-calorie-cards .over strong { color:#a93630; }
+.tracker-progress { height:.85rem; border-radius:999px; background:var(--surface-soft, #e8eee8); overflow:hidden; margin:1rem 0; }
 .tracker-progress span { display:block; height:100%; background:var(--primary, #399b3f); border-radius:inherit; }
 .tracker-macros { display:flex; gap:1.25rem; flex-wrap:wrap; color:var(--muted, #667066); }
 .tracker-meals { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
@@ -1993,4 +2003,4 @@ span.ingredient-usage,
 .tracker-entry { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:.75rem; align-items:center; padding:.75rem 0; border-top:1px solid var(--border, #dde3dd); }
 .tracker-entry small { display:block; color:var(--muted, #667066); margin-top:.15rem; }
 .tracker-empty { color:var(--muted, #667066); padding:1rem 0; }
-@media (max-width:700px) { .tracker-meals, .daily-template-grid { grid-template-columns:1fr; } }
+@media (max-width:700px) { .food-log-intro { align-items:stretch; flex-direction:column; } .food-log-intro .primary-button { width:100%; } .tracker-controls,.tracker-meals,.daily-template-grid { grid-template-columns:1fr; } .tracker-calorie-cards { gap:.5rem; } .tracker-calorie-cards article { padding:.75rem .6rem; } }

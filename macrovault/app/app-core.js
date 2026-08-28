@@ -33,6 +33,7 @@ const tabs = [
   { id: "recipes", label: "Recipes", icon: "recipes" },
   { id: "ingredients", label: "Ingredients", icon: "ingredients" },
   { id: "planner", label: "Planner", icon: "planner" },
+  { id: "tracker", label: "Food Log", icon: "heart" },
   { id: "prepared", label: "In Freezer / Prepared", icon: "prepared" },
   { id: "shopping", label: "Shopping", icon: "shopping" },
   { id: "kids", label: "Family", icon: "family" },

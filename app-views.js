@@ -241,16 +241,21 @@ function renderTracker() {
   const entries = (state.foodLog || []).filter((entry) => entry.date === date && entry.person === person);
   const totals = foodLogTotals(entries);
   const goals = currentNutritionGoals();
+  const calorieGoalInput = document.querySelector("#trackerCalorieGoal");
+  if (document.activeElement !== calorieGoalInput) calorieGoalInput.value = goals.calories;
   const caloriePercent = goals.calories ? Math.min(100, Math.round((totals.calories / goals.calories) * 100)) : 0;
   const remaining = Math.max(0, goals.calories - totals.calories);
+  const over = Math.max(0, totals.calories - goals.calories);
 
   document.querySelector("#trackerSummary").innerHTML = `
-    <div class="tracker-total-row">
-      <div><p class="eyebrow">${escapeHtml(person)} · ${escapeHtml(date)}</p><strong class="tracker-total">${roundNutrition(totals.calories)} kcal</strong></div>
-      <strong>${totals.calories > goals.calories ? `${roundNutrition(totals.calories - goals.calories)} kcal over` : `${roundNutrition(remaining)} kcal remaining`}</strong>
+    <p class="eyebrow tracker-summary-date">${escapeHtml(person)} · ${escapeHtml(date)}</p>
+    <div class="tracker-calorie-cards">
+      <article><span>Daily target</span><strong>${roundNutrition(goals.calories)}</strong><small>kcal</small></article>
+      <article><span>Eaten</span><strong>${roundNutrition(totals.calories)}</strong><small>kcal</small></article>
+      <article class="${over ? "over" : "remaining"}"><span>${over ? "Over target" : "Remaining"}</span><strong>${roundNutrition(over || remaining)}</strong><small>kcal</small></article>
     </div>
     <div class="tracker-progress" role="progressbar" aria-label="Daily calorie progress" aria-valuemin="0" aria-valuemax="${goals.calories}" aria-valuenow="${totals.calories}"><span style="width:${caloriePercent}%"></span></div>
-    <div class="tracker-macros"><span>Goal: ${goals.calories} kcal</span><span>Protein: ${roundNutrition(totals.protein)} g</span><span>Carbs: ${roundNutrition(totals.carbs)} g</span><span>Fat: ${roundNutrition(totals.fat)} g</span></div>
+    <div class="tracker-macros"><span><strong>${roundNutrition(totals.protein)} g</strong> protein</span><span><strong>${roundNutrition(totals.carbs)} g</strong> carbs</span><span><strong>${roundNutrition(totals.fat)} g</strong> fat</span></div>
   `;
 
   renderDailyNutritionTemplate(document.querySelector("#dailyNutritionTemplate"), date, person);

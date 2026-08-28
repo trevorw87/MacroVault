@@ -74,8 +74,13 @@ function startServer() {
     });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
     await page.waitForSelector("#navTabs .nav-button");
-    assert.equal(await page.locator("#navTabs .nav-button").count(), 10);
+    assert.equal(await page.locator("#navTabs .nav-button").count(), 11);
     assert.equal(await page.locator("#pageTitle").textContent(), "Dashboard");
+
+    await page.getByRole("button", { name: "Food Log", exact: true }).click();
+    assert.equal(await page.locator("#pageTitle").textContent(), "Food Log");
+    assert.equal(await page.locator(".tracker-calorie-cards article").count(), 3);
+    assert.match(await page.locator("#trackerSummary").textContent(), /Daily target.*Eaten.*Remaining/s);
 
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");

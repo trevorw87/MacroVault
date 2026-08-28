@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.45
+
+- Added a dedicated Food Log page for recording food throughout the day.
+- Displayed clear daily calorie target, eaten, remaining, and over-target totals.
+- Added an editable calorie target alongside meal entries, macro totals, and the daily nutrition checklist.
+
 ## 0.9.44
 
 - Removed the three beverage columns from the weekly planner.

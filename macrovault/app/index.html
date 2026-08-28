@@ -221,10 +221,18 @@
         </section>
 
         <section class="view" id="trackerView" aria-labelledby="pageTitle">
+          <section class="food-log-intro">
+            <div>
+              <p class="eyebrow">Eat, log, and keep moving</p>
+              <h2>Today's food</h2>
+              <p class="muted">Add food as you eat it and see exactly what remains for the day.</p>
+            </div>
+            <button class="primary-button" id="addFoodLogButton" type="button">+ Add food eaten</button>
+          </section>
           <div class="tracker-controls section-block">
             <label>Date<input id="trackerDate" type="date"></label>
             <label>Family member<select id="trackerPerson"></select></label>
-            <button class="primary-button" id="addFoodLogButton" type="button">Add food eaten</button>
+            <label>Daily calorie target<input id="trackerCalorieGoal" type="number" min="1" max="20000" step="1"></label>
           </div>
           <section class="tracker-summary section-block" id="trackerSummary"></section>
           <section class="daily-template section-block" id="dailyNutritionTemplate"></section>
