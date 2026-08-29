@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.48
+
+- Introduced a modern nutrition-dashboard theme with deep navy navigation and high-contrast content surfaces.
+- Refined typography, cards, buttons, forms, dialogs, planner highlights, and food-search interactions.
+- Added responsive navigation behavior and included the new theme in the add-on package and offline cache.
+
 ## 0.9.47
 
 - Added a searchable Add Food to Diary modal for saved recipes, ingredients, favourites, and recent foods.

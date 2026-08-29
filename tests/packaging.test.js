@@ -19,6 +19,7 @@ const assets = [
   "styles-content.css",
   "styles-core.css",
   "styles-family.css",
+  "styles-modern.css",
   "styles-responsive.css",
   "styles.css",
   "zxing-browser.min.js",
@@ -57,7 +58,8 @@ const stylesheetOrder = [
   "styles-core.css",
   "styles-content.css",
   "styles-family.css",
-  "styles-responsive.css"
+  "styles-responsive.css",
+  "styles-modern.css"
 ];
 let previousStylesheetPosition = -1;
 for (const moduleName of stylesheetOrder) {

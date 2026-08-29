@@ -16,6 +16,7 @@ $assets = @(
   "styles-content.css",
   "styles-core.css",
   "styles-family.css",
+  "styles-modern.css",
   "styles-responsive.css",
   "styles.css",
   "zxing-browser.min.js",
