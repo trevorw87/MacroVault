@@ -644,7 +644,7 @@
 .planner-day-warning { padding:6px 9px; border-radius:999px; }
 .planner-nutrition-warning { justify-self:center; padding:4px 8px; border-radius:999px; }
 .planner-dish-chips { display:flex; align-items:center; justify-content:center; gap:5px; }
-.planner-status-chip { min-height:24px; padding:3px 7px; border:1px solid #dce5da; border-radius:999px; color:var(--muted); background:#f7f9f6; font-size:.62rem; font-weight:850; }
+.planner-status-chip,.planner-edit-dish { min-height:24px; padding:3px 7px; border:1px solid #dce5da; border-radius:999px; color:var(--muted); background:#f7f9f6; font-size:.62rem; font-weight:850; }
 .planner-status-chip.prepared { color:var(--green-dark); border-color:#b7ddb3; background:#e8f7e4; }
 .planner-dish-options,
 .planner-add-dish { position:relative; }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.51
+
+- Replaced the weekly planner columns with full-width editable meal-diary rows.
+- Added meal-level calorie, protein, carbohydrate, and fat totals.
+- Grouped recipe editing, food search, selectors, swaps, preparation status, and ingredient-only entry into responsive row controls.
+
 ## 0.9.50
 
 - Simplified food and recipe serving entry to a single visible amount field.

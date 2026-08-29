@@ -733,6 +733,18 @@ function updateIngredientsWithGenericNutrition() {
   showToast(`Updated generic nutrition for ${changed} ingredient${changed === 1 ? "" : "s"}.`, { type: "success" });
 }
 
+function plannerSlotNutrition(day, slot) {
+  return plannerRecipes(day, slot).reduce((totals, recipe) => {
+    const servings = plannerServingCount(day, slot.id, recipe.id);
+    const macros = macrosPerServing(recipe);
+    totals.calories += plannerSafeCaloriesPerServing(recipe) * servings;
+    totals.protein += (Number(macros.protein) || 0) * servings;
+    totals.carbs += (Number(macros.carbs) || 0) * servings;
+    totals.fat += (Number(macros.fat) || 0) * servings;
+    return totals;
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+}
+
 function plannerCellMarkup(day, slot) {
   const selectedIds = plannerRecipeIds(day, slot.id);
   const selectedRecipes = plannerRecipes(day, slot);
@@ -756,6 +768,7 @@ function plannerCellMarkup(day, slot) {
                 ? `<button class="planner-nutrition-warning" data-edit-recipe="${escapeHtml(recipe.id)}" type="button" title="Excluded from daily totals">Check nutrition</button>`
                 : `<span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} · ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>`}
               <div class="planner-dish-chips">
+                <button class="planner-edit-dish" data-edit-recipe="${escapeHtml(recipe.id)}" type="button">Edit</button>
                 <button class="planner-status-chip ${recipe.prepared ? "prepared" : ""}" data-toggle-recipe-prepared="${escapeHtml(recipe.id)}" type="button" aria-pressed="${recipe.prepared}">${recipe.prepared ? "Prepared" : "Not prepared"}</button>
                 ${alternatives.length ? `<details class="planner-swap-menu">
                   <summary>Swap</summary>
@@ -775,7 +788,8 @@ function plannerCellMarkup(day, slot) {
           </div>
         `}
       </div>
-      ${selectedRecipes.length ? (options ? `
+      <div class="planner-row-actions">
+        ${selectedRecipes.length ? (options ? `
         <details class="planner-add-dish">
           <summary aria-label="Add another dish to ${day} ${slot.label}" title="Add another dish">+</summary>
           <select aria-label="Choose another ${slot.label} for ${day}" data-planner-add-day="${day}" data-planner-add-slot="${slot.id}">
@@ -789,8 +803,9 @@ function plannerCellMarkup(day, slot) {
           ${options}
         </select>
       `}
-      <button class="planner-quick-meal-button" type="button" data-quick-meal-day="${day}" data-quick-meal-slot="${slot.id}">+ Ingredients only</button>
-      <button class="planner-food-picker-button" type="button" data-planner-food-day="${day}" data-planner-food-slot="${slot.id}" data-planner-food-label="${escapeHtml(slot.label)}">Search foods &amp; recipes</button>
+        <button class="planner-food-picker-button" type="button" data-planner-food-day="${day}" data-planner-food-slot="${slot.id}" data-planner-food-label="${escapeHtml(slot.label)}">Search foods &amp; recipes</button>
+        <button class="planner-quick-meal-button" type="button" data-quick-meal-day="${day}" data-quick-meal-slot="${slot.id}">+ Ingredients only</button>
+      </div>
     </div>
   `;
 }
@@ -935,15 +950,18 @@ function renderPlanner() {
               </div>
             </summary>
             <div class="planner-day-meals planner-mobile-slots">
-              ${mealPlanSlots.map((slot) => `
+              ${mealPlanSlots.map((slot) => {
+                const slotNutrition = plannerSlotNutrition(day, slot);
+                return `
                 <section class="planner-slot-column planner-mobile-slot" data-planner-column="${slot.id}">
                   <div class="planner-meal-label">
                     <span>${slot.label}</span>
-                    ${slot.timing ? `<small>${slot.timing}</small>` : ""}
+                    <strong>${roundNutrition(slotNutrition.calories)} kcal · ${roundNutrition(slotNutrition.protein)}g protein · ${roundNutrition(slotNutrition.carbs)}g carbs · ${roundNutrition(slotNutrition.fat)}g fat</strong>
                   </div>
                   ${plannerCellMarkup(day, slot)}
                 </section>
-              `).join("")}
+              `;
+              }).join("")}
             </div>
           </details>
         `;
