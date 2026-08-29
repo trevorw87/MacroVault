@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.46
+
+- Added a responsive Daily Planner energy summary with planned, consumed, and remaining calorie rings.
+- Added daily energy, protein, carbohydrate, and fat target progress for the focused planner day.
+- Added editable protein targets and expanded protein progress details in the Food Log.
+
 ## 0.9.45
 
 - Added a dedicated Food Log page for recording food throughout the day.

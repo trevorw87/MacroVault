@@ -79,8 +79,9 @@ function startServer() {
 
     await page.getByRole("button", { name: "Food Log", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Food Log");
-    assert.equal(await page.locator(".tracker-calorie-cards article").count(), 3);
-    assert.match(await page.locator("#trackerSummary").textContent(), /Daily target.*Eaten.*Remaining/s);
+    assert.equal(await page.locator("#trackerPerson").inputValue(), "Ashley");
+    assert.equal(await page.locator(".tracker-target-cards article").count(), 6);
+    assert.match(await page.locator("#trackerSummary").textContent(), /Calories.*Daily target.*Eaten.*Remaining.*Protein.*Daily target.*Eaten.*Remaining/s);
 
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");

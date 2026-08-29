@@ -184,6 +184,12 @@ document.querySelector("#trackerCalorieGoal").addEventListener("change", (event)
   saveState();
   renderTracker();
 });
+document.querySelector("#trackerProteinGoal").addEventListener("change", (event) => {
+  state.nutritionGoals ||= { ...defaultDailyNutritionGoals };
+  state.nutritionGoals.protein = Math.max(1, Number(event.target.value) || defaultDailyNutritionGoals.protein);
+  saveState();
+  renderTracker();
+});
 document.querySelector("#foodLogSource").addEventListener("change", applyFoodLogSource);
 document.querySelector("#foodLogGrams").addEventListener("input", updateFoodLogServingsFromGrams);
 document.querySelector("#foodLogGramsPerServing").addEventListener("input", updateFoodLogServingsFromGrams);

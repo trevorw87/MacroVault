@@ -153,6 +153,7 @@
             </label>
             <button class="secondary-button" id="printWeekPlannerButton" type="button">Print week planner</button>
           </div>
+          <section class="planner-energy-summary" id="plannerEnergySummary" aria-live="polite"></section>
           <div class="planner-grid" id="plannerGrid"></div>
           <section class="section-block planner-month-overview">
             <div class="planner-month-heading">
@@ -233,6 +234,7 @@
             <label>Date<input id="trackerDate" type="date"></label>
             <label>Family member<select id="trackerPerson"></select></label>
             <label>Daily calorie target<input id="trackerCalorieGoal" type="number" min="1" max="20000" step="1"></label>
+            <label>Daily protein target (g)<input id="trackerProteinGoal" type="number" min="1" max="1000" step="0.1"></label>
           </div>
           <section class="tracker-summary section-block" id="trackerSummary"></section>
           <section class="daily-template section-block" id="dailyNutritionTemplate"></section>

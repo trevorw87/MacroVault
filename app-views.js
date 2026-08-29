@@ -235,27 +235,44 @@ function renderTracker() {
   const previousPerson = personInput.value;
   const names = familyMemberNames(state);
   personInput.innerHTML = names.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
-  personInput.value = names.includes(previousPerson) ? previousPerson : names[0] || "";
+  const configuredProfile = state.configuration?.profileName;
+  const defaultPerson = names.includes(configuredProfile)
+    ? configuredProfile
+    : names.find((name) => name.toLowerCase() === "ashley") || names[0] || "";
+  personInput.value = names.includes(previousPerson) ? previousPerson : defaultPerson;
   dateInput.value = date;
   const person = personInput.value;
   const entries = (state.foodLog || []).filter((entry) => entry.date === date && entry.person === person);
   const totals = foodLogTotals(entries);
   const goals = currentNutritionGoals();
   const calorieGoalInput = document.querySelector("#trackerCalorieGoal");
+  const proteinGoalInput = document.querySelector("#trackerProteinGoal");
   if (document.activeElement !== calorieGoalInput) calorieGoalInput.value = goals.calories;
+  if (document.activeElement !== proteinGoalInput) proteinGoalInput.value = goals.protein;
   const caloriePercent = goals.calories ? Math.min(100, Math.round((totals.calories / goals.calories) * 100)) : 0;
   const remaining = Math.max(0, goals.calories - totals.calories);
   const over = Math.max(0, totals.calories - goals.calories);
+  const proteinPercent = goals.protein ? Math.min(100, Math.round((totals.protein / goals.protein) * 100)) : 0;
+  const proteinRemaining = Math.max(0, goals.protein - totals.protein);
+  const proteinOver = Math.max(0, totals.protein - goals.protein);
 
   document.querySelector("#trackerSummary").innerHTML = `
     <p class="eyebrow tracker-summary-date">${escapeHtml(person)} · ${escapeHtml(date)}</p>
-    <div class="tracker-calorie-cards">
+    <h3 class="tracker-target-heading">Calories</h3>
+    <div class="tracker-calorie-cards tracker-target-cards">
       <article><span>Daily target</span><strong>${roundNutrition(goals.calories)}</strong><small>kcal</small></article>
       <article><span>Eaten</span><strong>${roundNutrition(totals.calories)}</strong><small>kcal</small></article>
       <article class="${over ? "over" : "remaining"}"><span>${over ? "Over target" : "Remaining"}</span><strong>${roundNutrition(over || remaining)}</strong><small>kcal</small></article>
     </div>
     <div class="tracker-progress" role="progressbar" aria-label="Daily calorie progress" aria-valuemin="0" aria-valuemax="${goals.calories}" aria-valuenow="${totals.calories}"><span style="width:${caloriePercent}%"></span></div>
-    <div class="tracker-macros"><span><strong>${roundNutrition(totals.protein)} g</strong> protein</span><span><strong>${roundNutrition(totals.carbs)} g</strong> carbs</span><span><strong>${roundNutrition(totals.fat)} g</strong> fat</span></div>
+    <h3 class="tracker-target-heading">Protein</h3>
+    <div class="tracker-protein-cards tracker-target-cards">
+      <article><span>Daily target</span><strong>${roundNutrition(goals.protein)}</strong><small>g</small></article>
+      <article><span>Eaten</span><strong>${roundNutrition(totals.protein)}</strong><small>g</small></article>
+      <article class="${proteinOver ? "over" : "remaining"}"><span>${proteinOver ? "Over target" : "Remaining"}</span><strong>${roundNutrition(proteinOver || proteinRemaining)}</strong><small>g</small></article>
+    </div>
+    <div class="tracker-progress protein" role="progressbar" aria-label="Daily protein progress" aria-valuemin="0" aria-valuemax="${goals.protein}" aria-valuenow="${totals.protein}"><span style="width:${proteinPercent}%"></span></div>
+    <div class="tracker-macros"><span><strong>${roundNutrition(totals.carbs)} g</strong> carbs</span><span><strong>${roundNutrition(totals.fat)} g</strong> fat</span></div>
   `;
 
   renderDailyNutritionTemplate(document.querySelector("#dailyNutritionTemplate"), date, person);
@@ -691,6 +708,64 @@ function renderPlanner() {
   document.querySelector("#plannerWeekLabel").textContent = plannerWeekLabel();
   const todayKey = todayDateKey();
   const focusedDay = plannerFocusedDay();
+  const plannedNutrition = mealPlanSlots.reduce((totals, slot) => {
+    plannerRecipes(focusedDay, slot).forEach((recipe) => {
+      const macros = macrosPerServing(recipe);
+      totals.calories += plannerSafeCaloriesPerServing(recipe);
+      totals.protein += Number(macros.protein) || 0;
+      totals.carbs += Number(macros.carbs) || 0;
+      totals.fat += Number(macros.fat) || 0;
+      if (mealIsConsumed(focusedDay, slot.id)) {
+        totals.consumedCalories += plannerSafeCaloriesPerServing(recipe);
+        totals.consumedProtein += Number(macros.protein) || 0;
+        totals.consumedCarbs += Number(macros.carbs) || 0;
+        totals.consumedFat += Number(macros.fat) || 0;
+      }
+    });
+    return totals;
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0, consumedCalories: 0, consumedProtein: 0, consumedCarbs: 0, consumedFat: 0 });
+  Object.keys(plannedNutrition).forEach((key) => { plannedNutrition[key] = roundNutrition(plannedNutrition[key]); });
+  const macroCalories = Math.max(0, goals.calories - (goals.protein * 4));
+  const macroTargets = {
+    calories: goals.calories,
+    protein: goals.protein,
+    carbs: roundNutrition((macroCalories * 0.55) / 4),
+    fat: roundNutrition((macroCalories * 0.45) / 9)
+  };
+  const remainingCalories = Math.max(0, goals.calories - plannedNutrition.calories);
+  const ring = (label, value, target, tone) => {
+    const percent = target ? Math.min(100, Math.round((value / target) * 100)) : 0;
+    return `<div class="planner-energy-ring-wrap">
+      <div class="planner-energy-ring ${tone}" style="--ring-progress:${percent * 3.6}deg" role="img" aria-label="${label}: ${formatPlannerNumber(value, "kcal")}">
+        <span><strong>${Math.round(value).toLocaleString()}</strong><small>kcal</small></span>
+      </div><strong>${label}</strong>
+    </div>`;
+  };
+  const targetRow = (label, value, target, unit, tone = "") => {
+    const percent = target ? Math.min(100, Math.round((value / target) * 100)) : 0;
+    const displayValue = roundNutrition(value).toLocaleString(undefined, { maximumFractionDigits: 1 });
+    const displayTarget = roundNutrition(target).toLocaleString(undefined, { maximumFractionDigits: 1 });
+    return `<div class="planner-target-row ${tone}">
+      <div><strong>${label}</strong><span>${displayValue} / ${displayTarget} ${unit}</span><b>${percent}%</b></div>
+      <i role="progressbar" aria-label="${label} target progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></i>
+    </div>`;
+  };
+  document.querySelector("#plannerEnergySummary").innerHTML = `
+    <div class="planner-energy-overview">
+      <div class="planner-summary-heading"><h2>Energy Summary</h2><span>${focusedDay}</span></div>
+      <div class="planner-energy-rings">
+        ${ring("Planned", plannedNutrition.calories, goals.calories, "planned")}
+        ${ring("Consumed", plannedNutrition.consumedCalories, goals.calories, "consumed")}
+        ${ring("Remaining", remainingCalories, goals.calories, "remaining")}
+      </div>
+    </div>
+    <div class="planner-targets-panel">
+      <div class="planner-summary-heading"><h2>Daily Targets</h2><span>Planned</span></div>
+      ${targetRow("Energy", plannedNutrition.calories, macroTargets.calories, "kcal", "energy")}
+      ${targetRow("Protein", plannedNutrition.protein, macroTargets.protein, "g", "protein")}
+      ${targetRow("Carbs", plannedNutrition.carbs, macroTargets.carbs, "g", "carbs")}
+      ${targetRow("Fat", plannedNutrition.fat, macroTargets.fat, "g", "fat")}
+    </div>`;
   document.querySelector("#plannerGrid").innerHTML = `
     <div class="planner-week planner-mobile">
       ${days.map((day) => {
