@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.49
+
+- Added the searchable food-and-recipe picker to every Planner meal slot with serving-aware nutrition and shopping quantities.
+- Added per-person, per-date water tracking with visual glasses, quick and custom amounts, and progress feedback.
+- Added configurable hydration targets and glass sizes linked to the daily nutrition checklist.
+
 ## 0.9.48
 
 - Introduced a modern nutrition-dashboard theme with deep navy navigation and high-contrast content surfaces.

@@ -356,6 +356,17 @@ function startServer() {
       renderPlanner();
     });
     await page.locator('[data-planner-mobile-day="Monday"] > summary').click();
+    await page.locator('[data-planner-mobile-day="Monday"] [data-planner-column="breakfast"] [data-planner-food-day]').click();
+    assert.equal(await page.locator("#foodLogDialog h2").textContent(), "Add Food or Recipe");
+    await page.locator("#foodLogSearch").fill("Lemon Garlic Salmon");
+    await page.locator('[data-food-log-source="recipe:lemon-salmon"]').click();
+    await page.locator("#addFoodLogSubmit").click();
+    assert.deepEqual(await page.evaluate(() => plannerRecipeIds("Monday", "breakfast")), ["lemon-salmon"]);
+    await page.evaluate(() => {
+      state.planner.Monday.breakfast = [];
+      saveState({ skipBackup: true });
+      renderPlanner();
+    });
     await page.locator('[data-planner-mobile-day="Monday"] [data-planner-column="lunch"] [data-quick-meal-day]').click();
     const quickIngredients = await page.evaluate(() => state.ingredients.slice(0, 2).map((ingredient) => ({ id: ingredient.id, name: ingredient.name })));
     await page.locator("[data-quick-meal-ingredient]").nth(0).selectOption(quickIngredients[0].id);

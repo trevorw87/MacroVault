@@ -1059,6 +1059,10 @@ function normalizeState(nextState) {
   nextState.configuration.profileName = String(nextState.configuration.profileName || defaultConfiguration.profileName).trim().slice(0, 40);
   nextState.imageLibrary ||= {};
   nextState.dailyNutritionChecks ||= {};
+  nextState.waterTracking ||= {};
+  nextState.waterTracking.entries ||= {};
+  nextState.waterTracking.goals ||= {};
+  nextState.waterTracking.glassSizes ||= {};
   nextState.nutritionGoals = {
     ...defaultDailyNutritionGoals,
     ...(nextState.nutritionGoals || {})

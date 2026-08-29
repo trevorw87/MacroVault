@@ -82,6 +82,12 @@ function startServer() {
     assert.equal(await page.locator("#trackerPerson").inputValue(), "Ashley");
     assert.equal(await page.locator(".tracker-target-cards article").count(), 6);
     assert.match(await page.locator("#trackerSummary").textContent(), /Calories.*Daily target.*Eaten.*Remaining.*Protein.*Daily target.*Eaten.*Remaining/s);
+    assert.match(await page.locator("#waterTracker").textContent(), /Water.*0 \/ 2,000 mL/s);
+    await page.locator('[data-water-add="250"]').click();
+    assert.equal(await page.evaluate(() => waterTrackingValues(selectedTrackerDate(), selectedTrackerPerson()).total), 250);
+    await page.locator("#waterCustomAmount").fill("125");
+    await page.locator("#addCustomWaterButton").click();
+    assert.match(await page.locator("#waterTracker").textContent(), /375 \/ 2,000 mL/);
     await page.locator("#addFoodLogButton").click();
     assert.equal(await page.locator("#foodLogDialog h2").textContent(), "Add Food to Diary");
     assert.ok(await page.locator("#foodLogResults .food-log-result").count() > 0);

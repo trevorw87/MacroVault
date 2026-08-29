@@ -228,6 +228,47 @@ function renderDailyNutritionTemplate(container, date, person) {
   `;
 }
 
+function waterTrackingValues(date, person) {
+  const tracking = state.waterTracking || {};
+  return {
+    total: Math.max(0, Number(tracking.entries?.[date]?.[person]) || 0),
+    goal: Math.max(250, Number(tracking.goals?.[person]) || 2000),
+    glass: Math.max(50, Number(tracking.glassSizes?.[person]) || 250)
+  };
+}
+
+function renderWaterTracker(date, person) {
+  const { total, goal, glass } = waterTrackingValues(date, person);
+  const progress = Math.min(100, Math.round((total / goal) * 100));
+  const glassCount = Math.max(1, Math.min(12, Math.ceil(goal / glass)));
+  const filledGlasses = Math.min(glassCount, Math.floor(total / glass));
+  document.querySelector("#waterTracker").innerHTML = `
+    <div class="water-heading">
+      <div><p class="eyebrow">Hydration</p><h2>Water <span>${roundNutrition(total).toLocaleString()} / ${roundNutrition(goal).toLocaleString()} mL</span></h2></div>
+      <strong>${progress}%</strong>
+    </div>
+    <div class="water-glasses" aria-label="${filledGlasses} of ${glassCount} water glasses">
+      ${Array.from({ length: glassCount }, (_, index) => `<button class="water-glass ${index < filledGlasses ? "filled" : ""}" type="button" data-water-set="${(index + 1) * glass}" aria-label="Set water to ${(index + 1) * glass} millilitres"><i></i></button>`).join("")}
+    </div>
+    <div class="water-tip"><span aria-hidden="true">💧</span><p>Water added here contributes to your daily hydration target.</p></div>
+    <div class="water-progress-copy"><span>Total water · ${roundNutrition(total).toLocaleString()} / ${roundNutrition(goal).toLocaleString()} mL</span><strong>${progress}%</strong></div>
+    <div class="water-progress" role="progressbar" aria-label="Daily water progress" aria-valuemin="0" aria-valuemax="${goal}" aria-valuenow="${total}"><span style="width:${progress}%"></span></div>
+    <div class="water-actions">
+      <button class="primary-button" type="button" data-water-add="${glass}">+ Add ${roundNutrition(glass)} mL</button>
+      <label>Custom amount<input id="waterCustomAmount" type="number" min="1" max="5000" step="10" placeholder="mL"></label>
+      <button class="secondary-button" id="addCustomWaterButton" type="button">Add custom</button>
+      <button class="text-button" type="button" data-water-add="-${Math.min(glass, total)}" ${total ? "" : "disabled"}>Undo glass</button>
+    </div>
+    <details class="water-settings">
+      <summary>Water settings</summary>
+      <div>
+        <label>Daily target (mL)<input id="waterGoalInput" type="number" min="250" max="10000" step="50" value="${goal}"></label>
+        <label>Glass size (mL)<input id="waterGlassInput" type="number" min="50" max="2000" step="10" value="${glass}"></label>
+        <button class="secondary-button" id="saveWaterSettingsButton" type="button">Save settings</button>
+      </div>
+    </details>`;
+}
+
 function renderTracker() {
   const dateInput = document.querySelector("#trackerDate");
   const personInput = document.querySelector("#trackerPerson");
@@ -275,6 +316,7 @@ function renderTracker() {
     <div class="tracker-macros"><span><strong>${roundNutrition(totals.carbs)} g</strong> carbs</span><span><strong>${roundNutrition(totals.fat)} g</strong> fat</span></div>
   `;
 
+  renderWaterTracker(date, person);
   renderDailyNutritionTemplate(document.querySelector("#dailyNutritionTemplate"), date, person);
 
   document.querySelector("#trackerMeals").innerHTML = foodLogMeals.map((meal) => {
@@ -358,7 +400,8 @@ function renderFoodLogBrowser() {
     </button>`).join("") : `<div class="food-log-no-results"><strong>No matching foods</strong><span>Try another search or add the food to Ingredients first.</span></div>`;
 }
 
-function openFoodLogDialog() {
+function openFoodLogDialog(plannerContext = null) {
+  foodPickerPlannerContext = plannerContext;
   const options = foodLogSourceOptions();
   const select = document.querySelector("#foodLogSource");
   select.innerHTML = `<option value="">Manual entry</option>${options.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("")}`;
@@ -368,6 +411,12 @@ function openFoodLogDialog() {
   document.querySelector("#foodLogServings").value = "1.00";
   document.querySelector("#foodLogSelection").hidden = true;
   document.querySelector("#addFoodLogSubmit").disabled = true;
+  document.querySelector("#foodLogDialog h2").textContent = plannerContext ? "Add Food or Recipe" : "Add Food to Diary";
+  document.querySelector("#foodLogDialog .dialog-heading .muted").textContent = plannerContext
+    ? `Search saved foods and recipes for ${plannerContext.day} ${plannerContext.slotLabel}.`
+    : "Search your saved foods and recipes, then choose a serving.";
+  document.querySelector("#addFoodLogSubmit").textContent = plannerContext ? "Add to Planner" : "Add to Diary";
+  document.querySelector(".food-log-diary-group").hidden = Boolean(plannerContext);
   document.querySelector("#foodLogGramNote").textContent = "Enter both gram values to calculate servings and nutrition automatically.";
   document.querySelector("#foodLogGramsPerServing").setCustomValidity("");
   renderFoodLogBrowser();
@@ -741,6 +790,7 @@ function plannerCellMarkup(day, slot) {
         </select>
       `}
       <button class="planner-quick-meal-button" type="button" data-quick-meal-day="${day}" data-quick-meal-slot="${slot.id}">+ Ingredients only</button>
+      <button class="planner-food-picker-button" type="button" data-planner-food-day="${day}" data-planner-food-slot="${slot.id}" data-planner-food-label="${escapeHtml(slot.label)}">Search foods &amp; recipes</button>
     </div>
   `;
 }

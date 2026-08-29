@@ -1300,6 +1300,8 @@ textarea {
 .planner-swap-menu button:hover { background: var(--green-soft); }
 .planner-swap-menu small { color: var(--muted); }
 .planner-quick-meal-button { width: 100%; min-height: 34px; padding: 6px 8px; border: 1px dashed rgba(57,155,63,.3); border-radius: 10px; color: var(--green-dark); background: #f7fcf5; font-size: .72rem; font-weight: 900; }
+.planner-food-picker-button { order:-1; width:100%; min-height:38px; padding:7px 9px; border:0; border-radius:10px; color:#fff; background:var(--orange); box-shadow:0 7px 16px rgba(242,101,60,.18); font-size:.74rem; font-weight:900; }
+.planner-food-picker-button:hover { background:#df542f; }
 .quick-meal-rows { display: grid; gap: 9px; }
 .quick-meal-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px 38px; align-items: end; gap: 8px; }
 .quick-meal-row [data-quick-serving-info] { color: var(--green-dark); font-size: .72rem; line-height: 1.25; }
@@ -2019,6 +2021,29 @@ span.ingredient-usage,
 .tracker-controls { display:grid; grid-template-columns:repeat(auto-fit,minmax(12rem,1fr)); gap:1rem; align-items:end; margin-bottom:1rem; }
 .tracker-controls label { min-width:12rem; flex:1; }
 .tracker-summary { margin-bottom:1rem; }
+.water-tracker { margin-bottom:1rem; }
+.water-heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.water-heading h2 { margin:0; font-size:1.3rem; }
+.water-heading h2 span { color:var(--muted); font-size:.86rem; font-weight:700; }
+.water-heading > strong { display:grid; place-items:center; min-width:54px; height:34px; padding:0 .7rem; border-radius:999px; color:#087b86; background:#e5f8fa; }
+.water-glasses { display:flex; flex-wrap:wrap; gap:.45rem; margin:1rem 0; }
+.water-glass { position:relative; width:36px; height:46px; padding:0; overflow:hidden; border:2px solid #394052; border-top-width:3px; border-radius:3px 3px 7px 7px; background:#fff; }
+.water-glass::before { content:""; position:absolute; left:3px; right:3px; bottom:3px; height:0; border-radius:2px 2px 4px 4px; background:linear-gradient(#76dce5,#38becb); transition:height .2s ease; }
+.water-glass.filled::before { height:75%; }
+.water-glass:hover { transform:translateY(-2px); border-color:#087b86; }
+.water-tip { display:flex; align-items:center; gap:.7rem; max-width:520px; padding:.8rem 1rem; border-radius:12px; color:#26616a; background:#dff6f8; }
+.water-tip p { margin:0; font-size:.86rem; }
+.water-tip span { font-size:1.2rem; }
+.water-progress-copy { display:flex; justify-content:space-between; gap:1rem; margin:1rem 0 .35rem; color:var(--muted); font-size:.8rem; }
+.water-progress { height:11px; overflow:hidden; border-radius:999px; background:#edf0f5; }
+.water-progress span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#42c5d1,#27aeba); }
+.water-actions { display:flex; align-items:end; flex-wrap:wrap; gap:.65rem; margin-top:1rem; }
+.water-actions label { display:grid; gap:.25rem; color:var(--muted); font-size:.72rem; }
+.water-actions input { width:130px; }
+.water-settings { margin-top:.75rem; border-top:1px solid var(--line); }
+.water-settings summary { width:max-content; padding:.8rem 0 0; color:#087b86; font-weight:850; cursor:pointer; }
+.water-settings > div { display:flex; align-items:end; flex-wrap:wrap; gap:.75rem; padding-top:.75rem; }
+.water-settings label { display:grid; gap:.3rem; color:var(--muted); font-size:.75rem; }
 .daily-template { margin-bottom:1rem; }
 .dashboard-nutrition-template { grid-area:nutrition; position:relative; width:100%; min-width:0; }
 .dashboard-template-person { display:flex; justify-content:flex-end; margin-bottom:.25rem; }
@@ -2096,4 +2121,5 @@ span.ingredient-usage,
 .food-log-manual-details .form-grid { padding:0 .85rem .85rem; }
 .food-log-browser menu { margin-top:.2rem; }
 @media (max-width:700px) { .food-log-intro { align-items:stretch; flex-direction:column; } .food-log-intro .primary-button { width:100%; } .tracker-controls,.tracker-meals,.daily-template-grid { grid-template-columns:1fr; } .tracker-target-cards { gap:.5rem; } .tracker-target-cards article { padding:.75rem .6rem; } }
+@media (max-width:700px) { .water-actions { display:grid; grid-template-columns:1fr auto; } .water-actions .primary-button { grid-column:1 / -1; } .water-actions label { min-width:0; } .water-actions input { width:100%; } .water-actions .text-button { grid-column:1 / -1; justify-self:start; } .water-settings > div { display:grid; grid-template-columns:1fr 1fr; } .water-settings button { grid-column:1 / -1; } }
 @media (max-width:700px) { .food-log-browser { width:min(96vw,560px); padding:1rem; } .food-log-tabs { gap:1rem; } .food-log-results { max-height:235px; } .food-log-result { grid-template-columns:auto minmax(0,1fr) auto; } .food-log-result small { display:none; } .food-log-detail-grid { grid-template-columns:1fr; } .food-log-nutrition-preview,.food-log-serving-panel { min-height:0; } .food-log-nutrition-preview { padding:.85rem; } .food-log-macro-ring { width:94px; } .food-log-macro-ring::before { width:72px; } .food-log-serving-panel > label { grid-template-columns:95px minmax(0,1fr); } .food-log-grams-row { grid-template-columns:1fr; } }

@@ -1,5 +1,21 @@
 // MacroVault rendering orchestration, event wiring, and application startup.
 let quickMealContext = null;
+let foodPickerPlannerContext = null;
+
+function setTrackedWater(total) {
+  const date = selectedTrackerDate();
+  const person = selectedTrackerPerson();
+  const values = waterTrackingValues(date, person);
+  const normalized = Math.min(20000, Math.max(0, roundNutrition(total)));
+  state.waterTracking ||= { entries: {}, goals: {}, glassSizes: {} };
+  state.waterTracking.entries ||= {};
+  state.waterTracking.entries[date] ||= {};
+  state.waterTracking.entries[date][person] = normalized;
+  const waterHabit = dailyFoodGroupTemplate.find((item) => item.id === "water");
+  if (waterHabit) setDailyNutritionCount(date, person, "water", Math.floor((normalized / values.goal) * waterHabit.target));
+  saveState();
+  renderTracker();
+}
 
 function quickMealIngredientRow(index, ingredientId = "") {
   const options = [...state.ingredients]
@@ -218,6 +234,105 @@ document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
   event.preventDefault();
   validateFoodLogGrams();
   if (!event.currentTarget.reportValidity()) return;
+  if (foodPickerPlannerContext) {
+    const context = foodPickerPlannerContext;
+    const selectedValue = document.querySelector("#foodLogSource").value;
+    const selectedServings = Math.min(20, Math.max(0.01, Number(document.querySelector("#foodLogServings").value) || 1));
+    let recipeId = selectedValue.startsWith("recipe:") ? selectedValue.slice(7) : "";
+    const sourceRecipe = recipeId ? recipeById(recipeId) : null;
+    if (sourceRecipe && Math.abs(selectedServings - 1) > 0.001) {
+      const factor = selectedServings / recipeServings(sourceRecipe);
+      const macros = macrosPerServing(sourceRecipe);
+      const portionRecipe = {
+        ...structuredClone(sourceRecipe),
+        id: `planner-portion-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+        name: `${sourceRecipe.name} (${formatScaledNumber(selectedServings)} servings)`,
+        tags: [...new Set([...(sourceRecipe.tags || []), "planner portion"])],
+        ingredients: (sourceRecipe.ingredients || []).map((line) => scaleIngredientLine(line, factor)),
+        originalIngredients: [],
+        ingredientRefs: (sourceRecipe.ingredientRefs || []).map((ref) => ({
+          ...ref,
+          usedAmount: roundNutrition((Number(ref.usedAmount) || 0) * factor)
+        })),
+        servings: 1,
+        calories: roundNutrition(caloriesPerServing(sourceRecipe) * selectedServings),
+        macros: {
+          protein: roundNutrition(macros.protein * selectedServings),
+          carbs: roundNutrition(macros.carbs * selectedServings),
+          fat: roundNutrition(macros.fat * selectedServings)
+        },
+        favourite: false,
+        prepared: false,
+        quickMeal: true
+      };
+      state.recipes.unshift(portionRecipe);
+      recipeId = portionRecipe.id;
+    }
+    if (!recipeId) {
+      const ingredient = selectedValue.startsWith("ingredient:") ? ingredientById(selectedValue.slice(11)) : null;
+      const slot = mealPlanSlots.find((item) => item.id === context.slotId);
+      const scaledNutrition = ingredient
+        ? scaleNutrition(ingredient.nutrition || {}, selectedServings)
+        : {
+          calories: (Number(document.querySelector("#foodLogCalories").value) || 0) * selectedServings,
+          protein: (Number(document.querySelector("#foodLogProtein").value) || 0) * selectedServings,
+          carbs: (Number(document.querySelector("#foodLogCarbs").value) || 0) * selectedServings,
+          fat: (Number(document.querySelector("#foodLogFat").value) || 0) * selectedServings
+        };
+      const servingAmount = Number(ingredient?.serving?.amount) || 1;
+      const servingUnit = ingredient?.serving?.unit || "serving";
+      const name = document.querySelector("#foodLogName").value.trim();
+      const recipe = {
+        id: `planner-food-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+        name,
+        category: slot?.category || context.slotId,
+        categories: [slot?.category || context.slotId],
+        tags: ["planner food", ingredient ? "ingredient" : "recent food"],
+        ingredients: ingredient ? [`${roundNutrition(servingAmount * selectedServings)} ${servingUnit} ${ingredient.name}`] : [name],
+        originalIngredients: [],
+        ingredientRefs: ingredient ? [{
+          ingredientId: ingredient.id,
+          line: ingredient.name,
+          usedAmount: roundNutrition(servingAmount * selectedServings),
+          usedUnit: servingUnit
+        }] : [],
+        method: "Serve as planned.",
+        servings: 1,
+        calories: roundNutrition(scaledNutrition.calories),
+        macros: {
+          protein: roundNutrition(scaledNutrition.protein),
+          carbs: roundNutrition(scaledNutrition.carbs),
+          fat: roundNutrition(scaledNutrition.fat)
+        },
+        nutrition: {
+          sugar: roundNutrition(scaledNutrition.sugar),
+          fibre: roundNutrition(scaledNutrition.fibre),
+          sodium: roundNutrition(scaledNutrition.sodium)
+        },
+        imageUrl: ingredient?.imageUrl || "",
+        favourite: false,
+        prepared: false,
+        art: "custom",
+        quickMeal: true
+      };
+      state.recipes.unshift(recipe);
+      recipeId = recipe.id;
+    }
+    state.planner[context.day] ||= {};
+    state.planner[context.day][context.slotId] = [...new Set([...plannerRecipeIds(context.day, context.slotId), recipeId])];
+    state.plannerServings[context.day] ||= {};
+    state.plannerServings[context.day][context.slotId] ||= {};
+    state.consumed[context.day] ||= {};
+    state.consumed[context.day][context.slotId] = false;
+    state.bought = [];
+    syncIngredientsAndRecipeLinks(state);
+    saveState();
+    document.querySelector("#foodLogDialog").close();
+    foodPickerPlannerContext = null;
+    renderPlanner();
+    showToast(`${document.querySelector("#foodLogName").value.trim()} was added to ${context.day} ${context.slotLabel}.`, { type: "success" });
+    return;
+  }
   state.foodLog.push({
     id: `food-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
     date: selectedTrackerDate(),
@@ -239,6 +354,39 @@ document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
 });
 
 document.addEventListener("click", async (event) => {
+  const waterSetButton = event.target.closest("[data-water-set]");
+  if (waterSetButton) {
+    setTrackedWater(Number(waterSetButton.dataset.waterSet));
+    return;
+  }
+  const waterAddButton = event.target.closest("[data-water-add]");
+  if (waterAddButton) {
+    const values = waterTrackingValues(selectedTrackerDate(), selectedTrackerPerson());
+    setTrackedWater(values.total + Number(waterAddButton.dataset.waterAdd));
+    return;
+  }
+  if (event.target.closest("#addCustomWaterButton")) {
+    const amount = Number(document.querySelector("#waterCustomAmount").value) || 0;
+    if (amount <= 0) {
+      showToast("Enter a water amount in millilitres.", { type: "warning" });
+      return;
+    }
+    const values = waterTrackingValues(selectedTrackerDate(), selectedTrackerPerson());
+    setTrackedWater(values.total + amount);
+    return;
+  }
+  if (event.target.closest("#saveWaterSettingsButton")) {
+    const person = selectedTrackerPerson();
+    state.waterTracking ||= { entries: {}, goals: {}, glassSizes: {} };
+    state.waterTracking.goals ||= {};
+    state.waterTracking.glassSizes ||= {};
+    state.waterTracking.goals[person] = Math.min(10000, Math.max(250, Number(document.querySelector("#waterGoalInput").value) || 2000));
+    state.waterTracking.glassSizes[person] = Math.min(2000, Math.max(50, Number(document.querySelector("#waterGlassInput").value) || 250));
+    saveState();
+    renderTracker();
+    showToast("Water settings saved.", { type: "success" });
+    return;
+  }
   const nutritionHabitButton = event.target.closest("[data-nutrition-habit][data-nutrition-change]");
   if (nutritionHabitButton) {
     const context = nutritionHabitButton.closest("[data-daily-nutrition-context]");
@@ -256,6 +404,15 @@ document.addEventListener("click", async (event) => {
   const quickMealButton = event.target.closest("[data-quick-meal-day][data-quick-meal-slot]");
   if (quickMealButton) {
     openQuickMealDialog(quickMealButton.dataset.quickMealDay, quickMealButton.dataset.quickMealSlot);
+    return;
+  }
+  const plannerFoodButton = event.target.closest("[data-planner-food-day][data-planner-food-slot]");
+  if (plannerFoodButton) {
+    openFoodLogDialog({
+      day: plannerFoodButton.dataset.plannerFoodDay,
+      slotId: plannerFoodButton.dataset.plannerFoodSlot,
+      slotLabel: plannerFoodButton.dataset.plannerFoodLabel
+    });
     return;
   }
 
