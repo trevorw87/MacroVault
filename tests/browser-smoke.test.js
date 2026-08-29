@@ -82,6 +82,16 @@ function startServer() {
     assert.equal(await page.locator("#trackerPerson").inputValue(), "Ashley");
     assert.equal(await page.locator(".tracker-target-cards article").count(), 6);
     assert.match(await page.locator("#trackerSummary").textContent(), /Calories.*Daily target.*Eaten.*Remaining.*Protein.*Daily target.*Eaten.*Remaining/s);
+    await page.locator("#addFoodLogButton").click();
+    assert.equal(await page.locator("#foodLogDialog h2").textContent(), "Add Food to Diary");
+    assert.ok(await page.locator("#foodLogResults .food-log-result").count() > 0);
+    await page.locator("#foodLogSearch").fill("Lemon Garlic Salmon");
+    await page.locator('[data-food-log-source="recipe:lemon-salmon"]').click();
+    assert.equal(await page.locator("#foodLogSelectedName").textContent(), "Lemon Garlic Salmon");
+    assert.match(await page.locator("#foodLogNutritionPreview").textContent(), /kcal.*Protein.*Carbs.*Fat/s);
+    await page.locator("#foodLogServings").fill("1.5");
+    await page.locator("#addFoodLogSubmit").click();
+    assert.match(await page.locator("#trackerMeals").textContent(), /Lemon Garlic Salmon.*1\.50 servings/s);
 
     await page.getByRole("button", { name: "Recipes", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");

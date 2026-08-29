@@ -191,11 +191,26 @@ document.querySelector("#trackerProteinGoal").addEventListener("change", (event)
   renderTracker();
 });
 document.querySelector("#foodLogSource").addEventListener("change", applyFoodLogSource);
+document.querySelector("#foodLogSearch").addEventListener("input", renderFoodLogBrowser);
+document.querySelector("#foodLogTabs").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-food-log-filter]");
+  if (!button) return;
+  document.querySelectorAll("#foodLogTabs [data-food-log-filter]").forEach((item) => item.classList.toggle("active", item === button));
+  renderFoodLogBrowser();
+});
+document.querySelector("#foodLogResults").addEventListener("click", (event) => {
+  const result = event.target.closest("[data-food-log-source]");
+  if (!result) return;
+  document.querySelector("#foodLogSource").value = result.dataset.foodLogSource;
+  applyFoodLogSource();
+});
 document.querySelector("#foodLogGrams").addEventListener("input", updateFoodLogServingsFromGrams);
 document.querySelector("#foodLogGramsPerServing").addEventListener("input", updateFoodLogServingsFromGrams);
 document.querySelectorAll("#foodLogForm input[type=number]").forEach((input) => {
+  input.addEventListener("input", updateFoodLogNutritionPreview);
   input.addEventListener("change", () => {
     if (input.value !== "") input.value = formatFoodLogNumber(input.value);
+    updateFoodLogNutritionPreview();
   });
 });
 document.querySelector("#foodLogForm").addEventListener("submit", (event) => {

@@ -189,6 +189,8 @@ function startServer() {
     assert.doesNotMatch(await page.locator('[data-planner-row="Sunday"]').textContent(), /Household|People/);
     assert.equal(await page.locator(".planner-day-section.today").count(), 1);
     assert.equal(await page.locator(".planner-day-section.today .planner-today-badge").textContent(), "Today");
+    assert.equal(await page.locator(".planner-day-section.today.current-day-feature").count(), 1);
+    assert.equal(await page.locator(".planner-day-section.past-day:not([open]):visible").count(), 0);
     assert.equal(
       await page.locator(".planner-day-section.today .planner-cell").first().evaluate((element) => getComputedStyle(element).backgroundColor),
       "rgb(255, 255, 255)"
@@ -246,10 +248,9 @@ function startServer() {
     await page.setViewportSize({ width: 1600, height: 1000 });
     await page.reload({ waitUntil: "networkidle" });
     await page.getByRole("button", { name: "Planner", exact: true }).click();
-    await page.locator('[data-planner-mobile-day="Sunday"] > summary').click();
     await page.waitForFunction(() => document.querySelectorAll(".planner-day-section[open]").length === 1);
     assert.equal(await page.locator(".planner-day-section[open]").count(), 1);
-    const wideMealGrid = page.locator('[data-planner-mobile-day="Sunday"] .planner-day-meals');
+    const wideMealGrid = page.locator('.planner-day-section.today .planner-day-meals');
     assert.equal(await wideMealGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 6);
     const wideColumnWidths = await wideMealGrid.locator(":scope > .planner-slot-column").evaluateAll((columns) =>
       Object.fromEntries(columns.map((column) => [column.dataset.plannerColumn, column.getBoundingClientRect().width]))
@@ -331,6 +332,7 @@ function startServer() {
     });
     await page.reload({ waitUntil: "networkidle" });
     await page.getByRole("button", { name: "Planner", exact: true }).click();
+    await page.locator("#nextPlannerWeekButton").click();
     await page.getByRole("button", { name: "Create smart plan" }).click();
     assert.match(await page.locator("#smartPlannerTarget").textContent(), /2,000 kcal.*130.*protein/);
     await page.locator("#smartPlannerForm button[value=default]").click();

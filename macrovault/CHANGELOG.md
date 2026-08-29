@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.47
+
+- Added a searchable Add Food to Diary modal for saved recipes, ingredients, favourites, and recent foods.
+- Added a selected-food calorie ring, macro preview, diary grouping, and flexible serving controls.
+- Enlarged the current planner day and hid elapsed days while viewing the current week.
+
 ## 0.9.46
 
 - Added a responsive Daily Planner energy summary with planned, consumed, and remaining calorie rings.

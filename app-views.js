@@ -292,15 +292,23 @@ function renderTracker() {
 }
 
 function foodLogSourceOptions() {
+  const recentEntries = [...(state.foodLog || [])].reverse();
+  const recentNames = new Set(recentEntries.slice(0, 30).map((entry) => entry.name.toLowerCase()));
   const recipes = (state.recipes || []).map((recipe) => ({
     value: `recipe:${recipe.id}`,
     label: recipe.name,
+    type: "recipe",
+    favorite: Boolean(recipe.favourite),
+    recent: recentNames.has(recipe.name.toLowerCase()),
     calories: caloriesPerServing(recipe),
     ...macrosPerServing(recipe)
   }));
   const ingredients = (state.ingredients || []).map((ingredient) => ({
     value: `ingredient:${ingredient.id}`,
     label: ingredient.name,
+    type: "ingredient",
+    favorite: Boolean(ingredient.favourite),
+    recent: recentNames.has(ingredient.name.toLowerCase()),
     calories: Number(ingredient.nutrition?.calories) || 0,
     protein: Number(ingredient.nutrition?.protein) || 0,
     carbs: Number(ingredient.nutrition?.carbs) || 0,
@@ -309,7 +317,45 @@ function foodLogSourceOptions() {
       ? Number(ingredient.serving?.amount || ingredient.servingAmount) || 0
       : 0
   }));
-  return [...recipes, ...ingredients].sort((a, b) => a.label.localeCompare(b.label));
+  const savedNames = new Set([...recipes, ...ingredients].map((item) => item.label.toLowerCase()));
+  const recent = recentEntries
+    .filter((entry, index, entries) => !savedNames.has(entry.name.toLowerCase())
+      && entries.findIndex((item) => item.name.toLowerCase() === entry.name.toLowerCase()) === index)
+    .slice(0, 20)
+    .map((entry) => ({
+      value: `recent:${entry.id}`,
+      label: entry.name,
+      type: "recent",
+      favorite: false,
+      recent: true,
+      calories: Number(entry.calories) || 0,
+      protein: Number(entry.protein) || 0,
+      carbs: Number(entry.carbs) || 0,
+      fat: Number(entry.fat) || 0,
+      gramsPerServing: Number(entry.gramsPerServing) || 0
+    }));
+  return [...recipes, ...ingredients, ...recent].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function renderFoodLogBrowser() {
+  const query = document.querySelector("#foodLogSearch").value.trim().toLowerCase();
+  const filter = document.querySelector("#foodLogTabs .active")?.dataset.foodLogFilter || "all";
+  const options = foodLogSourceOptions().filter((item) => {
+    if (query && !item.label.toLowerCase().includes(query)) return false;
+    if (filter === "favorites") return item.favorite;
+    if (filter === "recipes") return item.type === "recipe";
+    if (filter === "ingredients") return item.type === "ingredient";
+    if (filter === "recent") return item.recent;
+    return true;
+  });
+  const selectedValue = document.querySelector("#foodLogSource").value;
+  document.querySelector("#foodLogResults").innerHTML = options.length ? options.map((item) => `
+    <button class="food-log-result ${item.value === selectedValue ? "selected" : ""}" type="button" role="option" aria-selected="${item.value === selectedValue}" data-food-log-source="${escapeHtml(item.value)}">
+      <span class="food-log-favorite" aria-hidden="true">${item.favorite ? "★" : "☆"}</span>
+      <strong>${escapeHtml(item.label)}</strong>
+      <small>${item.type === "recipe" ? "Recipe" : item.type === "ingredient" ? "Ingredient" : "Recent food"}</small>
+      <span>${roundNutrition(item.calories)} kcal</span>
+    </button>`).join("") : `<div class="food-log-no-results"><strong>No matching foods</strong><span>Try another search or add the food to Ingredients first.</span></div>`;
 }
 
 function openFoodLogDialog() {
@@ -317,9 +363,14 @@ function openFoodLogDialog() {
   const select = document.querySelector("#foodLogSource");
   select.innerHTML = `<option value="">Manual entry</option>${options.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("")}`;
   document.querySelector("#foodLogForm").reset();
+  document.querySelector("#foodLogSearch").value = "";
+  document.querySelectorAll("#foodLogTabs [data-food-log-filter]").forEach((button) => button.classList.toggle("active", button.dataset.foodLogFilter === "all"));
   document.querySelector("#foodLogServings").value = "1.00";
+  document.querySelector("#foodLogSelection").hidden = true;
+  document.querySelector("#addFoodLogSubmit").disabled = true;
   document.querySelector("#foodLogGramNote").textContent = "Enter both gram values to calculate servings and nutrition automatically.";
   document.querySelector("#foodLogGramsPerServing").setCustomValidity("");
+  renderFoodLogBrowser();
   document.querySelector("#foodLogDialog").showModal();
 }
 
@@ -342,7 +393,34 @@ function applyFoodLogSource() {
   document.querySelector("#foodLogGramNote").textContent = selected.gramsPerServing
     ? `Nutrition is based on ${formatFoodLogNumber(selected.gramsPerServing)} g per serving.`
     : "Enter a gram serving size to calculate nutrition from grams eaten.";
+  document.querySelector("#foodLogSelectedName").textContent = selected.label;
+  document.querySelector("#foodLogSelection").hidden = false;
+  document.querySelector("#addFoodLogSubmit").disabled = false;
   validateFoodLogGrams();
+  updateFoodLogNutritionPreview();
+  renderFoodLogBrowser();
+}
+
+function updateFoodLogNutritionPreview() {
+  const preview = document.querySelector("#foodLogNutritionPreview");
+  if (!preview || document.querySelector("#foodLogSelection")?.hidden) return;
+  const servings = Math.max(0.01, Number(document.querySelector("#foodLogServings").value) || 1);
+  const calories = roundNutrition((Number(document.querySelector("#foodLogCalories").value) || 0) * servings);
+  const protein = roundNutrition((Number(document.querySelector("#foodLogProtein").value) || 0) * servings);
+  const carbs = roundNutrition((Number(document.querySelector("#foodLogCarbs").value) || 0) * servings);
+  const fat = roundNutrition((Number(document.querySelector("#foodLogFat").value) || 0) * servings);
+  const macroCalories = Math.max(1, protein * 4 + carbs * 4 + fat * 9);
+  const proteinEnd = Math.round((protein * 4 / macroCalories) * 360);
+  const carbsEnd = proteinEnd + Math.round((carbs * 4 / macroCalories) * 360);
+  preview.innerHTML = `
+    <div class="food-log-macro-ring" style="--protein-end:${proteinEnd}deg;--carbs-end:${carbsEnd}deg">
+      <span><strong>${calories}</strong><small>kcal</small></span>
+    </div>
+    <div class="food-log-macro-list">
+      <span class="protein"><i></i><strong>Protein</strong> ${protein} g</span>
+      <span class="carbs"><i></i><strong>Carbs</strong> ${carbs} g</span>
+      <span class="fat"><i></i><strong>Fat</strong> ${fat} g</span>
+    </div>`;
 }
 
 function validateFoodLogGrams() {
@@ -368,6 +446,7 @@ function updateFoodLogServingsFromGrams() {
     document.querySelector("#foodLogGramNote").textContent = `${formatFoodLogNumber(grams)} g equals ${formatFoodLogNumber(grams / gramsPerServing)} servings.`;
   }
   validateFoodLogGrams();
+  updateFoodLogNutritionPreview();
 }
 
 function recipeCard(recipe) {
@@ -707,7 +786,11 @@ function renderPlanner() {
 
   document.querySelector("#plannerWeekLabel").textContent = plannerWeekLabel();
   const todayKey = todayDateKey();
-  const focusedDay = plannerFocusedDay();
+  const isCurrentPlannerWeek = state.selectedPlannerWeek === currentPlannerWeekKey();
+  const requestedFocusedDay = plannerFocusedDay();
+  const focusedDay = isCurrentPlannerWeek && plannerWeekDateKey(requestedFocusedDay) < todayKey
+    ? days[new Date().getDay()]
+    : requestedFocusedDay;
   const plannedNutrition = mealPlanSlots.reduce((totals, slot) => {
     plannerRecipes(focusedDay, slot).forEach((recipe) => {
       const macros = macrosPerServing(recipe);
@@ -776,9 +859,10 @@ function renderPlanner() {
         const personProgress = goals.calories ? Math.min(100, Math.round((personCalories / goals.calories) * 100)) : 0;
         const nutritionWarnings = mealPlanSlots.flatMap((slot) => plannerRecipes(day, slot)).filter((recipe) => plannerNutritionIssue(recipe));
         const isToday = dateKey === todayKey;
+        const isPastDay = isCurrentPlannerWeek && dateKey < todayKey;
         const expanded = day === focusedDay;
         return `
-          <details class="planner-day-section planner-mobile-day ${isToday ? "today" : ""}" data-planner-mobile-day="${day}" ${expanded ? "open" : ""}>
+          <details class="planner-day-section planner-mobile-day ${isToday ? "today current-day-feature" : ""} ${isPastDay ? "past-day" : ""}" data-planner-mobile-day="${day}" ${expanded ? "open" : ""}>
             <summary>
               <div class="planner-day-heading" data-planner-row="${day}">
                 <h3>${day}${isToday ? `<span class="planner-today-badge">Today</span>` : ""}<small>${dateFromLocalKey(dateKey).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</small></h3>
