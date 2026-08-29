@@ -410,6 +410,7 @@ function openFoodLogDialog(plannerContext = null) {
   document.querySelectorAll("#foodLogTabs [data-food-log-filter]").forEach((button) => button.classList.toggle("active", button.dataset.foodLogFilter === "all"));
   document.querySelector("#foodLogServings").value = "1.00";
   document.querySelector("#foodLogSelection").hidden = true;
+  document.querySelector("#foodLogResults").hidden = false;
   document.querySelector("#addFoodLogSubmit").disabled = true;
   document.querySelector("#foodLogDialog h2").textContent = plannerContext ? "Add Food or Recipe" : "Add Food to Diary";
   document.querySelector("#foodLogDialog .dialog-heading .muted").textContent = plannerContext
@@ -427,14 +428,19 @@ function formatFoodLogNumber(value) {
   return (Math.max(0, Number(value) || 0)).toFixed(2);
 }
 
+function formatFoodLogNutritionNumber(value, nutrient = "macro") {
+  const maximumFractionDigits = nutrient === "calories" ? 0 : 1;
+  return (Math.max(0, Number(value) || 0)).toFixed(maximumFractionDigits).replace(/\.0$/, "");
+}
+
 function applyFoodLogSource() {
   const selected = foodLogSourceOptions().find((item) => item.value === document.querySelector("#foodLogSource").value);
   if (!selected) return;
   document.querySelector("#foodLogName").value = selected.label;
-  document.querySelector("#foodLogCalories").value = formatFoodLogNumber(selected.calories);
-  document.querySelector("#foodLogProtein").value = formatFoodLogNumber(selected.protein);
-  document.querySelector("#foodLogCarbs").value = formatFoodLogNumber(selected.carbs);
-  document.querySelector("#foodLogFat").value = formatFoodLogNumber(selected.fat);
+  document.querySelector("#foodLogCalories").value = formatFoodLogNutritionNumber(selected.calories, "calories");
+  document.querySelector("#foodLogProtein").value = formatFoodLogNutritionNumber(selected.protein);
+  document.querySelector("#foodLogCarbs").value = formatFoodLogNutritionNumber(selected.carbs);
+  document.querySelector("#foodLogFat").value = formatFoodLogNutritionNumber(selected.fat);
   document.querySelector("#foodLogGrams").value = "";
   document.querySelector("#foodLogGramsPerServing").value = selected.gramsPerServing
     ? formatFoodLogNumber(selected.gramsPerServing)
@@ -444,6 +450,7 @@ function applyFoodLogSource() {
     : "Enter a gram serving size to calculate nutrition from grams eaten.";
   document.querySelector("#foodLogSelectedName").textContent = selected.label;
   document.querySelector("#foodLogSelection").hidden = false;
+  document.querySelector("#foodLogResults").hidden = true;
   document.querySelector("#addFoodLogSubmit").disabled = false;
   validateFoodLogGrams();
   updateFoodLogNutritionPreview();
@@ -454,10 +461,10 @@ function updateFoodLogNutritionPreview() {
   const preview = document.querySelector("#foodLogNutritionPreview");
   if (!preview || document.querySelector("#foodLogSelection")?.hidden) return;
   const servings = Math.max(0.01, Number(document.querySelector("#foodLogServings").value) || 1);
-  const calories = roundNutrition((Number(document.querySelector("#foodLogCalories").value) || 0) * servings);
-  const protein = roundNutrition((Number(document.querySelector("#foodLogProtein").value) || 0) * servings);
-  const carbs = roundNutrition((Number(document.querySelector("#foodLogCarbs").value) || 0) * servings);
-  const fat = roundNutrition((Number(document.querySelector("#foodLogFat").value) || 0) * servings);
+  const calories = formatFoodLogNutritionNumber((Number(document.querySelector("#foodLogCalories").value) || 0) * servings, "calories");
+  const protein = formatFoodLogNutritionNumber((Number(document.querySelector("#foodLogProtein").value) || 0) * servings);
+  const carbs = formatFoodLogNutritionNumber((Number(document.querySelector("#foodLogCarbs").value) || 0) * servings);
+  const fat = formatFoodLogNutritionNumber((Number(document.querySelector("#foodLogFat").value) || 0) * servings);
   const macroCalories = Math.max(1, protein * 4 + carbs * 4 + fat * 9);
   const proteinEnd = Math.round((protein * 4 / macroCalories) * 360);
   const carbsEnd = proteinEnd + Math.round((carbs * 4 / macroCalories) * 360);

@@ -2079,7 +2079,7 @@ span.ingredient-usage,
 .tracker-entry { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:.75rem; align-items:center; padding:.75rem 0; border-top:1px solid var(--border, #dde3dd); }
 .tracker-entry small { display:block; color:var(--muted, #667066); margin-top:.15rem; }
 .tracker-empty { color:var(--muted, #667066); padding:1rem 0; }
-.food-log-browser { width:min(1040px,94vw); max-width:none; }
+.food-log-browser { width:min(1040px,94vw); max-width:none; container-type:inline-size; }
 .food-log-search-row { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:.7rem; padding:0 .85rem; border:1px solid var(--line); border-radius:12px; background:#fafbfc; }
 .food-log-search-row:focus-within { border-color:var(--green); box-shadow:0 0 0 3px rgba(57,155,63,.12); }
 .food-log-search-row .ui-icon { width:22px; color:var(--green-dark); }
@@ -2089,6 +2089,7 @@ span.ingredient-usage,
 .food-log-tabs button { flex:0 0 auto; padding:.75rem .1rem .65rem; border:0; border-bottom:2px solid transparent; color:var(--muted); background:transparent; font-weight:850; cursor:pointer; }
 .food-log-tabs button.active { border-bottom-color:var(--green); color:var(--green-dark); }
 .food-log-results { min-height:210px; max-height:300px; overflow-y:auto; border:1px solid var(--line); border-radius:12px; background:#fff; }
+.food-log-results[hidden] { display:none; }
 .food-log-result { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; align-items:center; gap:.65rem; width:100%; min-height:46px; padding:.55rem .8rem; border:0; border-bottom:1px solid rgba(111,154,86,.1); color:var(--ink); background:#fff; text-align:left; cursor:pointer; }
 .food-log-result:nth-child(odd) { background:#f8faf8; }
 .food-log-result:hover,.food-log-result.selected { background:var(--green-soft); }
@@ -2125,8 +2126,11 @@ span.ingredient-usage,
 .food-log-grams-row { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
 .food-log-manual-details { border:1px solid var(--line); border-radius:12px; background:#fbfcfb; }
 .food-log-manual-details summary { padding:.7rem .85rem; color:var(--green-dark); font-weight:850; cursor:pointer; }
-.food-log-manual-details .form-grid { padding:0 .85rem .85rem; }
+.food-log-manual-details .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); padding:0 .85rem .85rem; }
+.food-log-manual-details .form-grid label:first-child { grid-column:1 / -1; }
 .food-log-browser menu { margin-top:.2rem; }
+@container (max-width:760px) { .food-log-detail-grid { grid-template-columns:minmax(0,1fr); } .food-log-nutrition-preview,.food-log-serving-panel { min-height:0; } }
+@container (max-width:480px) { .food-log-manual-details .form-grid { grid-template-columns:minmax(0,1fr); } .food-log-manual-details .form-grid label:first-child { grid-column:auto; } .food-log-serving-panel > label { grid-template-columns:82px minmax(0,1fr) auto; gap:.5rem; } .food-log-serving-presets { padding-left:0; flex-wrap:wrap; } }
 @media (max-width:700px) { .food-log-intro { align-items:stretch; flex-direction:column; } .food-log-intro .primary-button { width:100%; } .tracker-controls,.tracker-meals,.daily-template-grid { grid-template-columns:1fr; } .tracker-target-cards { gap:.5rem; } .tracker-target-cards article { padding:.75rem .6rem; } }
 @media (max-width:700px) { .water-actions { display:grid; grid-template-columns:1fr auto; } .water-actions .primary-button { grid-column:1 / -1; } .water-actions label { min-width:0; } .water-actions input { width:100%; } .water-actions .text-button { grid-column:1 / -1; justify-self:start; } .water-settings > div { display:grid; grid-template-columns:1fr 1fr; } .water-settings button { grid-column:1 / -1; } }
 @media (max-width:700px) { .food-log-browser { width:min(96vw,560px); padding:1rem; } .food-log-tabs { gap:1rem; } .food-log-results { max-height:235px; } .food-log-result { grid-template-columns:auto minmax(0,1fr) auto; } .food-log-result small { display:none; } .food-log-detail-grid { grid-template-columns:1fr; } .food-log-nutrition-preview,.food-log-serving-panel { min-height:0; } .food-log-nutrition-preview { padding:.85rem; } .food-log-macro-ring { width:94px; } .food-log-macro-ring::before { width:72px; } .food-log-serving-panel > label { grid-template-columns:82px minmax(0,1fr) auto; gap:.5rem; } .food-log-serving-presets { padding-left:0; } .food-log-grams-row { grid-template-columns:1fr; } }

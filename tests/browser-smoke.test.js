@@ -94,6 +94,10 @@ function startServer() {
     await page.locator("#foodLogSearch").fill("Lemon Garlic Salmon");
     await page.locator('[data-food-log-source="recipe:lemon-salmon"]').click();
     assert.equal(await page.locator("#foodLogSelectedName").textContent(), "Lemon Garlic Salmon");
+    assert.match(await page.locator("#foodLogCalories").inputValue(), /^\d+$/);
+    for (const selector of ["#foodLogProtein", "#foodLogCarbs", "#foodLogFat"]) {
+      assert.match(await page.locator(selector).inputValue(), /^\d+(?:\.\d)?$/);
+    }
     assert.match(await page.locator("#foodLogNutritionPreview").textContent(), /kcal.*Protein.*Carbs.*Fat/s);
     await page.locator("#foodLogServings").fill("1.5");
     await page.locator("#addFoodLogSubmit").click();

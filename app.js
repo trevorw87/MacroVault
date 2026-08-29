@@ -207,10 +207,14 @@ document.querySelector("#trackerProteinGoal").addEventListener("change", (event)
   renderTracker();
 });
 document.querySelector("#foodLogSource").addEventListener("change", applyFoodLogSource);
-document.querySelector("#foodLogSearch").addEventListener("input", renderFoodLogBrowser);
+document.querySelector("#foodLogSearch").addEventListener("input", () => {
+  document.querySelector("#foodLogResults").hidden = false;
+  renderFoodLogBrowser();
+});
 document.querySelector("#foodLogTabs").addEventListener("click", (event) => {
   const button = event.target.closest("[data-food-log-filter]");
   if (!button) return;
+  document.querySelector("#foodLogResults").hidden = false;
   document.querySelectorAll("#foodLogTabs [data-food-log-filter]").forEach((item) => item.classList.toggle("active", item === button));
   renderFoodLogBrowser();
 });
@@ -232,7 +236,10 @@ document.querySelector("#foodLogGramsPerServing").addEventListener("input", upda
 document.querySelectorAll("#foodLogForm input[type=number]").forEach((input) => {
   input.addEventListener("input", updateFoodLogNutritionPreview);
   input.addEventListener("change", () => {
-    if (input.value !== "") input.value = formatFoodLogNumber(input.value);
+    if (input.value === "") return;
+    if (input.id === "foodLogCalories") input.value = formatFoodLogNutritionNumber(input.value, "calories");
+    else if (["foodLogProtein", "foodLogCarbs", "foodLogFat"].includes(input.id)) input.value = formatFoodLogNutritionNumber(input.value);
+    else input.value = formatFoodLogNumber(input.value);
     updateFoodLogNutritionPreview();
   });
 });

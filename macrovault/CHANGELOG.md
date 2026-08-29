@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.52
+
+- Matched food-picker nutrition precision to recipe displays with whole-number calories and one-decimal macros.
+- Fixed narrow-dialog field clipping with responsive nutrition, serving, and editor layouts.
+- Collapsed search results after selection to reduce unnecessary scrolling.
+
 ## 0.9.51
 
 - Replaced the weekly planner columns with full-width editable meal-diary rows.
