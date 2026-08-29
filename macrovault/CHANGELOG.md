@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.50
+
+- Simplified food and recipe serving entry to a single visible amount field.
+- Added quick serving shortcuts for half, one, one-and-a-half, and two servings.
+- Moved optional gram-based entry behind an expandable weight section.
+
 ## 0.9.49
 
 - Added the searchable food-and-recipe picker to every Planner meal slot with serving-aware nutrition and shopping quantities.

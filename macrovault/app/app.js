@@ -220,6 +220,13 @@ document.querySelector("#foodLogResults").addEventListener("click", (event) => {
   document.querySelector("#foodLogSource").value = result.dataset.foodLogSource;
   applyFoodLogSource();
 });
+document.querySelector("#foodLogForm").addEventListener("click", (event) => {
+  const preset = event.target.closest("[data-food-log-serving]");
+  if (!preset) return;
+  document.querySelector("#foodLogServings").value = formatFoodLogNumber(preset.dataset.foodLogServing);
+  document.querySelector("#foodLogGrams").value = "";
+  updateFoodLogNutritionPreview();
+});
 document.querySelector("#foodLogGrams").addEventListener("input", updateFoodLogServingsFromGrams);
 document.querySelector("#foodLogGramsPerServing").addEventListener("input", updateFoodLogServingsFromGrams);
 document.querySelectorAll("#foodLogForm input[type=number]").forEach((input) => {
