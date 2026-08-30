@@ -157,7 +157,7 @@ function startServer() {
         firstDayRow: document.querySelector("[data-planner-row]").dataset.plannerRow,
         daySections: document.querySelectorAll(".planner-day-section").length,
         verticalDayCards: document.querySelectorAll(".planner-corner").length,
-        mealGridColumns: getComputedStyle(mealGrid).gridTemplateColumns.split(" ").length,
+        mealGridColumns: new Set([...mealGrid.children].map((element) => Math.round(element.getBoundingClientRect().left))).size,
         documentWidth: document.documentElement.scrollWidth,
         viewportWidth: window.innerWidth,
         gridClientWidth: document.querySelector("#plannerGrid").clientWidth,
@@ -180,7 +180,7 @@ function startServer() {
     assert.equal(desktopPlannerAxis.firstDayRow, "Sunday");
     assert.equal(desktopPlannerAxis.daySections, 7);
     assert.equal(desktopPlannerAxis.verticalDayCards, 0);
-    assert.equal(desktopPlannerAxis.mealGridColumns, 2);
+    assert.equal(desktopPlannerAxis.mealGridColumns, 1);
     assert.equal(desktopPlannerAxis.documentWidth, desktopPlannerAxis.viewportWidth);
     assert.ok(desktopPlannerAxis.gridScrollWidth <= desktopPlannerAxis.gridClientWidth + 1);
     assert.equal(new Set(desktopPlannerAxis.mealLabelStyles.map((style) => style.backgroundImage)).size, 4);
@@ -366,12 +366,21 @@ function startServer() {
       renderPlanner();
     });
     await page.locator('[data-planner-mobile-day="Monday"] [data-planner-column="lunch"] [data-quick-meal-day]').click();
+    await page.locator('#quickMealDialog button[aria-label="Close"]').click();
+    assert.equal(await page.locator("#quickMealDialog").evaluate((dialog) => dialog.open), false);
+    await page.locator('[data-planner-mobile-day="Monday"] [data-planner-column="lunch"] [data-quick-meal-day]').click();
+    const firstQuickMealRowAlignment = await page.locator("[data-quick-meal-row]").first().evaluate((row) => ({
+      ingredientTop: Math.round(row.querySelector("select").getBoundingClientRect().top),
+      servingsTop: Math.round(row.querySelector("input").getBoundingClientRect().top),
+      removeTop: Math.round(row.querySelector("button").getBoundingClientRect().top)
+    }));
+    assert.ok(Math.max(...Object.values(firstQuickMealRowAlignment)) - Math.min(...Object.values(firstQuickMealRowAlignment)) <= 1, JSON.stringify(firstQuickMealRowAlignment));
     const quickIngredients = await page.evaluate(() => state.ingredients.slice(0, 2).map((ingredient) => ({ id: ingredient.id, name: ingredient.name })));
     await page.locator("[data-quick-meal-ingredient]").nth(0).selectOption(quickIngredients[0].id);
-    assert.match(await page.locator("[data-quick-serving-info]").nth(0).textContent(), /Serving size:.*Total:/);
+    assert.match(await page.locator("[data-quick-serving-info]").nth(0).textContent(), /1 serving = .*1 servings = .* total/);
     await page.locator("[data-quick-meal-servings]").nth(0).fill("2");
     const doubledServingText = await page.locator("[data-quick-serving-info]").nth(0).textContent();
-    assert.match(doubledServingText, /Serving size:.*Total:/);
+    assert.match(doubledServingText, /1 serving = .*2 servings = .* total/);
     await page.locator("[data-quick-meal-ingredient]").nth(1).selectOption(quickIngredients[1].id);
     await page.locator("#quickMealName").fill("Steak and lettuce");
     await page.locator("#quickMealForm button[value=default]").click();

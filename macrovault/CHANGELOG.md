@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.53
+
+- Corrected ingredient-only planner dialog alignment across desktop and mobile layouts.
+- Added clear, live serving-size and total-quantity summaries for selected ingredients.
+- Allowed Close and Cancel to dismiss the dialog without triggering ingredient validation.
+
 ## 0.9.52
 
 - Matched food-picker nutrition precision to recipe displays with whole-number calories and one-decimal macros.

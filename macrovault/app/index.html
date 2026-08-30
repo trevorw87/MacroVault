@@ -763,13 +763,13 @@
       <form method="dialog" class="recipe-form quick-meal-form" id="quickMealForm">
         <div class="dialog-heading">
           <div><h2>Add ingredients only</h2><p class="muted">Combine saved ingredients into a simple planner meal.</p></div>
-          <button class="icon-button" value="cancel" type="submit" aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+          <button class="icon-button" value="cancel" type="submit" formnovalidate aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
         <label>Meal name (optional)<input id="quickMealName" maxlength="100" placeholder="e.g. Steak and lettuce"></label>
         <div class="quick-meal-rows" id="quickMealRows"></div>
         <button class="secondary-button" id="addQuickMealIngredient" type="button">Add another ingredient</button>
         <p class="muted">Nutrition and shopping quantities use the saved serving for each ingredient.</p>
-        <menu><button class="secondary-button" value="cancel" type="submit">Cancel</button><button class="primary-button" value="default" type="submit">Add to planner</button></menu>
+        <menu><button class="secondary-button" value="cancel" type="submit" formnovalidate>Cancel</button><button class="primary-button" value="default" type="submit">Add to planner</button></menu>
       </form>
     </dialog>
 

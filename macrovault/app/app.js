@@ -27,8 +27,8 @@ function quickMealIngredientRow(index, ingredientId = "") {
     })
     .join("");
   return `<div class="quick-meal-row" data-quick-meal-row>
-    <label>Ingredient<select data-quick-meal-ingredient required><option value="">Choose ingredient</option>${options}</select><small data-quick-serving-info>Select an ingredient to see its serving size.</small></label>
-    <label>Servings<input data-quick-meal-servings type="number" min="0.25" max="20" step="0.25" value="1" required></label>
+    <label class="quick-meal-ingredient-field"><span>Ingredient</span><select data-quick-meal-ingredient required><option value="">Choose ingredient</option>${options}</select><small data-quick-serving-info>Select an ingredient to see its serving size.</small></label>
+    <label class="quick-meal-servings-field"><span>Servings</span><input data-quick-meal-servings type="number" min="0.25" max="20" step="0.25" value="1" required></label>
     <button class="icon-button" type="button" data-remove-quick-meal-row aria-label="Remove ingredient">&times;</button>
   </div>`;
 }
@@ -43,7 +43,7 @@ function updateQuickMealServingInfo(row) {
   const servings = Math.min(20, Math.max(0.25, Number(row.querySelector("[data-quick-meal-servings]").value) || 1));
   const servingAmount = Number(ingredient.serving?.amount) || 1;
   const unit = ingredient.serving?.unit || "each";
-  info.textContent = `Serving size: ${formatScaledNumber(servingAmount)} ${unit} · Total: ${formatScaledNumber(servingAmount * servings)} ${unit}`;
+  info.textContent = `1 serving = ${formatScaledNumber(servingAmount)} ${unit} · ${formatScaledNumber(servings)} servings = ${formatScaledNumber(servingAmount * servings)} ${unit} total`;
 }
 
 function addQuickMealRow(ingredientId = "") {
