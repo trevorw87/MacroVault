@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.55
+
+- Kept the ingredient editor's Cancel and Save controls visible while long forms scroll.
+- Added browser coverage for saving ingredients from a scrolled editor.
+
 ## 0.9.54
 
 - Corrected cup-to-gram nutrition scaling for dry oats saved with a 100 g nutrition basis.

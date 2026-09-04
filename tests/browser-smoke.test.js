@@ -295,6 +295,13 @@ function startServer() {
     await page.getByRole("button", { name: "Add ingredient", exact: true }).click();
     await page.locator("#ingredientName").fill("Black Pepper");
     await page.locator("#ingredientAliases").fill("pepper, Freshly ground black pepper");
+    await page.locator("#ingredientForm").evaluate((form) => { form.scrollTop = Math.floor(form.scrollHeight / 2); });
+    const ingredientSaveBar = await page.locator("#ingredientForm > menu").evaluate((menu) => {
+      const menuRect = menu.getBoundingClientRect();
+      const formRect = menu.parentElement.getBoundingClientRect();
+      return { visible: menuRect.top >= formRect.top && menuRect.bottom <= formRect.bottom + 1 };
+    });
+    assert.equal(ingredientSaveBar.visible, true);
     await page.locator("#ingredientDialog").getByRole("button", { name: "Save ingredient", exact: true }).click();
     const pepperAliases = await page.evaluate(() => {
       const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));
