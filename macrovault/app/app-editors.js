@@ -533,7 +533,7 @@ function renderRecipeIngredientNutritionEditor() {
       const serving = ingredient?.serving || { amount: 1, unit: "each" };
       const usedAmount = usage.usedAmount ?? item.usedAmount ?? serving.amount;
       const usedUnit = usage.usedUnit || item.usedUnit || serving.unit;
-      const rowScale = nutritionScale(usedAmount, usedUnit, serving);
+      const rowScale = nutritionScale(usedAmount, usedUnit, serving, ingredient?.name || item.name);
       const usedNutrition = scaleNutrition(nutrition, rowScale);
       const ingredientOptions = state.ingredients.map((candidate) => `
         <option value="${candidate.id}" ${ingredient?.id === candidate.id ? "selected" : ""}>${escapeHtml(candidate.name)}${candidate.label ? ` - ${escapeHtml(candidate.label)}` : ""} — ${escapeHtml(`${formatScaledNumber(Number(candidate.serving?.amount) || 1)} ${candidate.serving?.unit || "each"}`)}</option>
@@ -605,7 +605,7 @@ function recipeIngredientRowScale(row) {
   return nutritionScale(usedAmount, usedUnit, {
     amount: Number(row.dataset.servingAmount) || 1,
     unit: row.dataset.servingUnit || "each"
-  });
+  }, row.dataset.ingredientName || "");
 }
 
 function refreshRecipeIngredientRowNutrition(row) {
@@ -646,6 +646,7 @@ function refreshRecipeIngredientRowFromSelection(row) {
       : "Will be added to ingredients";
   }
   if (!ingredient) return;
+  row.dataset.ingredientName = ingredient.name;
   row.dataset.servingAmount = ingredient.serving?.amount || 1;
   row.dataset.servingUnit = ingredient.serving?.unit || "each";
   row.dataset.baseCalories = Number(ingredient.nutrition?.calories) || 0;

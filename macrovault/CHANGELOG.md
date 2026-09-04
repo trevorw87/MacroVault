@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.54
+
+- Corrected cup-to-gram nutrition scaling for dry oats saved with a 100 g nutrition basis.
+- Added food-specific cross-unit conversion support for recipe ingredient calculations.
+
 ## 0.9.53
 
 - Corrected ingredient-only planner dialog alignment across desktop and mobile layouts.

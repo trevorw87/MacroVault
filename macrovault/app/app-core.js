@@ -2097,11 +2097,34 @@ function unitBaseFactor(unit) {
   return factors[normalized] || factors.each;
 }
 
-function nutritionScale(usedAmount, usedUnit, serving = {}) {
+const ingredientCupWeights = [
+  { matches: ["rolled oats", "porridge oats", "quick oats", "oats"], gramsPerCup: 80 }
+];
+
+function ingredientGramsPerCup(ingredientName = "") {
+  const normalized = String(ingredientName).toLowerCase();
+  return ingredientCupWeights.find((rule) => rule.matches.some((match) => normalized.includes(match)))?.gramsPerCup || 0;
+}
+
+function measurementInGrams(amount, unit, ingredientName = "") {
+  const measurement = unitBaseFactor(unit);
+  const numericAmount = Math.max(0, Number(amount) || 0);
+  if (measurement.group === "weight") return numericAmount * measurement.factor;
+  if (measurement.group !== "volume") return null;
+  const gramsPerCup = ingredientGramsPerCup(ingredientName);
+  return gramsPerCup ? numericAmount * (measurement.factor / 250) * gramsPerCup : null;
+}
+
+function nutritionScale(usedAmount, usedUnit, serving = {}, ingredientName = "") {
   const used = unitBaseFactor(usedUnit);
   const base = unitBaseFactor(serving.unit);
   const baseAmount = Math.max(0.1, Number(serving.amount) || 1);
-  if (used.group !== base.group) return Math.max(0, Number(usedAmount) || 0) / baseAmount;
+  if (used.group !== base.group) {
+    const usedGrams = measurementInGrams(usedAmount, usedUnit, ingredientName);
+    const baseGrams = measurementInGrams(baseAmount, serving.unit, ingredientName);
+    if (usedGrams !== null && baseGrams) return usedGrams / baseGrams;
+    return Math.max(0, Number(usedAmount) || 0) / baseAmount;
+  }
   return (Math.max(0, Number(usedAmount) || 0) * used.factor) / (baseAmount * base.factor);
 }
 
@@ -2592,7 +2615,7 @@ function recipeNutritionFromLinkedIngredients(recipe, ingredients = state.ingred
     const usedUnit = ref.usedUnit || parsed.usedUnit || ingredient.serving?.unit || "each";
     const usedNutrition = scaleNutrition(
       ingredient.nutrition || {},
-      nutritionScale(usedAmount, usedUnit, ingredient.serving || { amount: 1, unit: "each" })
+      nutritionScale(usedAmount, usedUnit, ingredient.serving || { amount: 1, unit: "each" }, ingredient.name)
     );
     sum.calories += usedNutrition.calories;
     sum.protein += usedNutrition.protein;
