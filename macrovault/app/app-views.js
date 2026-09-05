@@ -752,6 +752,23 @@ function plannerSlotNutrition(day, slot) {
   }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
 }
 
+function plannerIngredientListMarkup(recipe, plannedServings = 1) {
+  const portionScale = Math.max(0, Number(plannedServings) || 0) / recipeServings(recipe);
+  const items = (recipe.ingredients || []).map((line, index) => {
+    const parsed = parseIngredientLine(line);
+    const ref = recipe.ingredientRefs?.[index] || {};
+    const linkedIngredient = ref.ingredientId ? ingredientById(ref.ingredientId) : findIngredientForLine(line);
+    const name = linkedIngredient?.name || ref.line || parsed.name || cleanIngredientName(line);
+    const amount = Number(ref.usedAmount ?? (parsed.hasQuantity ? parsed.usedAmount : 0));
+    const unit = ref.usedUnit || (parsed.hasQuantity ? parsed.usedUnit : "");
+    const quantity = amount > 0
+      ? `<strong>${escapeHtml(`${formatScaledNumber(amount * portionScale)}${unit === "each" ? "" : ` ${unit}`}`)}</strong>`
+      : "";
+    return name ? `<li>${quantity}<span>${escapeHtml(name)}</span></li>` : "";
+  }).filter(Boolean);
+  return items.length ? `<ul class="planner-ingredient-list" aria-label="Amount to eat">${items.join("")}</ul>` : "";
+}
+
 function plannerCellMarkup(day, slot) {
   const selectedIds = plannerRecipeIds(day, slot.id);
   const selectedRecipes = plannerRecipes(day, slot);
@@ -766,11 +783,15 @@ function plannerCellMarkup(day, slot) {
         ${selectedRecipes.length ? selectedRecipes.map((recipe) => {
           const nutritionIssue = plannerNutritionIssue(recipe);
           const alternatives = nutritionIssue ? [] : plannerAlternativeRecipes(day, slot, recipe);
+          const plannedServings = plannerServingCount(day, slot.id, recipe.id);
           return `
           <article class="planner-dish">
             ${mealThumbnailMarkup(recipe, slot.label)}
             <div class="planner-meal-pick">
-              <strong>${escapeHtml(recipe.name)}</strong>
+              <div class="planner-meal-copy">
+                <strong>${escapeHtml(recipe.name)}</strong>
+                ${plannerIngredientListMarkup(recipe, plannedServings)}
+              </div>
               ${nutritionIssue
                 ? `<button class="planner-nutrition-warning" data-edit-recipe="${escapeHtml(recipe.id)}" type="button" title="Excluded from daily totals">Check nutrition</button>`
                 : `<span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} · ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>`}

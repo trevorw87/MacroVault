@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.57
+
+- Added a clean, line-by-line ingredient list beneath each planned meal.
+- Scaled displayed ingredient quantities to the recipe yield and planned serving count.
+- Kept legacy ingredients without quantities readable without inventing measurements.
+
 ## 0.9.56
 
 - Corrected compact recipe measurements such as `209g` and `180ml` when editing recipes.

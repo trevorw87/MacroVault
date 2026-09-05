@@ -419,7 +419,7 @@
     height: 84px;
   }
 
-  .planner-meal-pick strong {
+  .planner-meal-copy > strong {
     min-height: 40px;
     font-size: 0.82rem;
   }
@@ -1633,13 +1633,17 @@ textarea:focus-visible,
   text-align: left;
 }
 
-.planner-slot-column .planner-meal-pick > strong {
+.planner-slot-column .planner-meal-copy > strong,
+.planner-mobile-slot .planner-meal-copy > strong {
   display: block;
   min-height: 0;
   max-height: none;
   font-size: .84rem;
   -webkit-line-clamp: unset;
 }
+
+.planner-slot-column .planner-ingredient-list,
+.planner-mobile-slot .planner-ingredient-list { grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:2px 12px; }
 
 .planner-slot-column .planner-recipe-nutrition {
   min-height: 0;
@@ -1675,6 +1679,8 @@ textarea:focus-visible,
   }
   .planner-slot-column .planner-meal-pick,
   .planner-mobile-slot .planner-meal-pick { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+  .planner-slot-column .planner-ingredient-list,
+  .planner-mobile-slot .planner-ingredient-list { grid-template-columns:minmax(0,1fr); }
   .planner-slot-column .planner-recipe-nutrition { justify-self: start; text-align: left; }
   .planner-slot-column .planner-dish-chips { justify-content: flex-start; }
   .planner-row-actions { grid-template-columns:minmax(0,1fr); }

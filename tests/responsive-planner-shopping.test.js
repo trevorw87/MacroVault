@@ -416,6 +416,14 @@ function startServer() {
     const nutritionPerServe = await mondayDish.locator(".planner-recipe-nutrition").textContent();
     assert.match(nutritionPerServe, /kcal.*g protein/);
     assert.doesNotMatch(nutritionPerServe, /\/ serve/);
+    assert.ok(await mondayDish.locator(".planner-ingredient-list li").count() >= 1);
+    const measuredPlannerIngredients = await page.evaluate(() => plannerIngredientListMarkup({
+      servings: 1,
+      ingredients: ["50g test almonds", "100g test yoghurt"],
+      ingredientRefs: []
+    }, 1));
+    assert.match(measuredPlannerIngredients, /50 g<\/strong><span>test almonds/);
+    assert.match(measuredPlannerIngredients, /100 g<\/strong><span>test yoghurt/);
     assert.ok(await mondayDish.locator(".planner-status-chip").isVisible());
     assert.ok(await mondayDish.locator(".planner-swap-menu").isVisible());
     assert.equal(await mondayDish.locator(".planner-dish-options input").isVisible(), false);

@@ -603,7 +603,7 @@
   text-align: center;
 }
 
-.planner-meal-pick strong {
+.planner-meal-copy > strong {
   display: block;
   color: var(--ink);
   font-family: var(--display-font);
@@ -613,6 +613,12 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+.planner-meal-copy { display:grid; gap:5px; min-width:0; }
+.planner-ingredient-list { display:grid; gap:2px; margin:0; padding:0; list-style:none; }
+.planner-ingredient-list li { display:flex; align-items:baseline; gap:5px; min-width:0; color:var(--muted); font-size:.7rem; line-height:1.25; }
+.planner-ingredient-list li strong { flex:0 0 auto; color:var(--green-dark); font-family:inherit; font-size:inherit; font-weight:950; }
+.planner-ingredient-list li span { min-width:0; overflow-wrap:anywhere; }
 
 .planner-recipe-nutrition {
   display: inline-flex;
@@ -881,7 +887,7 @@
   border-radius: 21px;
 }
 
-.planner-slot-column .planner-meal-pick strong {
+.planner-slot-column .planner-meal-copy > strong {
   display: -webkit-box;
   min-height: 44px;
   max-height: 44px;
