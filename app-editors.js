@@ -531,8 +531,9 @@ function renderRecipeIngredientNutritionEditor() {
       const ingredient = linkedIngredient || findIngredientForLine(item.name);
       const nutrition = ingredient?.nutrition || ingredientNutritionEstimate(item.name);
       const serving = ingredient?.serving || { amount: 1, unit: "each" };
-      const usedAmount = usage.usedAmount ?? item.usedAmount ?? serving.amount;
-      const usedUnit = usage.usedUnit || item.usedUnit || serving.unit;
+      const useParsedQuantity = shouldUseParsedIngredientQuantity(item, usage, recipeServings(editingRecipe));
+      const usedAmount = useParsedQuantity ? item.usedAmount : (usage.usedAmount ?? item.usedAmount ?? serving.amount);
+      const usedUnit = useParsedQuantity ? item.usedUnit : (usage.usedUnit || item.usedUnit || serving.unit);
       const rowScale = nutritionScale(usedAmount, usedUnit, serving, ingredient?.name || item.name);
       const usedNutrition = scaleNutrition(nutrition, rowScale);
       const ingredientOptions = state.ingredients.map((candidate) => `

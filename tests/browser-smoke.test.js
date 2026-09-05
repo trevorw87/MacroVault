@@ -182,6 +182,22 @@ function startServer() {
       await page.evaluate(() => parseIngredientLine("1.2 kg beef chuck")),
       { name: "beef chuck", usedAmount: 1.2, usedUnit: "kg", hasQuantity: true }
     );
+    assert.deepEqual(
+      await page.evaluate(() => parseIngredientLine("209g flour")),
+      { name: "flour", usedAmount: 209, usedUnit: "g", hasQuantity: true }
+    );
+    assert.deepEqual(
+      await page.evaluate(() => parseIngredientLine("180ml milk")),
+      { name: "milk", usedAmount: 180, usedUnit: "ml", hasQuantity: true }
+    );
+    assert.equal(
+      await page.evaluate(() => shouldUseParsedIngredientQuantity(parseIngredientLine("209g flour"), { usedAmount: 1, usedUnit: "each" }, 1)),
+      true
+    );
+    assert.equal(
+      await page.evaluate(() => shouldUseParsedIngredientQuantity(parseIngredientLine("209g flour"), { usedAmount: 150, usedUnit: "g" }, 1)),
+      false
+    );
     assert.equal(await page.evaluate(() => ingredientUnits.includes("kg")), true);
     assert.equal(
       await page.evaluate(() => nutritionScale(1.2, "kg", { amount: 100, unit: "g" })),

@@ -1607,6 +1607,13 @@ function parseIngredientLine(line) {
   };
 }
 
+function shouldUseParsedIngredientQuantity(parsed, existingRef = {}, servings = 1) {
+  const existingAmount = Number(existingRef.usedAmount) || 0;
+  const existingUnit = existingRef.usedUnit || "each";
+  return Boolean(parsed?.hasQuantity)
+    && (!existingAmount || (existingAmount === 1 && existingUnit === "each") || (existingAmount === servings && existingUnit === "each"));
+}
+
 function normalizeRecipeIngredientQuantities(recipe) {
   const ingredients = recipe.ingredients || [];
   const servings = Math.max(1, Number(recipe.servings) || 1);
@@ -1616,10 +1623,7 @@ function normalizeRecipeIngredientQuantities(recipe) {
     ingredientRefs: ingredients.map((line, index) => {
       const parsed = parseIngredientLine(line);
       const existingRef = recipe.ingredientRefs?.[index] || {};
-      const existingAmount = Number(existingRef.usedAmount) || 0;
-      const existingUnit = existingRef.usedUnit || "each";
-      const shouldUseParsedQuantity = parsed.hasQuantity
-        && (!existingAmount || (existingAmount === 1 && existingUnit === "each") || (existingAmount === servings && existingUnit === "each"));
+      const shouldUseParsedQuantity = shouldUseParsedIngredientQuantity(parsed, existingRef, servings);
       return {
         ...existingRef,
         line: parsed.name,

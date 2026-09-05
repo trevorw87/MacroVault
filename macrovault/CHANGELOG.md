@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.56
+
+- Corrected compact recipe measurements such as `209g` and `180ml` when editing recipes.
+- Replaced stale `1 each` fallbacks with explicit ingredient quantities while preserving genuine manual adjustments.
+
 ## 0.9.55
 
 - Kept the ingredient editor's Cancel and Save controls visible while long forms scroll.
