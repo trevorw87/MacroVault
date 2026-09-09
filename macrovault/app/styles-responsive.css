@@ -1423,25 +1423,12 @@ textarea:focus-visible,
   .planner-mobile-day summary {
     position: relative;
     display: block;
-    padding-right: 38px;
+    padding-right: 0;
     cursor: pointer;
     list-style: none;
   }
 
   .planner-mobile-day summary::-webkit-details-marker { display: none; }
-
-  .planner-mobile-day summary::after {
-    content: "+";
-    position: absolute;
-    top: 50%;
-    right: 14px;
-    color: var(--green-dark);
-    font-size: 1.35rem;
-    font-weight: 900;
-    transform: translateY(-50%);
-  }
-
-  .planner-mobile-day[open] summary::after { content: "−"; }
 
   .planner-mobile-day .planner-day-heading {
     position: static;
@@ -1473,6 +1460,9 @@ textarea:focus-visible,
     justify-self: start;
     text-align: left;
   }
+
+  .planner-mobile-day .planner-day-identity { justify-content:space-between; }
+  .planner-mobile-day .planner-view-meals { justify-self:stretch; }
 
   .planner-mobile-slots {
     display: grid;

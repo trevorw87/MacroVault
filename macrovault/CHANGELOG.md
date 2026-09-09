@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.58
+
+- Added live data synchronization between Planner and Recipes opened in separate browser tabs.
+- Kept each browser tab on its independently selected app section during synchronization.
+- Redesigned daily planner summaries with clear status, remaining calorie and protein cards, and separate progress bars.
+- Replaced the small day expander with labelled View meals and Hide meals controls.
+
 ## 0.9.57
 
 - Added a clean, line-by-line ingredient list beneath each planned meal.

@@ -39,7 +39,8 @@ function startServer() {
 (async () => {
   const server = await startServer();
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
   const pageErrors = [];
   let importedRecipeUrl = "";
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -76,6 +77,34 @@ function startServer() {
     await page.waitForSelector("#navTabs .nav-button");
     assert.equal(await page.locator("#navTabs .nav-button").count(), 11);
     assert.equal(await page.locator("#pageTitle").textContent(), "Dashboard");
+
+    const plannerPage = await context.newPage();
+    await plannerPage.setViewportSize({ width: 1280, height: 800 });
+    plannerPage.on("pageerror", (error) => pageErrors.push(`Second tab: ${error.message}`));
+    await plannerPage.goto(baseUrl, { waitUntil: "networkidle" });
+    await plannerPage.getByRole("button", { name: "Planner", exact: true }).click();
+    await page.getByRole("button", { name: "Recipes", exact: true }).click();
+    const crossTabOriginal = await page.evaluate(() => ({
+      name: recipeById("lemon-salmon").name,
+      breakfast: structuredClone(state.planner.Monday.breakfast || [])
+    }));
+    await page.evaluate(() => {
+      recipeById("lemon-salmon").name = "Cross-tab Salmon";
+      state.planner.Monday.breakfast = ["lemon-salmon"];
+      saveState({ skipBackup: true });
+      render();
+    });
+    await plannerPage.waitForFunction(() => [...document.querySelectorAll(".planner-dish .planner-meal-copy > strong")]
+      .some((element) => element.textContent === "Cross-tab Salmon"));
+    assert.equal(await plannerPage.locator("#pageTitle").textContent(), "Planner");
+    assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");
+    await page.evaluate((original) => {
+      recipeById("lemon-salmon").name = original.name;
+      state.planner.Monday.breakfast = original.breakfast;
+      saveState({ skipBackup: true });
+      render();
+    }, crossTabOriginal);
+    await plannerPage.close();
 
     await page.getByRole("button", { name: "Food Log", exact: true }).click();
     assert.equal(await page.locator("#pageTitle").textContent(), "Food Log");

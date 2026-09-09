@@ -950,31 +950,46 @@ function renderPlanner() {
         const personCalories = plannedCaloriesPerPersonForDay(day);
         const personProtein = plannedProteinPerPersonForDay(day);
         const personProgress = goals.calories ? Math.min(100, Math.round((personCalories / goals.calories) * 100)) : 0;
+        const proteinProgress = goals.protein ? Math.min(100, Math.round((personProtein / goals.protein) * 100)) : 0;
         const nutritionWarnings = mealPlanSlots.flatMap((slot) => plannerRecipes(day, slot)).filter((recipe) => plannerNutritionIssue(recipe));
         const isToday = dateKey === todayKey;
         const isPastDay = isCurrentPlannerWeek && dateKey < todayKey;
         const expanded = day === focusedDay;
+        const statusLabel = nutritionWarnings.length
+          ? "Check nutrition"
+          : remaining.met
+            ? "Goal met"
+            : remaining.calories <= goals.calories * 0.25 && remaining.protein <= goals.protein * 0.25
+              ? "On track"
+              : remaining.protein > goals.protein * 0.5
+                ? "Protein low"
+                : "Plan remaining";
         return `
           <details class="planner-day-section planner-mobile-day ${isToday ? "today current-day-feature" : ""} ${isPastDay ? "past-day" : ""}" data-planner-mobile-day="${day}" ${expanded ? "open" : ""}>
             <summary>
               <div class="planner-day-heading" data-planner-row="${day}">
-                <h3>${day}${isToday ? `<span class="planner-today-badge">Today</span>` : ""}<small>${dateFromLocalKey(dateKey).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</small></h3>
+                <div class="planner-day-identity"><h3>${day}${isToday ? `<span class="planner-today-badge">Today</span>` : ""}<small>${dateFromLocalKey(dateKey).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</small></h3><span class="planner-day-status ${remaining.met ? "met" : ""}">${statusLabel}</span></div>
                 <div class="planner-progress-summary">
                   <span class="planner-progress-set planner-person-progress">
-                    <small>Daily nutrition · 1 person</small>
+                    <small>Calories · 1 person</small>
                     <strong>${formatPlannerNumber(personCalories, "kcal")} / ${formatPlannerNumber(goals.calories, "kcal")}</strong>
                     <i><b style="width:${personProgress}%"></b></i>
-                    <em>${formatPlannerNumber(personProtein, "protein")}</em>
+                  </span>
+                  <span class="planner-progress-set planner-protein-progress">
+                    <small>Protein</small>
+                    <strong>${formatPlannerNumber(personProtein, "protein")} / ${formatPlannerNumber(goals.protein, "protein")}</strong>
+                    <i><b style="width:${proteinProgress}%"></b></i>
                   </span>
                 </div>
                 <div class="planner-remaining ${remaining.met ? "met" : ""}">
                   ${nutritionWarnings.length
                     ? `<button class="planner-day-warning" type="button" data-edit-recipe="${escapeHtml(nutritionWarnings[0].id)}">${nutritionWarnings.length} nutrition ${nutritionWarnings.length === 1 ? "warning" : "warnings"} excluded</button>`
                     : remaining.met
-                    ? "Daily goal met"
-                    : `Still need ${formatPlannerNumber(remaining.calories, "kcal")} / ${formatPlannerNumber(remaining.protein, "protein")}`}
+                    ? `<span class="planner-remaining-met">Daily targets reached</span>`
+                    : `<span><strong>${roundNutrition(remaining.calories).toLocaleString()}</strong><small>kcal remaining</small></span><span><strong>${roundNutrition(remaining.protein).toLocaleString(undefined, { maximumFractionDigits: 1 })} g</strong><small>protein remaining</small></span>`}
                 </div>
                 <button class="planner-balance-day" type="button" data-smart-balance-day="${day}">Balance day</button>
+                <span class="planner-view-meals"><span>View meals</span><span>Hide meals</span></span>
               </div>
             </summary>
             <div class="planner-day-meals planner-mobile-slots">

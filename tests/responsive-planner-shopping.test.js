@@ -185,7 +185,9 @@ function startServer() {
     assert.ok(desktopPlannerAxis.gridScrollWidth <= desktopPlannerAxis.gridClientWidth + 1);
     assert.equal(new Set(desktopPlannerAxis.mealLabelStyles.map((style) => style.backgroundImage)).size, 4);
     assert.ok(desktopPlannerAxis.mealLabelStyles.every((style) => style.textAlign === "left" && style.alignItems === "flex-start"));
-    assert.match(await page.locator('[data-planner-row="Sunday"] .planner-progress-summary').textContent(), /Daily nutrition.*1 person/s);
+    assert.match(await page.locator('[data-planner-row="Sunday"] .planner-progress-summary').textContent(), /Calories.*1 person.*Protein/s);
+    assert.equal(await page.locator('[data-planner-row="Sunday"] .planner-progress-set').count(), 2);
+    assert.match(await page.locator('[data-planner-row="Sunday"] .planner-view-meals').textContent(), /View meals.*Hide meals/s);
     assert.doesNotMatch(await page.locator('[data-planner-row="Sunday"]').textContent(), /Household|People/);
     assert.equal(await page.locator(".planner-day-section.today").count(), 1);
     assert.equal(await page.locator(".planner-day-section.today .planner-today-badge").textContent(), "Today");

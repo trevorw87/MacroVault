@@ -1624,6 +1624,28 @@ window.addEventListener("online", () => {
   queueServerStateSave(state, syncMetadata.pending ? { token: syncMetadata.pending.token } : {});
 });
 
+let crossTabRenderTimer = 0;
+window.addEventListener("storage", (event) => {
+  if (event.key !== STORAGE_KEY || !event.newValue) return;
+  try {
+    const activeTab = state.activeTab;
+    const currentImages = state.imageLibrary || {};
+    const incomingState = normalizeState({ ...structuredClone(sampleState), ...JSON.parse(event.newValue) });
+    incomingState.activeTab = activeTab;
+    Object.entries(incomingState.imageLibrary || {}).forEach(([id, asset]) => {
+      if (currentImages[id]?.data && !asset.data) incomingState.imageLibrary[id] = { ...asset, data: currentImages[id].data };
+    });
+    state = incomingState;
+    clearTimeout(crossTabRenderTimer);
+    crossTabRenderTimer = window.setTimeout(() => {
+      render();
+      setSyncStatus("saved", "Updated from another tab");
+    }, 30);
+  } catch (error) {
+    console.warn("Could not apply an update from another MacroVault tab", error);
+  }
+});
+
 window.matchMedia("(max-width: 760px)").addEventListener("change", () => {
   if (state?.activeTab === "planner") renderPlanner();
 });
