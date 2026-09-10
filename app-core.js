@@ -2788,6 +2788,34 @@ function currentNutritionGoals() {
   };
 }
 
+function massAmountInGrams(amount, unit) {
+  const value = Math.max(0, Number(amount) || 0);
+  const normalizedUnit = String(unit || "").toLowerCase();
+  if (["g", "gram", "grams"].includes(normalizedUnit)) return value;
+  if (["kg", "kilogram", "kilograms"].includes(normalizedUnit)) return value * 1000;
+  if (["oz", "ounce", "ounces"].includes(normalizedUnit)) return value * 28.3495;
+  if (["lb", "lbs", "pound", "pounds"].includes(normalizedUnit)) return value * 453.592;
+  return 0;
+}
+
+function recipeWeightDetails(recipe) {
+  const refs = recipe?.ingredientRefs || [];
+  let included = 0;
+  let excluded = 0;
+  const grams = refs.reduce((total, ref) => {
+    const converted = massAmountInGrams(ref.usedAmount, ref.usedUnit);
+    if (converted > 0) included += 1;
+    else if ((Number(ref.usedAmount) || 0) > 0) excluded += 1;
+    return total + converted;
+  }, 0);
+  return { grams: roundNutrition(grams), included, excluded };
+}
+
+function recipeGramsPerServing(recipe) {
+  const totalWeight = recipeWeightDetails(recipe).grams;
+  return totalWeight > 0 ? roundNutrition(totalWeight / recipeServings(recipe)) : 0;
+}
+
 function dailyNutritionCounts(date, person) {
   const saved = state.dailyNutritionChecks?.[date]?.[person] || {};
   return Object.fromEntries(dailyFoodGroupTemplate.map((item) => [

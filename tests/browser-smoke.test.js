@@ -283,6 +283,22 @@ function startServer() {
       return { removed, ids: draft.recipes.map((recipe) => recipe.id) };
     });
     assert.deepEqual(generatedRecipeCleanup, { removed: 1, ids: ["planner-food-used", "saved-recipe"] });
+    const weightBasedRecipe = await page.evaluate(() => {
+      const recipe = {
+        servings: 5,
+        ingredientRefs: [
+          { usedAmount: 400, usedUnit: "g" },
+          { usedAmount: 150, usedUnit: "g" },
+          { usedAmount: 0.5, usedUnit: "kg" },
+          { usedAmount: 2, usedUnit: "each" }
+        ]
+      };
+      return { details: recipeWeightDetails(recipe), gramsPerServing: recipeGramsPerServing(recipe) };
+    });
+    assert.deepEqual(weightBasedRecipe, {
+      details: { grams: 1050, included: 3, excluded: 1 },
+      gramsPerServing: 210
+    });
     assert.equal(await page.evaluate(() => ingredientUnits.includes("kg")), true);
     assert.equal(
       await page.evaluate(() => nutritionScale(1.2, "kg", { amount: 100, unit: "g" })),

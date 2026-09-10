@@ -343,7 +343,8 @@ function foodLogSourceOptions() {
     favorite: Boolean(recipe.favourite),
     recent: recentNames.has(recipe.name.toLowerCase()),
     calories: caloriesPerServing(recipe),
-    ...macrosPerServing(recipe)
+    ...macrosPerServing(recipe),
+    gramsPerServing: recipeGramsPerServing(recipe)
   }));
   const ingredients = (state.ingredients || []).map((ingredient) => ({
     value: `ingredient:${ingredient.id}`,

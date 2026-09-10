@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.60
+
+- Added automatic total prepared recipe weight from mass-based ingredient quantities.
+- Displayed calculated grams per serving and identified non-weight ingredients excluded from the total.
+- Enabled recipe nutrition to scale automatically from the grams actually served in the planner or diary.
+
 ## 0.9.59
 
 - Kept planner-generated food entries out of food searches and the main Recipes list.

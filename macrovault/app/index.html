@@ -471,6 +471,11 @@
             <input id="recipeServings" type="number" min="1" step="1" value="1">
           </label>
           <label>
+            Total prepared weight (g)
+            <input id="recipeTotalWeight" type="number" min="0" step="0.01" value="0" readonly>
+            <small id="recipeTotalWeightNote">Calculated from ingredients entered in grams.</small>
+          </label>
+          <label>
             Calories per serve
             <input id="recipeCalories" type="number" min="0" step="0.01" value="0">
           </label>
@@ -776,10 +781,10 @@
     <script src="zxing-browser.min.js?v=107"></script>
     <script src="barcode-nutrition.js?v=114"></script>
     <script src="frontend-utils.js?v=116"></script>
-    <script src="app-core.js?v=140"></script>
-    <script src="app-views.js?v=140"></script>
-    <script src="app-editors.js?v=140"></script>
-    <script src="app-features.js?v=140"></script>
-    <script src="app.js?v=140"></script>
+    <script src="app-core.js?v=141"></script>
+    <script src="app-views.js?v=141"></script>
+    <script src="app-editors.js?v=141"></script>
+    <script src="app-features.js?v=141"></script>
+    <script src="app.js?v=141"></script>
   </body>
 </html>

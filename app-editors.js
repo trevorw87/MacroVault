@@ -23,6 +23,7 @@ function openRecipeDialog(recipe = null) {
   document.querySelector("#recipeSourceUrl").value = recipe?.sourceUrl || "";
   document.querySelector("#recipeServings").value = recipeServings(recipe);
   document.querySelector("#recipeServings").dataset.previousServings = String(recipeServings(recipe));
+  updateRecipeWeightSummary();
   document.querySelector("#recipeCalories").value = recipe ? caloriesPerServing(recipe) : caloriesFromMacros({ protein: 25, carbs: 45, fat: 15 });
   document.querySelector("#recipeProtein").value = recipe ? macrosPerServing(recipe).protein : 25;
   document.querySelector("#recipeCarbs").value = recipe ? macrosPerServing(recipe).carbs : 45;
@@ -724,6 +725,36 @@ function editorNutritionTotals() {
   };
 }
 
+function editorRecipeWeightDetails() {
+  const rows = [...document.querySelectorAll(".recipe-ingredient-row")];
+  let included = 0;
+  let excluded = 0;
+  const grams = rows.reduce((total, row) => {
+    const amount = Number(row.querySelector('[data-recipe-ingredient-field="usedAmount"]')?.value) || 0;
+    const unit = row.querySelector('[data-recipe-ingredient-field="usedUnit"]')?.value || "each";
+    const converted = massAmountInGrams(amount, unit);
+    if (converted > 0) included += 1;
+    else if (amount > 0) excluded += 1;
+    return total + converted;
+  }, 0);
+  return { grams: roundNutrition(grams), included, excluded };
+}
+
+function updateRecipeWeightSummary() {
+  const input = document.querySelector("#recipeTotalWeight");
+  const note = document.querySelector("#recipeTotalWeightNote");
+  if (!input || !note) return;
+  const details = editorRecipeWeightDetails();
+  const servings = Math.max(1, Number(document.querySelector("#recipeServings")?.value) || 1);
+  input.value = details.grams;
+  if (!details.grams) {
+    note.textContent = "Enter ingredient quantities in g, kg, oz or lb to calculate weight-based servings.";
+  } else {
+    const excludedText = details.excluded ? ` ${details.excluded} non-weight ingredient${details.excluded === 1 ? " was" : "s were"} not included.` : "";
+    note.textContent = `${formatScaledNumber(details.grams / servings)} g per serving.${excludedText}`;
+  }
+}
+
 function renderRecipeNutritionSummary(totals = editorNutritionTotals()) {
   const container = document.querySelector("#recipeNutritionSummary");
   if (!container) return;
@@ -760,6 +791,7 @@ function renderRecipeNutritionSummary(totals = editorNutritionTotals()) {
 function updateRecipeTotalsFromIngredientNutrition() {
   const rows = [...document.querySelectorAll(".recipe-ingredient-row")];
   if (!rows.length) {
+    updateRecipeWeightSummary();
     renderRecipeNutritionSummary();
     return;
   }
@@ -780,6 +812,7 @@ function updateRecipeTotalsFromIngredientNutrition() {
   document.querySelector("#recipeFat").value = roundNutrition(totals.fat / servings);
   document.querySelector("#recipeFibre").value = roundNutrition(totals.fibre / servings);
   document.querySelector("#recipeSodium").value = roundNutrition(totals.sodium / servings);
+  updateRecipeWeightSummary();
   renderRecipeNutritionSummary(totals);
 }
 
@@ -799,6 +832,7 @@ function refreshRecipeServingMath() {
     updateRecipeTotalsFromIngredientNutrition();
   }
   servingsInput.dataset.previousServings = String(nextServings);
+  updateRecipeWeightSummary();
 }
 
 function openRecipeImportDialog() {
