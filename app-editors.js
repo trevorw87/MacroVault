@@ -513,6 +513,7 @@ function renderRecipeIngredientNutritionEditor() {
   const ingredientData = recipeIngredientDataFromForm();
   const container = document.querySelector("#recipeIngredientNutrition");
   const editingRecipe = recipeById(document.querySelector("#recipeId").value);
+  const alignedUsage = alignedRecipeIngredientRefs(editingRecipe, ingredientData);
   if (!ingredientData.length) {
     container.innerHTML = `<p class="muted">Add ingredients to see editable nutrition for each item.</p>`;
     return;
@@ -524,7 +525,7 @@ function renderRecipeIngredientNutritionEditor() {
       <span class="muted">Quantity stays with this recipe. Nutrition is saved to the ingredient database.</span>
     </div>
     ${ingredientData.map((item, index) => {
-      const usage = editingRecipe?.ingredientRefs?.[index] || {};
+      const usage = alignedUsage[index] || {};
       const linkedIngredient = state.ingredients.find((candidate) => candidate.id === usage.ingredientId);
       // Restore an explicit database selection even when its name differs from
       // the free-text recipe line. Fall back to name matching only when no saved

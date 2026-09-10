@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.61
+
+- Kept ingredient nutrition rows correctly aligned when recipe ingredients are deleted or reordered.
+- Matched saved ingredient details by ingredient name and occurrence instead of relying on shifting row positions.
+
 ## 0.9.60
 
 - Added automatic total prepared recipe weight from mass-based ingredient quantities.

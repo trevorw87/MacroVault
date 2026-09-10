@@ -299,6 +299,20 @@ function startServer() {
       details: { grams: 1050, included: 3, excluded: 1 },
       gramsPerServing: 210
     });
+    const refsAfterDeletingMiddleIngredient = await page.evaluate(() => {
+      const recipe = {
+        ingredients: ["100 g oats", "50 g onion", "30 g almonds", "20 g yoghurt"],
+        ingredientRefs: [
+          { ingredientId: "oats", line: "oats" },
+          { ingredientId: "onion", line: "onion" },
+          { ingredientId: "almonds", line: "almonds" },
+          { ingredientId: "yoghurt", line: "yoghurt" }
+        ]
+      };
+      return alignedRecipeIngredientRefs(recipe, ["100 g oats", "30 g almonds", "20 g yoghurt"].map(parseIngredientLine))
+        .map((ref) => ref.ingredientId);
+    });
+    assert.deepEqual(refsAfterDeletingMiddleIngredient, ["oats", "almonds", "yoghurt"]);
     assert.equal(await page.evaluate(() => ingredientUnits.includes("kg")), true);
     assert.equal(
       await page.evaluate(() => nutritionScale(1.2, "kg", { amount: 100, unit: "g" })),

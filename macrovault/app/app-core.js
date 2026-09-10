@@ -1649,6 +1649,22 @@ function normalizeRecipeIngredientQuantities(recipe) {
   };
 }
 
+function alignedRecipeIngredientRefs(recipe, currentIngredientData) {
+  const savedLines = recipe?.ingredients || [];
+  const available = (recipe?.ingredientRefs || []).map((ref, index) => ({
+    ref,
+    key: ingredientKey(ref?.line || parseIngredientLine(savedLines[index] || "").name),
+    used: false
+  }));
+  return (currentIngredientData || []).map((item) => {
+    const key = ingredientKey(item?.name || "");
+    const match = available.find((candidate) => !candidate.used && candidate.key && candidate.key === key);
+    if (!match) return {};
+    match.used = true;
+    return match.ref || {};
+  });
+}
+
 function ingredientKey(value) {
   const normalized = cleanIngredientName(value).replace(/['’]/g, "");
   if (!normalized) return "";
