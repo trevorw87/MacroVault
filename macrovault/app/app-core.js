@@ -1908,7 +1908,9 @@ function normalizeIngredients(existingIngredients, recipes, deletedIngredientKey
     ingredientIdentityKeys(ingredient).forEach((key) => knownKeys.add(key));
   });
 
-  recipes.flatMap((recipe) => recipe.ingredients || []).forEach((ingredientLine) => {
+  recipes.filter((recipe) => !isGeneratedPlannerRecipe(recipe)).flatMap((recipe) => (
+    (recipe.ingredients || []).filter((line, index) => !retainedIngredients.some((ingredient) => ingredient.id === recipe.ingredientRefs?.[index]?.ingredientId))
+  )).forEach((ingredientLine) => {
     const cleaned = cleanIngredientName(ingredientLine);
     const key = ingredientKey(ingredientLine);
     if (cleaned && !knownKeys.has(key) && !deletedKeys.has(key)) {

@@ -346,7 +346,9 @@ function foodLogSourceOptions() {
     ...macrosPerServing(recipe),
     gramsPerServing: recipeGramsPerServing(recipe)
   }));
-  const ingredients = (state.ingredients || []).map((ingredient) => ({
+  const ingredients = (state.ingredients || [])
+    .filter((ingredient) => ingredient.manuallyAdded !== false || hasNutritionValues(ingredient.nutrition))
+    .map((ingredient) => ({
     value: `ingredient:${ingredient.id}`,
     label: ingredient.name,
     type: "ingredient",

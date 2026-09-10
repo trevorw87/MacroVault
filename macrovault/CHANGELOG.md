@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.63
+
+- Prevented planner portions and already-linked recipe lines from creating extra ingredient records.
+- Hid automatically generated ingredients without nutrition from the food picker while retaining manually saved ingredients.
+
 ## 0.9.62
 
 - Opened the planner calendar on the current month when entering the planner or loading it.

@@ -283,6 +283,22 @@ function startServer() {
       return { removed, ids: draft.recipes.map((recipe) => recipe.id) };
     });
     assert.deepEqual(generatedRecipeCleanup, { removed: 1, ids: ["planner-food-used", "saved-recipe"] });
+    const plannerIngredientDuplicates = await page.evaluate(() => {
+      const original = [{ id: "granola-test", name: "Homemade Granola", manuallyAdded: true, nutrition: { calories: 300 } }];
+      const recipes = [
+        { id: "saved-test", ingredients: ["1 each Homemade Granola"], ingredientRefs: [{ ingredientId: "granola-test" }] },
+        { id: "planner-food-test", quickMeal: true, ingredients: ["1 each Homemade Granola"] },
+        { id: "planner-portion-test", ingredients: ["0.5 each Homemade Granola"] }
+      ];
+      let ingredients = original;
+      for (let i = 0; i < 3; i += 1) ingredients = normalizeIngredients(ingredients, recipes);
+      const previous = state.ingredients;
+      state.ingredients = [...ingredients, { id: "empty-auto-test", name: "Each Homemade Granola", manuallyAdded: false, nutrition: {} }];
+      try {
+        return { names: ingredients.map((item) => item.name), visible: foodLogSourceOptions().filter((item) => item.type === "ingredient").map((item) => item.label) };
+      } finally { state.ingredients = previous; }
+    });
+    assert.deepEqual(plannerIngredientDuplicates, { names: ["Homemade Granola"], visible: ["Homemade Granola"] });
     const weightBasedRecipe = await page.evaluate(() => {
       const recipe = {
         servings: 5,
