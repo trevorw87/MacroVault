@@ -95,7 +95,7 @@ function startServer() {
       render();
     });
     await plannerPage.waitForFunction(() => [...document.querySelectorAll(".planner-dish .planner-meal-copy > strong")]
-      .some((element) => element.textContent === "Cross-tab Salmon"));
+      .some((element) => element.textContent.startsWith("Cross-tab Salmon — ")));
     assert.equal(await plannerPage.locator("#pageTitle").textContent(), "Planner");
     assert.equal(await page.locator("#pageTitle").textContent(), "Recipes");
     await page.evaluate((original) => {

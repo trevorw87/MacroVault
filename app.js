@@ -695,6 +695,43 @@ document.addEventListener("click", async (event) => {
   }
 
   const editButton = event.target.closest("[data-edit-recipe]");
+  const quantityButton = event.target.closest("[data-planner-quantity]");
+  if (quantityButton) {
+    const { plannerQuantity: id, plannerDay: day, plannerSlot: slot } = quantityButton.dataset;
+    const recipe = recipeById(id);
+    if (!recipe) return;
+    const week = state.selectedPlannerWeek;
+    const grams = recipeGramsPerServing(recipe);
+    const entered = await openUiDialog({
+      title: `Quantity: ${plannerMealName(recipe)}`,
+      message: grams ? "Enter the grams to serve for this planned meal." : "Enter the number of current servings for this planned meal (for example 0.5 or 2).",
+      confirmLabel: "Save quantity",
+      input: { label: grams ? "Grams served" : "Servings", type: "number", min: "0.01", step: "any", value: grams || 1 }
+    });
+    if (entered === null) return;
+    const amount = Number(entered);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    if (week !== state.selectedPlannerWeek || !plannerRecipeIds(day, slot).includes(id)) return;
+    const factor = (grams ? amount / grams : amount) / recipeServings(recipe);
+    const portion = structuredClone(recipe);
+    portion.name = plannerMealName(recipe);
+    portion.id = `planner-portion-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    portion.tags = [...new Set([...(portion.tags || []), "planner portion"])];
+    portion.quickMeal = true;
+    portion.servings = 1;
+    portion.calories = roundNutrition(recipeTotalCalories(recipe) * factor);
+    portion.macros = scaleNutrition(recipe.macros || {}, factor);
+    portion.nutrition = scaleNutrition(recipe.nutrition || {}, factor);
+    portion.ingredients = (recipe.ingredients || []).map((line) => scaleIngredientLine(line, factor));
+    portion.ingredientRefs = (recipe.ingredientRefs || []).map((ref) => ({ ...ref, usedAmount: roundNutrition((Number(ref.usedAmount) || 0) * factor) }));
+    state.recipes.unshift(portion);
+    state.planner[day][slot] = plannerRecipeIds(day, slot).map((value) => value === id ? portion.id : value);
+    state.bought = [];
+    pruneUnusedGeneratedPlannerRecipes(state);
+    saveState();
+    render();
+    return;
+  }
   if (editButton) {
     const recipe = recipeById(editButton.dataset.editRecipe);
     if (recipe) openRecipeDialog(recipe);

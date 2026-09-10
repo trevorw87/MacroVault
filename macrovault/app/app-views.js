@@ -773,6 +773,19 @@ function plannerIngredientListMarkup(recipe, plannedServings = 1) {
   return items.length ? `<ul class="planner-ingredient-list" aria-label="Amount to eat">${items.join("")}</ul>` : "";
 }
 
+function plannerMealName(recipe) {
+  return isGeneratedPlannerRecipe(recipe)
+    ? String(recipe.name || "").replace(/(?:\s*\([\d.]+\s+servings?\))+\s*$/i, "").trim()
+    : recipe.name;
+}
+
+function plannerPortionLabel(recipe, servings = 1) {
+  const details = recipeWeightDetails(recipe);
+  const grams = recipeGramsPerServing(recipe) * servings;
+  if (grams > 0) return `${formatScaledNumber(grams)} g${details.excluded ? " + unweighed ingredients" : " portion"}`;
+  return `${formatScaledNumber(servings)} serving${servings === 1 ? "" : "s"}`;
+}
+
 function plannerCellMarkup(day, slot) {
   const selectedIds = plannerRecipeIds(day, slot.id);
   const selectedRecipes = plannerRecipes(day, slot);
@@ -793,14 +806,14 @@ function plannerCellMarkup(day, slot) {
             ${mealThumbnailMarkup(recipe, slot.label)}
             <div class="planner-meal-pick">
               <div class="planner-meal-copy">
-                <strong>${escapeHtml(recipe.name)}</strong>
+                <strong>${escapeHtml(plannerMealName(recipe))} — ${escapeHtml(plannerPortionLabel(recipe, plannedServings))}</strong>
                 ${plannerIngredientListMarkup(recipe, plannedServings)}
               </div>
               ${nutritionIssue
                 ? `<button class="planner-nutrition-warning" data-edit-recipe="${escapeHtml(recipe.id)}" type="button" title="Excluded from daily totals">Check nutrition</button>`
                 : `<span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} · ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>`}
               <div class="planner-dish-chips">
-                <button class="planner-edit-dish" data-edit-recipe="${escapeHtml(recipe.id)}" type="button">Edit</button>
+                <button class="planner-edit-dish" data-planner-quantity="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" type="button">Quantity</button>
                 <button class="planner-status-chip ${recipe.prepared ? "prepared" : ""}" data-toggle-recipe-prepared="${escapeHtml(recipe.id)}" type="button" aria-pressed="${recipe.prepared}">${recipe.prepared ? "Prepared" : "Not prepared"}</button>
                 ${alternatives.length ? `<details class="planner-swap-menu">
                   <summary>Swap</summary>

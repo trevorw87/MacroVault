@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.64
+
+- Added a planner Quantity button to adjust grams or servings for an individual meal.
+- Displayed portion weights beside meal names and removed generated serving suffixes.
+- Identified unweighed ingredients when a portion weight is incomplete.
+
 ## 0.9.63
 
 - Prevented planner portions and already-linked recipe lines from creating extra ingredient records.
