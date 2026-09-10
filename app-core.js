@@ -2880,24 +2880,9 @@ function consumedProteinForDay(day) {
   return mealPlanSlots.reduce((sum, slot) => mealIsConsumed(day, slot.id) ? sum + mealSlotProtein(day, slot) : sum, 0);
 }
 
-function fillEstimatedMacros() {
-  const ingredients = recipeIngredientLinesFromForm();
-  const estimated = estimateMacrosFromIngredients(ingredients);
-  const servings = Math.max(1, Number(document.querySelector("#recipeServings").value) || 1);
-  document.querySelector("#recipeCalories").value = roundNutrition(caloriesFromMacros(estimated) / servings);
-  document.querySelector("#recipeProtein").value = roundNutrition(estimated.protein / servings);
-  document.querySelector("#recipeCarbs").value = roundNutrition(estimated.carbs / servings);
-  document.querySelector("#recipeFat").value = roundNutrition(estimated.fat / servings);
-  document.querySelector("#recipeFibre").value = 0;
-  document.querySelector("#recipeSodium").value = 0;
-  renderRecipeNutritionSummary();
-  document.querySelector("#macroEstimateNote").textContent = hasMeaningfulMacros(estimated)
-    ? "Estimated per serve from recognized ingredients. Adjust if needed."
-    : "No known ingredients found yet. Add quantities for a better estimate.";
-}
-
 function setTab(tabId) {
   state.activeTab = tabId;
+  if (tabId === "planner") state.plannerMonth = todayDateKey().slice(0, 7);
   saveState();
   render();
 }

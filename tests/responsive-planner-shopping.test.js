@@ -198,6 +198,13 @@ function startServer() {
       "rgb(255, 255, 255)"
     );
     assert.ok(await page.locator("#plannerMonthGrid .planner-month-day").count() >= 35);
+    await page.evaluate(() => {
+      state.plannerMonth = "2020-01";
+      saveState({ skipBackup: true });
+    });
+    await page.getByRole("button", { name: "Recipes", exact: true }).click();
+    await page.getByRole("button", { name: "Planner", exact: true }).click();
+    assert.equal(await page.locator("#plannerMonth").inputValue(), await page.evaluate(() => todayDateKey().slice(0, 7)));
 
     const currentPlannerSnapshot = await page.evaluate(() => {
       const saved = JSON.parse(localStorage.getItem("macrovault.mvp.v1"));

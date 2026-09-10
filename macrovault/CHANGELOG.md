@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.62
+
+- Opened the planner calendar on the current month when entering the planner or loading it.
+- Removed the manual macro estimate button from the recipe editor.
+
 ## 0.9.61
 
 - Kept ingredient nutrition rows correctly aligned when recipe ingredients are deleted or reordered.

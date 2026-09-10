@@ -1244,7 +1244,6 @@ document.querySelector("#nutritionLabelPhotoInput").addEventListener("change", a
   }
 });
 
-document.querySelector("#estimateMacrosButton").addEventListener("click", fillEstimatedMacros);
 document.querySelector("#recipeIngredients").addEventListener("input", () => {
   renderRecipeIngredientNutritionEditor();
   updateRecipeTotalsFromIngredientNutrition();
@@ -1492,7 +1491,6 @@ recipeForm.addEventListener("submit", async (event) => {
   document.querySelector("#tagFilter").value = "all";
   if (!saveState()) {
     state = previousState;
-    document.querySelector("#macroEstimateNote").textContent = "Could not save. Browser storage may be full; remove uploaded images from Site or use image URLs.";
     showToast("Could not save. Browser storage is probably full from uploaded images. Remove a few large images from Site, or use image URLs instead.", { type: "error", duration: 8000 });
     return;
   }
@@ -1584,6 +1582,7 @@ recipeImportForm.addEventListener("submit", async (event) => {
 
 async function initializeApp() {
   await initializeStateFromStorage();
+  if (state.activeTab === "planner") state.plannerMonth = todayDateKey().slice(0, 7);
   applyGenericNutritionFromUrlRequest();
   render();
 }
