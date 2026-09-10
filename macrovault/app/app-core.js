@@ -1186,6 +1186,7 @@ function normalizeState(nextState) {
     nextState.plannerWeeks[selectedPlannerWeek] = normalizePlannerWeekRecord(nextState, legacyPlannerWeek);
   }
   activatePlannerWeek(nextState, selectedPlannerWeek);
+  pruneUnusedGeneratedPlannerRecipes(nextState);
   nextState.plannerMonth = normalizedMonthKey(nextState.plannerMonth || selectedPlannerWeek.slice(0, 7));
   nextState.plannerFocusDay = days.includes(nextState.plannerFocusDay)
     ? nextState.plannerFocusDay
@@ -1478,6 +1479,13 @@ function plannerRecipeUsageCounts(nextState = state) {
   return counts;
 }
 
+function pruneUnusedGeneratedPlannerRecipes(nextState = state) {
+  const usageCounts = plannerRecipeUsageCounts(nextState);
+  const previousCount = (nextState.recipes || []).length;
+  nextState.recipes = (nextState.recipes || []).filter((recipe) => !isGeneratedPlannerRecipe(recipe) || usageCounts.has(recipe.id));
+  return previousCount - nextState.recipes.length;
+}
+
 function autoFillSelectedPlannerWeek(nextState = state, random = Math.random) {
   const usageCounts = plannerRecipeUsageCounts(nextState);
   let filled = 0;
@@ -1507,7 +1515,14 @@ function isSnackRecipe(recipe) {
 }
 
 function recipesForSlot(slot) {
-  return state.recipes.filter((recipe) => recipeBelongsToCategory(recipe, slot.category));
+  return state.recipes.filter((recipe) => !isGeneratedPlannerRecipe(recipe) && recipeBelongsToCategory(recipe, slot.category));
+}
+
+function isGeneratedPlannerRecipe(recipe) {
+  const tags = Array.isArray(recipe?.tags) ? recipe.tags : [];
+  return Boolean(recipe?.quickMeal)
+    || /^planner-(?:food|portion)-/.test(String(recipe?.id || ""))
+    || tags.some((tag) => ["planner food", "planner portion", "quick meal", "ingredients only"].includes(String(tag).toLowerCase()));
 }
 
 function validRecipeCategoryIds(values) {
@@ -1911,6 +1926,53 @@ function linkRecipesToIngredients(recipes, ingredients) {
   }));
 }
 
+function updateQuickMealIngredientServingReferences(nextState, ingredientId, previousServing = {}, nextServing = {}, ingredientName = "Ingredient") {
+  const previousAmount = Math.max(0.1, Number(previousServing.amount) || 1);
+  const previousUnit = previousServing.unit || "each";
+  const nextAmount = Math.max(0.1, Number(nextServing.amount) || 1);
+  const nextUnit = nextServing.unit || "each";
+  let changed = 0;
+  nextState.recipes = (nextState.recipes || []).map((recipe) => {
+    if (!recipe.quickMeal) return recipe;
+    let recipeChanged = false;
+    const ingredients = [...(recipe.ingredients || [])];
+    const ingredientRefs = (recipe.ingredientRefs || []).map((ref, index) => {
+      if (ref.ingredientId !== ingredientId || (ref.usedUnit || "each") !== previousUnit) return ref;
+      const servingCount = Math.max(0, Number(ref.usedAmount) || previousAmount) / previousAmount;
+      const usedAmount = roundNutrition(nextAmount * servingCount);
+      ingredients[index] = `${usedAmount} ${nextUnit} ${ingredientName}`;
+      recipeChanged = true;
+      changed += 1;
+      return { ...ref, line: ingredientName, usedAmount, usedUnit: nextUnit };
+    });
+    const name = ingredientRefs.length === 1 && (recipe.tags || []).includes("planner food")
+      ? ingredientName
+      : recipe.name;
+    return recipeChanged ? { ...recipe, name, ingredients, ingredientRefs } : recipe;
+  });
+  return changed;
+}
+
+function migrateLegacyQuickMealServingReferences(nextState = state) {
+  const ingredientIds = new Set((nextState.recipes || []).filter((recipe) => recipe.quickMeal)
+    .flatMap((recipe) => (recipe.ingredientRefs || [])
+      .filter((ref) => (ref.usedUnit || "each") === "each")
+      .map((ref) => ref.ingredientId).filter(Boolean)));
+  let changed = 0;
+  ingredientIds.forEach((ingredientId) => {
+    const ingredient = (nextState.ingredients || []).find((item) => item.id === ingredientId);
+    if (!ingredient || (ingredient.serving?.unit || "each") === "each") return;
+    changed += updateQuickMealIngredientServingReferences(
+      nextState,
+      ingredientId,
+      { amount: 1, unit: "each" },
+      ingredient.serving,
+      ingredient.name
+    );
+  });
+  return changed;
+}
+
 function removeUnusedIngredients(nextState = state) {
   const usedIngredientIds = new Set((nextState.recipes || []).flatMap((recipe) => (
     (recipe.ingredientRefs || []).map((ref) => ref.ingredientId).filter(Boolean)
@@ -1929,6 +1991,7 @@ function syncIngredientsAndRecipeLinks(nextState = state, options = {}) {
     nextState.deletedIngredientKeys || []
   );
   nextState.recipes = linkRecipesToIngredients(nextState.recipes || [], nextState.ingredients);
+  migrateLegacyQuickMealServingReferences(nextState);
   if (options.removeUnused) {
     removeUnusedIngredients(nextState);
   }

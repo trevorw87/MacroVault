@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.59
+
+- Kept planner-generated food entries out of food searches and the main Recipes list.
+- Removed unused generated planner entries automatically so repeated additions no longer create growing duplicate lists.
+- Updated existing planner food measurements when an ingredient serving changes, including migrations from each to grams.
+
 ## 0.9.58
 
 - Added live data synchronization between Planner and Recipes opened in separate browser tabs.

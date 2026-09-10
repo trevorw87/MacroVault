@@ -227,6 +227,62 @@ function startServer() {
       await page.evaluate(() => shouldUseParsedIngredientQuantity(parseIngredientLine("209g flour"), { usedAmount: 150, usedUnit: "g" }, 1)),
       false
     );
+    const migratedQuickMealServing = await page.evaluate(() => {
+      const draft = {
+        recipes: [{
+          id: "quick-serving-test",
+          quickMeal: true,
+          ingredients: ["2 each Almonds"],
+          ingredientRefs: [{ ingredientId: "almonds-test", line: "Almonds", usedAmount: 2, usedUnit: "each" }]
+        }, {
+          id: "standard-serving-test",
+          quickMeal: false,
+          ingredients: ["2 each Almonds"],
+          ingredientRefs: [{ ingredientId: "almonds-test", line: "Almonds", usedAmount: 2, usedUnit: "each" }]
+        }]
+      };
+      updateQuickMealIngredientServingReferences(draft, "almonds-test", { amount: 1, unit: "each" }, { amount: 50, unit: "g" }, "Almonds");
+      return draft.recipes.map((recipe) => ({ ingredient: recipe.ingredients[0], ref: recipe.ingredientRefs[0] }));
+    });
+    assert.deepEqual(migratedQuickMealServing[0], {
+      ingredient: "100 g Almonds",
+      ref: { ingredientId: "almonds-test", line: "Almonds", usedAmount: 100, usedUnit: "g" }
+    });
+    assert.deepEqual(migratedQuickMealServing[1], {
+      ingredient: "2 each Almonds",
+      ref: { ingredientId: "almonds-test", line: "Almonds", usedAmount: 2, usedUnit: "each" }
+    });
+    const repairedSavedQuickMeal = await page.evaluate(() => {
+      const draft = {
+        ingredients: [{ id: "saved-almonds", name: "Almonds", serving: { amount: 50, unit: "g" } }],
+        recipes: [{
+          id: "saved-quick-meal",
+          quickMeal: true,
+          name: "*Almonds (0.5 servings)",
+          tags: ["planner food", "ingredient"],
+          ingredients: ["1 each Almonds"],
+          ingredientRefs: [{ ingredientId: "saved-almonds", line: "Almonds", usedAmount: 1, usedUnit: "each" }]
+        }]
+      };
+      migrateLegacyQuickMealServingReferences(draft);
+      return draft.recipes[0];
+    });
+    assert.equal(repairedSavedQuickMeal.ingredients[0], "50 g Almonds");
+    assert.equal(repairedSavedQuickMeal.ingredientRefs[0].usedUnit, "g");
+    assert.equal(repairedSavedQuickMeal.ingredientRefs[0].usedAmount, 50);
+    assert.equal(repairedSavedQuickMeal.name, "Almonds");
+    const generatedRecipeCleanup = await page.evaluate(() => {
+      const used = { id: "planner-food-used", quickMeal: true, tags: ["planner food"] };
+      const unused = { id: "planner-food-unused", tags: ["planner food"] };
+      const saved = { id: "saved-recipe", name: "Almond Cake", tags: [] };
+      const draft = {
+        recipes: [used, unused, saved],
+        plannerWeeks: { "2026-09-06": { planner: { Sunday: { breakfast: [used.id] } } } }
+      };
+      const removed = pruneUnusedGeneratedPlannerRecipes(draft);
+      return { removed, ids: draft.recipes.map((recipe) => recipe.id) };
+    });
+    assert.deepEqual(generatedRecipeCleanup, { removed: 1, ids: ["planner-food-used", "saved-recipe"] });
     assert.equal(await page.evaluate(() => ingredientUnits.includes("kg")), true);
     assert.equal(
       await page.evaluate(() => nutritionScale(1.2, "kg", { amount: 100, unit: "g" })),

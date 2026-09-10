@@ -654,6 +654,7 @@ document.addEventListener("click", async (event) => {
     state.consumed[plannerDay] ||= {};
     if (!state.planner[plannerDay][plannerSlot].length) state.consumed[plannerDay][plannerSlot] = false;
     state.bought = [];
+    pruneUnusedGeneratedPlannerRecipes(state);
     saveState();
     render();
   }
@@ -1513,6 +1514,7 @@ ingredientForm.addEventListener("submit", (event) => {
   const name = document.querySelector("#ingredientName").value.trim();
   if (!name) return;
   const previousState = structuredClone(state);
+  const previousIngredient = ingredientId ? ingredientById(ingredientId) : null;
   const ingredientData = {
     id: ingredientId || `ingredient-${slugify(name)}-${Date.now().toString(36)}`,
     name,
@@ -1545,6 +1547,7 @@ ingredientForm.addEventListener("submit", (event) => {
 
   if (ingredientId) {
     state.ingredients = state.ingredients.map((ingredient) => ingredient.id === ingredientId ? ingredientData : ingredient);
+    updateQuickMealIngredientServingReferences(state, ingredientId, previousIngredient?.serving, ingredientData.serving, ingredientData.name);
   } else {
     state.ingredients.push(ingredientData);
   }

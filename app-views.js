@@ -336,7 +336,7 @@ function renderTracker() {
 function foodLogSourceOptions() {
   const recentEntries = [...(state.foodLog || [])].reverse();
   const recentNames = new Set(recentEntries.slice(0, 30).map((entry) => entry.name.toLowerCase()));
-  const recipes = (state.recipes || []).map((recipe) => ({
+  const recipes = (state.recipes || []).filter((recipe) => !isGeneratedPlannerRecipe(recipe)).map((recipe) => ({
     value: `recipe:${recipe.id}`,
     label: recipe.name,
     type: "recipe",
@@ -558,12 +558,13 @@ function recipeCard(recipe) {
 function renderRecipes() {
   const search = document.querySelector("#recipeSearch").value.trim().toLowerCase();
   const tagFilter = document.querySelector("#tagFilter");
-  const tags = ["all", ...new Set(state.recipes.flatMap((recipe) => Array.isArray(recipe.tags) ? recipe.tags : []))].sort();
+  const visibleRecipes = state.recipes.filter((recipe) => !isGeneratedPlannerRecipe(recipe));
+  const tags = ["all", ...new Set(visibleRecipes.flatMap((recipe) => Array.isArray(recipe.tags) ? recipe.tags : []))].sort();
   const selectedTag = tags.includes(tagFilter.value) ? tagFilter.value : "all";
   tagFilter.innerHTML = tags.map((tag) => `<option value="${tag}">${tag === "all" ? "All tags" : tag}</option>`).join("");
   tagFilter.value = selectedTag;
 
-  const recipes = state.recipes.filter((recipe) => {
+  const recipes = visibleRecipes.filter((recipe) => {
     const recipeTags = Array.isArray(recipe.tags) ? recipe.tags : [];
     const recipeIngredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
     const originalIngredients = Array.isArray(recipe.originalIngredients) ? recipe.originalIngredients : [];
