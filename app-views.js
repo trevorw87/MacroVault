@@ -908,6 +908,7 @@ function renderPlanner() {
       totals.protein += Number(macros.protein) || 0;
       totals.carbs += Number(macros.carbs) || 0;
       totals.fat += Number(macros.fat) || 0;
+      totals.fibre += recipeNutritionPerServing(recipe).fibre;
       if (mealIsConsumed(focusedDay, slot.id)) {
         totals.consumedCalories += plannerSafeCaloriesPerServing(recipe);
         totals.consumedProtein += Number(macros.protein) || 0;
@@ -916,14 +917,15 @@ function renderPlanner() {
       }
     });
     return totals;
-  }, { calories: 0, protein: 0, carbs: 0, fat: 0, consumedCalories: 0, consumedProtein: 0, consumedCarbs: 0, consumedFat: 0 });
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0, consumedCalories: 0, consumedProtein: 0, consumedCarbs: 0, consumedFat: 0 });
   Object.keys(plannedNutrition).forEach((key) => { plannedNutrition[key] = roundNutrition(plannedNutrition[key]); });
   const macroCalories = Math.max(0, goals.calories - (goals.protein * 4));
   const macroTargets = {
     calories: goals.calories,
     protein: goals.protein,
     carbs: roundNutrition((macroCalories * 0.55) / 4),
-    fat: roundNutrition((macroCalories * 0.45) / 9)
+    fat: roundNutrition((macroCalories * 0.45) / 9),
+    fibre: 30
   };
   const remainingCalories = Math.max(0, goals.calories - plannedNutrition.calories);
   const ring = (label, value, target, tone) => {
@@ -958,6 +960,7 @@ function renderPlanner() {
       ${targetRow("Protein", plannedNutrition.protein, macroTargets.protein, "g", "protein")}
       ${targetRow("Carbs", plannedNutrition.carbs, macroTargets.carbs, "g", "carbs")}
       ${targetRow("Fat", plannedNutrition.fat, macroTargets.fat, "g", "fat")}
+      ${targetRow("Fibre", plannedNutrition.fibre, macroTargets.fibre, "g", "fibre")}
     </div>`;
   document.querySelector("#plannerGrid").innerHTML = `
     <div class="planner-week planner-mobile">

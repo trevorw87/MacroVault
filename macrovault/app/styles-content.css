@@ -1288,6 +1288,7 @@ textarea {
 .planner-target-row.protein > i span { background:#4c9a67; }
 .planner-target-row.carbs > i span { background:#d69a45; }
 .planner-target-row.fat > i span { background:#c96d86; }
+.planner-target-row.fibre > i span { background:#389b9b; }
 .planner-focus-note { display: flex; align-items: center; gap: 10px; margin: -2px 0 12px; padding: 9px 12px; border: 1px solid rgba(40,126,205,.14); border-radius: 12px; color: var(--muted); background: #f4f9fd; font-size: .8rem; }
 .planner-focus-note strong { color: #1d659f; }
 .smart-planner-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(140px, .55fr); gap: 12px; }

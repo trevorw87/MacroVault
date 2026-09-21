@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.65
+
+- Added a 30 g daily Fibre target with planned intake and a progress bar in the planner.
+
 ## 0.9.64
 
 - Added a planner Quantity button to adjust grams or servings for an individual meal.
