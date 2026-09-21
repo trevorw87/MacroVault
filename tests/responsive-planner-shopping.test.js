@@ -369,6 +369,15 @@ function startServer() {
     await page.locator('[data-food-log-source="recipe:lemon-salmon"]').click();
     await page.locator("#addFoodLogSubmit").click();
     assert.deepEqual(await page.evaluate(() => plannerRecipeIds("Monday", "breakfast")), ["lemon-salmon"]);
+    const mondaySummary = await page.locator("#plannerEnergySummary").innerText();
+    assert.match(mondaySummary, /Monday/i);
+    await page.locator('[data-planner-mobile-day="Tuesday"] > summary').click();
+    await page.waitForFunction(() => document.querySelector("#plannerEnergySummary .planner-summary-heading span").textContent === "Tuesday");
+    assert.match(await page.locator(".planner-target-row.energy").innerText(), /0 \/ 2,000 kcal/);
+    assert.match(await page.locator(".planner-target-row.fibre").innerText(), /0 \/ 30 g/);
+    await page.locator('[data-planner-mobile-day="Monday"] > summary').click();
+    await page.waitForFunction(() => document.querySelector("#plannerEnergySummary .planner-summary-heading span").textContent === "Monday");
+    assert.equal(await page.locator("#plannerEnergySummary").innerText(), mondaySummary);
     await page.evaluate(() => {
       state.planner.Monday.breakfast = [];
       saveState({ skipBackup: true });

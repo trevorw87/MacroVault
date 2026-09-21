@@ -887,20 +887,8 @@ function renderPlannerMonth() {
   `;
 }
 
-function renderPlanner() {
+function renderPlannerEnergySummary(focusedDay) {
   const goals = currentNutritionGoals();
-  const calorieGoalInput = document.querySelector("#dailyCalorieGoal");
-  const proteinGoalInput = document.querySelector("#dailyProteinGoal");
-  if (calorieGoalInput && document.activeElement !== calorieGoalInput) calorieGoalInput.value = goals.calories;
-  if (proteinGoalInput && document.activeElement !== proteinGoalInput) proteinGoalInput.value = goals.protein;
-
-  document.querySelector("#plannerWeekLabel").textContent = plannerWeekLabel();
-  const todayKey = todayDateKey();
-  const isCurrentPlannerWeek = state.selectedPlannerWeek === currentPlannerWeekKey();
-  const requestedFocusedDay = plannerFocusedDay();
-  const focusedDay = isCurrentPlannerWeek && plannerWeekDateKey(requestedFocusedDay) < todayKey
-    ? days[new Date().getDay()]
-    : requestedFocusedDay;
   const plannedNutrition = mealPlanSlots.reduce((totals, slot) => {
     plannerRecipes(focusedDay, slot).forEach((recipe) => {
       const macros = macrosPerServing(recipe);
@@ -962,6 +950,23 @@ function renderPlanner() {
       ${targetRow("Fat", plannedNutrition.fat, macroTargets.fat, "g", "fat")}
       ${targetRow("Fibre", plannedNutrition.fibre, macroTargets.fibre, "g", "fibre")}
     </div>`;
+}
+
+function renderPlanner() {
+  const goals = currentNutritionGoals();
+  const calorieGoalInput = document.querySelector("#dailyCalorieGoal");
+  const proteinGoalInput = document.querySelector("#dailyProteinGoal");
+  if (calorieGoalInput && document.activeElement !== calorieGoalInput) calorieGoalInput.value = goals.calories;
+  if (proteinGoalInput && document.activeElement !== proteinGoalInput) proteinGoalInput.value = goals.protein;
+
+  document.querySelector("#plannerWeekLabel").textContent = plannerWeekLabel();
+  const todayKey = todayDateKey();
+  const isCurrentPlannerWeek = state.selectedPlannerWeek === currentPlannerWeekKey();
+  const requestedFocusedDay = plannerFocusedDay();
+  const focusedDay = isCurrentPlannerWeek && plannerWeekDateKey(requestedFocusedDay) < todayKey
+    ? days[new Date().getDay()]
+    : requestedFocusedDay;
+  renderPlannerEnergySummary(focusedDay);
   document.querySelector("#plannerGrid").innerHTML = `
     <div class="planner-week planner-mobile">
       ${days.map((day) => {

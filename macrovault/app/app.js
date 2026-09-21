@@ -876,7 +876,7 @@ document.addEventListener("error", (event) => {
 }, true);
 
 document.addEventListener("toggle", (event) => {
-  const daySection = event.target.closest?.("[data-planner-mobile-day]");
+  const daySection = event.target.matches?.("[data-planner-mobile-day]") ? event.target : null;
   if (!daySection?.open || state.activeTab !== "planner") return;
   const day = daySection.dataset.plannerMobileDay;
   document.querySelectorAll("[data-planner-mobile-day][open]").forEach((section) => {
@@ -886,6 +886,7 @@ document.addEventListener("toggle", (event) => {
     state.plannerFocusDay = day;
     saveState();
   }
+  renderPlannerEnergySummary(day);
 }, true);
 
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
