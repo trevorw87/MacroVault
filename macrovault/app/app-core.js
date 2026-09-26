@@ -1653,6 +1653,7 @@ function alignedRecipeIngredientRefs(recipe, currentIngredientData) {
   const savedLines = recipe?.ingredients || [];
   const available = (recipe?.ingredientRefs || []).map((ref, index) => ({
     ref,
+    parsed: parseIngredientLine(savedLines[index] || ""),
     key: ingredientKey(ref?.line || parseIngredientLine(savedLines[index] || "").name),
     used: false
   }));
@@ -1661,6 +1662,9 @@ function alignedRecipeIngredientRefs(recipe, currentIngredientData) {
     const match = available.find((candidate) => !candidate.used && candidate.key && candidate.key === key);
     if (!match) return {};
     match.used = true;
+    if (item.hasQuantity && (!match.parsed.hasQuantity || item.usedAmount !== match.parsed.usedAmount || item.usedUnit !== match.parsed.usedUnit)) {
+      return { ...match.ref, usedAmount: item.usedAmount, usedUnit: item.usedUnit };
+    }
     return match.ref || {};
   });
 }

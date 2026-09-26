@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.68
+
+- Fixed edited ingredient quantities and units being overridden by older saved amounts in the recipe nutrition editor.
+- Verified oats and coconut quantities persist through saving and reloading.
+
 ## 0.9.67
 
 - Added fibre progress against the 30 g target to each planner day header and fibre per serving beside each meal.

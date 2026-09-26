@@ -168,6 +168,35 @@ function startServer() {
     assert.match(await recipeIngredientRows.first().locator("[data-recipe-serving-info]").textContent(), /Serving size:.*Recipe uses:.*servings?/);
     await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
 
+    // A new amount in the ingredient list must replace the old saved cup usage.
+    await page.evaluate(() => {
+      const recipe = recipeById("lemon-salmon");
+      recipe.ingredients[0] = "0.93 cup quick rolled oats";
+      recipe.ingredients[1] = "1 cup coconut";
+      recipe.ingredientRefs[1] = { ...recipe.ingredientRefs[1], line: "coconut", usedAmount: 1, usedUnit: "cup" };
+      recipe.ingredientRefs[0] = { ...recipe.ingredientRefs[0], line: "quick rolled oats", usedAmount: 0.93, usedUnit: "cup" };
+      openRecipeDialog(recipe);
+    });
+    const oatsLines = await page.locator("#recipeIngredients").inputValue();
+    await page.locator("#recipeIngredients").fill(oatsLines.replace("0.93 cup quick rolled oats", "200 g quick rolled oats").replace("1 cup coconut", "80 g coconut"));
+    assert.equal(await firstRecipeAmount.inputValue(), "200");
+    assert.equal(await recipeIngredientRows.first().locator('[data-recipe-ingredient-field="usedUnit"]').inputValue(), "g");
+    await page.locator("#recipeDialog").getByRole("button", { name: "Save recipe", exact: true }).click();
+    await page.reload({ waitUntil: "networkidle" });
+    await page.evaluate(() => openRecipeDialog(recipeById("lemon-salmon")));
+    assert.equal(await recipeIngredientRows.nth(1).locator('[data-recipe-ingredient-field="usedAmount"]').inputValue(), "80");
+    assert.equal(await recipeIngredientRows.nth(1).locator('[data-recipe-ingredient-field="usedUnit"]').inputValue(), "g");
+    assert.equal(await firstRecipeAmount.inputValue(), "200");
+    assert.equal(await recipeIngredientRows.first().locator('[data-recipe-ingredient-field="usedUnit"]').inputValue(), "g");
+    // Direct nutrition-row edits must also survive saving without changing units.
+    await firstRecipeAmount.fill("250");
+    await page.locator("#recipeDialog").getByRole("button", { name: "Save recipe", exact: true }).click();
+    await page.evaluate(() => openRecipeDialog(recipeById("lemon-salmon")));
+    assert.equal(await firstRecipeAmount.inputValue(), "250");
+    assert.equal(await recipeIngredientRows.first().locator('[data-recipe-ingredient-field="usedUnit"]').inputValue(), "g");
+    await page.locator("#recipeDialog").getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.evaluate(() => { state = normalizeState(structuredClone(sampleState)); saveState({ skipBackup: true }); render(); setTab("recipes"); });
+
     const explicitIngredientSelection = await page.evaluate(() => {
       const recipe = recipeById("lemon-salmon");
       const lineName = parseIngredientLine(recipe.ingredients[0]).name;
