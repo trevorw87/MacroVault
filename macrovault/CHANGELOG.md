@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.67
+
+- Added fibre progress against the 30 g target to each planner day header and fibre per serving beside each meal.
+- Allowed meal nutrition text to wrap on smaller screens.
+
 ## 0.9.66
 
 - Fixed Energy Summary and Daily Targets to refresh when selecting a different planner day.

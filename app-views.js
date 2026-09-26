@@ -811,7 +811,7 @@ function plannerCellMarkup(day, slot) {
               </div>
               ${nutritionIssue
                 ? `<button class="planner-nutrition-warning" data-edit-recipe="${escapeHtml(recipe.id)}" type="button" title="Excluded from daily totals">Check nutrition</button>`
-                : `<span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} · ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")}`)}</span>`}
+                : `<span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} · ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")} · ${formatPlannerNumber(recipeNutritionPerServing(recipe).fibre, "g fibre")}`)}</span>`}
               <div class="planner-dish-chips">
                 <button class="planner-edit-dish" data-planner-quantity="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" type="button">Quantity</button>
                 <button class="planner-status-chip ${recipe.prepared ? "prepared" : ""}" data-toggle-recipe-prepared="${escapeHtml(recipe.id)}" type="button" aria-pressed="${recipe.prepared}">${recipe.prepared ? "Prepared" : "Not prepared"}</button>
@@ -974,6 +974,8 @@ function renderPlanner() {
         const remaining = nutritionGoalRemainingForDay(day);
         const personCalories = plannedCaloriesPerPersonForDay(day);
         const personProtein = plannedProteinPerPersonForDay(day);
+        const personFibre = roundNutrition(mealPlanSlots.reduce((total, slot) => total + plannerRecipes(day, slot).reduce((sum, recipe) => sum + recipeNutritionPerServing(recipe).fibre, 0), 0));
+        const fibreProgress = Math.min(100, Math.round((personFibre / 30) * 100));
         const personProgress = goals.calories ? Math.min(100, Math.round((personCalories / goals.calories) * 100)) : 0;
         const proteinProgress = goals.protein ? Math.min(100, Math.round((personProtein / goals.protein) * 100)) : 0;
         const nutritionWarnings = mealPlanSlots.flatMap((slot) => plannerRecipes(day, slot)).filter((recipe) => plannerNutritionIssue(recipe));
@@ -1004,6 +1006,11 @@ function renderPlanner() {
                     <small>Protein</small>
                     <strong>${formatPlannerNumber(personProtein, "protein")} / ${formatPlannerNumber(goals.protein, "protein")}</strong>
                     <i><b style="width:${proteinProgress}%"></b></i>
+                  </span>
+                  <span class="planner-progress-set planner-fibre-progress">
+                    <small>Fibre</small>
+                    <strong>${formatPlannerNumber(personFibre, "g")} / 30 g</strong>
+                    <i role="progressbar" aria-label="${day} fibre target progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${fibreProgress}"><b style="width:${fibreProgress}%"></b></i>
                   </span>
                 </div>
                 <div class="planner-remaining ${remaining.met ? "met" : ""}">

@@ -637,7 +637,7 @@
 
 .planner-day-people { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:.68rem; white-space:nowrap; }
 .planner-day-people input { width:54px; min-height:30px; padding:4px 6px; text-align:center; }
-.planner-progress-summary { display:grid; grid-template-columns:repeat(2,minmax(130px,1fr)); gap:8px 12px; }
+.planner-progress-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px 12px; }
 .planner-progress-set { display:grid; grid-template-columns:1fr auto; gap:3px 8px; min-width:0; }
 .planner-progress-set small,
 .planner-progress-set em { color:var(--muted); font-size:.62rem; font-style:normal; font-weight:800; }

@@ -1639,7 +1639,7 @@ textarea:focus-visible,
   min-height: 0;
   max-height: none;
   justify-self: end;
-  white-space: nowrap;
+  white-space: normal;
   text-align: right;
 }
 
