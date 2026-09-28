@@ -615,11 +615,14 @@ function shiftMonthKey(value, monthsToAdd) {
 }
 
 function emptyPlannerWeekRecord() {
-  return { planner: {}, plannerServings: {}, plannerDayServings: {}, consumed: {} };
+  return { planner: {}, plannerServings: {}, plannerDayServings: {}, plannerNotes: {}, consumed: {} };
 }
 
 function normalizePlannerWeekRecord(nextState, value = {}) {
   const record = value && typeof value === "object" ? value : {};
+  const plannerNotes = Object.fromEntries(days.map((day) => [day,
+    typeof record.plannerNotes?.[day] === "string" ? record.plannerNotes[day] : ""
+  ]));
   const planner = record.planner && typeof record.planner === "object" ? record.planner : {};
   const plannerServings = record.plannerServings && typeof record.plannerServings === "object" ? record.plannerServings : {};
   const plannerDayServings = record.plannerDayServings && typeof record.plannerDayServings === "object" ? record.plannerDayServings : {};
@@ -655,7 +658,7 @@ function normalizePlannerWeekRecord(nextState, value = {}) {
       consumed[day][slot.id] = Boolean(consumed[day][slot.id]);
     });
   });
-  return { planner, plannerServings, plannerDayServings, consumed };
+  return { planner, plannerServings, plannerDayServings, plannerNotes, consumed };
 }
 
 function activatePlannerWeek(nextState, weekKey) {
@@ -664,6 +667,7 @@ function activatePlannerWeek(nextState, weekKey) {
   nextState.plannerWeeks[normalizedKey] = normalizePlannerWeekRecord(nextState, nextState.plannerWeeks[normalizedKey]);
   nextState.selectedPlannerWeek = normalizedKey;
   nextState.planner = nextState.plannerWeeks[normalizedKey].planner;
+  nextState.plannerNotes = nextState.plannerWeeks[normalizedKey].plannerNotes;
   nextState.plannerServings = nextState.plannerWeeks[normalizedKey].plannerServings;
   nextState.plannerDayServings = nextState.plannerWeeks[normalizedKey].plannerDayServings;
   nextState.consumed = nextState.plannerWeeks[normalizedKey].consumed;
@@ -1163,6 +1167,7 @@ function normalizeState(nextState) {
     .filter((entry) => entry.date && entry.weight > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
   const legacyPlannerWeek = {
+    plannerNotes: nextState.plannerNotes || {},
     planner: nextState.planner && typeof nextState.planner === "object" ? nextState.planner : {},
     plannerServings: nextState.plannerServings && typeof nextState.plannerServings === "object" ? nextState.plannerServings : {},
     plannerDayServings: nextState.plannerDayServings && typeof nextState.plannerDayServings === "object" ? nextState.plannerDayServings : {},

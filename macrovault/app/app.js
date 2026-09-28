@@ -1059,6 +1059,13 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("input", (event) => {
+  const plannerNote = event.target.closest("[data-planner-note]");
+  if (plannerNote) {
+    state.plannerNotes[plannerNote.dataset.plannerNote] = plannerNote.value;
+    state.plannerWeeks[state.selectedPlannerWeek].plannerNotes = state.plannerNotes;
+    saveState();
+    return;
+  }
   const quickMealServings = event.target.closest("[data-quick-meal-servings]");
   if (quickMealServings) updateQuickMealServingInfo(quickMealServings.closest("[data-quick-meal-row]"));
   const familyGoalText = event.target.closest("[data-family-goal-text]");

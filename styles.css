@@ -4,3 +4,31 @@
 @import url("styles-family.css?v=140");
 @import url("styles-responsive.css?v=140");
 @import url("styles-modern.css?v=141");
+
+.planner-day-notes {
+  display: grid;
+  gap: 6px;
+  padding: 14px 20px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.planner-day-notes textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 66px;
+  padding: 10px 12px;
+  border: 1px solid #dce7df;
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.planner-day-notes textarea:focus-visible {
+  outline: 2px solid #00875a;
+  outline-offset: 2px;
+}

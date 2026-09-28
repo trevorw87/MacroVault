@@ -149,6 +149,17 @@ function startServer() {
     await page.getByRole("button", { name: "Planner", exact: true }).click();
     assert.equal(await page.locator(".planner-day-section[open]").count(), 1);
     assert.equal(await page.locator(".planner-day-section.today[open]").count(), 1);
+    const noteInput = page.locator(".planner-day-section[open] [data-planner-note]");
+    const noteDay = await noteInput.getAttribute("data-planner-note");
+    const noteText = 'Prep lunch tonight.\nRemember <containers> & snacks.';
+    await noteInput.fill(noteText);
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Planner", exact: true }).click();
+    assert.equal(await page.locator(`[data-planner-note="${noteDay}"]`).inputValue(), noteText);
+    await page.locator("#nextPlannerWeekButton").click();
+    assert.equal(await page.locator(`[data-planner-note="${noteDay}"]`).inputValue(), "");
+    await page.locator("#currentPlannerWeekButton").click();
+    assert.equal(await page.locator(`[data-planner-note="${noteDay}"]`).inputValue(), noteText);
     const desktopPlannerAxis = await page.evaluate(() => {
       const sunday = document.querySelector('[data-planner-mobile-day="Sunday"]');
       const mealGrid = sunday.querySelector(".planner-day-meals");

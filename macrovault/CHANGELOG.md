@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.69
+
+- Added an automatically saved notes area below each expanded planner day heading.
+- Kept notes separate for each day and week, with persistence verified across reloads and week changes.
+
 ## 0.9.68
 
 - Fixed edited ingredient quantities and units being overridden by older saved amounts in the recipe nutrition editor.

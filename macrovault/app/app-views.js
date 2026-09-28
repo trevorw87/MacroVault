@@ -1024,6 +1024,10 @@ function renderPlanner() {
                 <span class="planner-view-meals"><span>View meals</span><span>Hide meals</span></span>
               </div>
             </summary>
+            <label class="planner-day-notes">
+              <span>Notes</span>
+              <textarea data-planner-note="${day}" rows="2" aria-label="${day} notes" placeholder="Add meal prep reminders, plans, or anything to remember…">${escapeHtml(state.plannerNotes?.[day] || "")}</textarea>
+            </label>
             <div class="planner-day-meals planner-mobile-slots">
               ${mealPlanSlots.map((slot) => {
                 const slotNutrition = plannerSlotNutrition(day, slot);
