@@ -166,6 +166,10 @@ function startServer() {
     assert.match(printedDay, /Sunday/);
     assert.match(printedDay, /Breakfast/);
     assert.match(printedDay, /Planned portions total/);
+    assert.match(printedDay, /Daily targets/);
+    assert.match(printedDay, /Calories<\/span><strong>1,450 kcal/);
+    assert.match(printedDay, /Protein<\/span><strong>100 g/);
+    assert.match(printedDay, /Fibre<\/span><strong>30 g/);
     assert.doesNotMatch(printedDay, /<button/);
     await page.evaluate(() => openRecipeDialog(recipeById("lemon-salmon")));
     const recipeIngredientRows = page.locator("#recipeIngredientNutrition .recipe-ingredient-row");

@@ -658,12 +658,22 @@ function printPlannerDay(day) {
       article { break-inside: avoid; }
       p { margin: 1mm 0; }
       .nutrition { color: #444; break-after: avoid; }
+      .daily-targets { margin: 4mm 0; padding: 3mm; border: 1.5px solid #172033; break-inside: avoid; }
+      .daily-targets h2 { margin-bottom: 2mm; }
+      .target-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3mm; }
+      .target-grid p { margin: 0; }
+      .target-grid span { display: block; font-size: 10pt; }
+      .target-grid strong { display: block; font-size: 20pt; line-height: 1.2; }
       .notes { white-space: pre-wrap; margin: 3mm 0; }
       ul { margin: 1mm 0; padding-left: 5mm; }
       li { break-inside: avoid; }
       .planner-ingredient-list strong { margin-right: 1.5mm; }
       footer { margin-top: 4mm; font-size: 8pt; color: #555; }
-    </style></head><body><header><h1>Daily meals</h1><p>${escapeHtml(date)}</p><p>Planned portions total: ${nutritionLabel(totals)}</p></header>
+    </style></head><body><header><h1>Daily meals</h1><p>${escapeHtml(date)}</p></header>
+    <section class="daily-targets" aria-label="Daily targets"><h2>Daily targets</h2>
+      <div class="target-grid"><p><span>Calories</span><strong>1,450 kcal</strong></p><p><span>Protein</span><strong>100 g</strong></p><p><span>Fibre</span><strong>30 g</strong></p></div>
+    </section>
+    <p class="nutrition">Planned portions total: ${nutritionLabel(totals)}</p>
     ${notes ? `<div class="notes"><strong>Notes</strong><br>${escapeHtml(notes)}</div>` : ""}
     <main>${meals}</main><footer>${escapeHtml(state.configuration?.appName || "MacroVault")} · Quantities and nutrition reflect planned portions.</footer>
     <script>window.addEventListener("load", () => window.print());<\/script></body></html>`);

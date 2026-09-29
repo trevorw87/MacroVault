@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.71
+
+- Highlighted daily targets of 1,450 kcal, 100 g protein, and 30 g fibre in a prominent box on the A4 meal printout.
+- Kept printed targets separate from planned nutrition totals and existing app settings.
+
 ## 0.9.70
 
 - Added a Print button to each planner day for A4 portrait printing.
