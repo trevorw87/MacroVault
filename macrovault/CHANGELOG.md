@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.74
+
+- Fixed quick-meal control alignment across platforms.
+- Updated CI actions and tests to Node 24 and pinned the Ubuntu runner to 24.04.
+
 ## 0.9.73
 
 - Show actual planned daily calories, protein, and fibre in the A4 printout's summary box.
