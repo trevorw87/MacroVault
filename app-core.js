@@ -647,7 +647,8 @@ function normalizePlannerWeekRecord(nextState, value = {}) {
         })
         .filter((recipeId) => {
           const plannedRecipe = nextState.recipes.find((recipe) => recipe.id === recipeId);
-          return plannedRecipe && recipeBelongsToCategory(plannedRecipe, slot.category);
+          // Categories guide suggestions, but manually planned meals may use any recipe.
+          return Boolean(plannedRecipe);
         }))];
       const servingCounts = plannerServings[day][slot.id] && typeof plannerServings[day][slot.id] === "object"
         ? plannerServings[day][slot.id]

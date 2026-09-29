@@ -488,6 +488,31 @@ function startServer() {
     await page.getByRole("button", { name: "Shopping", exact: true }).click();
     assert.match(await page.locator("#shoppingList").textContent(), /No shopping items yet/);
 
+    const persistedMealWeek = await page.evaluate(() => {
+      const recipe = recipeById("lemon-salmon");
+      const portion = { ...structuredClone(recipe), id: "planner-portion-reload-test", quickMeal: true };
+      state.recipes.push(portion);
+      state.planner.Monday.breakfast = [recipe.id];
+      state.planner.Monday.lunch = [portion.id];
+      saveState();
+      return state.selectedPlannerWeek;
+    });
+    await page.reload({ waitUntil: "networkidle" });
+    const restoredMeals = await page.evaluate((week) => {
+      const snapshot = () => ({
+        breakfast: plannerRecipeIds("Monday", "breakfast"),
+        lunch: plannerRecipeIds("Monday", "lunch"),
+        portionExists: Boolean(recipeById("planner-portion-reload-test"))
+      });
+      const afterReload = snapshot();
+      selectPlannerWeek(shiftDateKey(week, 7));
+      selectPlannerWeek(week);
+      return { afterReload, afterWeekSwitch: snapshot() };
+    }, persistedMealWeek);
+    const expectedMeals = { breakfast: ["lemon-salmon"], lunch: ["planner-portion-reload-test"], portionExists: true };
+    assert.deepEqual(restoredMeals.afterReload, expectedMeals);
+    assert.deepEqual(restoredMeals.afterWeekSwitch, expectedMeals);
+
     assert.deepEqual(pageErrors, []);
     console.log("Responsive layouts and planner-to-shopping journey: PASS");
   } finally {

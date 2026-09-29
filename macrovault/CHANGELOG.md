@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.72
+
+- Fixed planner meals disappearing on refresh when a recipe's category differs from its planned meal slot.
+- Verified regular recipes and generated portions survive reloads and week changes.
+
 ## 0.9.71
 
 - Highlighted daily targets of 1,450 kcal, 100 g protein, and 30 g fibre in a prominent box on the A4 meal printout.
