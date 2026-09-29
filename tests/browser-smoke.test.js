@@ -158,7 +158,13 @@ function startServer() {
       let html = "";
       const originalOpen = window.open;
       window.open = () => ({ document: { write(content) { html += content; }, close() {} } });
-      try { printPlannerDay("Sunday"); } finally { window.open = originalOpen; }
+      const originalState = state;
+      state = structuredClone(state);
+      state.recipes.push({ id: "print-totals-test", name: "Print totals test", servings: 1, calories: 234, macros: { protein: 17, carbs: 22, fat: 9 }, nutrition: { fibre: 6 }, ingredients: [] });
+      for (const slot of mealPlanSlots) state.planner.Sunday[slot.id] = [];
+      state.planner.Sunday.breakfast = ["print-totals-test"];
+      state.planner.Sunday.lunch = ["print-totals-test"];
+      try { printPlannerDay("Sunday"); } finally { window.open = originalOpen; state = originalState; }
       return html;
     });
     assert.match(printedDay, /size: A4 portrait/);
@@ -166,10 +172,12 @@ function startServer() {
     assert.match(printedDay, /Sunday/);
     assert.match(printedDay, /Breakfast/);
     assert.match(printedDay, /Planned portions total/);
-    assert.match(printedDay, /Daily targets/);
-    assert.match(printedDay, /Calories<\/span><strong>1,450 kcal/);
-    assert.match(printedDay, /Protein<\/span><strong>100 g/);
-    assert.match(printedDay, /Fibre<\/span><strong>30 g/);
+    assert.match(printedDay, /Planned daily totals/);
+    assert.match(printedDay, /Calories<\/span><strong>468 kcal/);
+    assert.match(printedDay, /Protein<\/span><strong>34 g/);
+    assert.match(printedDay, /Fibre<\/span><strong>12 g/);
+    assert.match(printedDay, /234 kcal · 17 g protein · 22 g carbs · 6 g fibre/);
+    assert.doesNotMatch(printedDay, /g fat|Daily targets/);
     assert.doesNotMatch(printedDay, /<button/);
     await page.evaluate(() => openRecipeDialog(recipeById("lemon-salmon")));
     const recipeIngredientRows = page.locator("#recipeIngredientNutrition .recipe-ingredient-row");

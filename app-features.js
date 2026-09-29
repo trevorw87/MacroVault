@@ -628,10 +628,12 @@ function resizeFamilyGoalText(field) {
 function printPlannerDay(day) {
   if (!days.includes(day)) return;
   const date = dateFromLocalKey(plannerWeekDateKey(day)).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const nutritionLabel = (value) => `${roundNutrition(value.calories)} kcal · ${roundNutrition(value.protein)} g protein · ${roundNutrition(value.carbs)} g carbs · ${roundNutrition(value.fat)} g fat`;
-  const totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  const nutritionLabel = (value) => `${roundNutrition(value.calories)} kcal · ${roundNutrition(value.protein)} g protein · ${roundNutrition(value.carbs)} g carbs · ${roundNutrition(value.fibre)} g fibre`;
+  const totals = { calories: 0, protein: 0, carbs: 0, fibre: 0 };
   const meals = mealPlanSlots.map((slot) => {
     const nutrition = plannerSlotNutrition(day, slot);
+    nutrition.fibre = plannerRecipes(day, slot).reduce((sum, recipe) => sum
+      + recipeNutritionPerServing(recipe).fibre * plannerServingCount(day, slot.id, recipe.id), 0);
     Object.keys(totals).forEach((key) => { totals[key] += nutrition[key]; });
     const dishes = plannerRecipes(day, slot).map((recipe) => {
       const servings = plannerServingCount(day, slot.id, recipe.id);
@@ -670,8 +672,8 @@ function printPlannerDay(day) {
       .planner-ingredient-list strong { margin-right: 1.5mm; }
       footer { margin-top: 4mm; font-size: 8pt; color: #555; }
     </style></head><body><header><h1>Daily meals</h1><p>${escapeHtml(date)}</p></header>
-    <section class="daily-targets" aria-label="Daily targets"><h2>Daily targets</h2>
-      <div class="target-grid"><p><span>Calories</span><strong>1,450 kcal</strong></p><p><span>Protein</span><strong>100 g</strong></p><p><span>Fibre</span><strong>30 g</strong></p></div>
+    <section class="daily-targets" aria-label="Planned daily totals"><h2>Planned daily totals</h2>
+      <div class="target-grid"><p><span>Calories</span><strong>${roundNutrition(totals.calories).toLocaleString()} kcal</strong></p><p><span>Protein</span><strong>${roundNutrition(totals.protein)} g</strong></p><p><span>Fibre</span><strong>${roundNutrition(totals.fibre)} g</strong></p></div>
     </section>
     <p class="nutrition">Planned portions total: ${nutritionLabel(totals)}</p>
     ${notes ? `<div class="notes"><strong>Notes</strong><br>${escapeHtml(notes)}</div>` : ""}

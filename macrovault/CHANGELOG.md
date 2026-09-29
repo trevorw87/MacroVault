@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.73
+
+- Show actual planned daily calories, protein, and fibre in the A4 printout's summary box.
+- Replace fat with fibre in printed meal and daily nutrition summaries.
+
 ## 0.9.72
 
 - Fixed planner meals disappearing on refresh when a recipe's category differs from its planned meal slot.
