@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.70
+
+- Added a Print button to each planner day for A4 portrait printing.
+- Included planned meals, portions, ingredients, daily notes, and nutrition totals, with pagination for longer days.
+
 ## 0.9.69
 
 - Added an automatically saved notes area below each expanded planner day heading.

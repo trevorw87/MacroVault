@@ -154,6 +154,19 @@ function startServer() {
     assert.match(printedRecipe, /<h2>Instructions<\/h2>/);
     assert.match(printedRecipe, /protein/);
     assert.match(printedRecipe, /recipe-image/);
+    const printedDay = await page.evaluate(() => {
+      let html = "";
+      const originalOpen = window.open;
+      window.open = () => ({ document: { write(content) { html += content; }, close() {} } });
+      try { printPlannerDay("Sunday"); } finally { window.open = originalOpen; }
+      return html;
+    });
+    assert.match(printedDay, /size: A4 portrait/);
+    assert.match(printedDay, /Daily meals/);
+    assert.match(printedDay, /Sunday/);
+    assert.match(printedDay, /Breakfast/);
+    assert.match(printedDay, /Planned portions total/);
+    assert.doesNotMatch(printedDay, /<button/);
     await page.evaluate(() => openRecipeDialog(recipeById("lemon-salmon")));
     const recipeIngredientRows = page.locator("#recipeIngredientNutrition .recipe-ingredient-row");
     assert.ok(await recipeIngredientRows.count() > 0);

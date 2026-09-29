@@ -625,6 +625,51 @@ function resizeFamilyGoalText(field) {
   field.style.height = `${Math.min(160, Math.max(28, field.scrollHeight))}px`;
 }
 
+function printPlannerDay(day) {
+  if (!days.includes(day)) return;
+  const date = dateFromLocalKey(plannerWeekDateKey(day)).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const nutritionLabel = (value) => `${roundNutrition(value.calories)} kcal · ${roundNutrition(value.protein)} g protein · ${roundNutrition(value.carbs)} g carbs · ${roundNutrition(value.fat)} g fat`;
+  const totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  const meals = mealPlanSlots.map((slot) => {
+    const nutrition = plannerSlotNutrition(day, slot);
+    Object.keys(totals).forEach((key) => { totals[key] += nutrition[key]; });
+    const dishes = plannerRecipes(day, slot).map((recipe) => {
+      const servings = plannerServingCount(day, slot.id, recipe.id);
+      return `<article><h3>${escapeHtml(plannerMealName(recipe))} — ${escapeHtml(plannerPortionLabel(recipe, servings))}</h3>${plannerIngredientListMarkup(recipe, servings)}${plannerNutritionIssue(recipe) ? '<p>Check nutrition: totals may be incomplete.</p>' : ''}</article>`;
+    }).join("");
+    return `<section><h2>${escapeHtml(slot.label)}</h2><p class="nutrition">${nutritionLabel(nutrition)}</p>${dishes || '<p>No meals planned.</p>'}</section>`;
+  }).join("");
+  const notes = state.plannerNotes?.[day] || "";
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    showToast("Your browser blocked the print window. Please allow pop-ups and try again.", { type: "error" });
+    return;
+  }
+  printWindow.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(date)} meals</title>
+    <style>
+      @page { size: A4 portrait; margin: 12mm; }
+      * { box-sizing: border-box; }
+      body { max-width: 186mm; margin: 0 auto; font: 10pt/1.4 Arial, sans-serif; color: #172033; overflow-wrap: anywhere; }
+      h1 { font-size: 20pt; margin: 0 0 3mm; }
+      h2 { font-size: 13pt; margin: 0; break-after: avoid; }
+      h3 { font-size: 10pt; margin: 2mm 0 1mm; break-after: avoid; }
+      header { border-bottom: 2px solid #444; padding-bottom: 3mm; }
+      section { padding: 3mm 0; border-bottom: 1px solid #ccc; }
+      article { break-inside: avoid; }
+      p { margin: 1mm 0; }
+      .nutrition { color: #444; break-after: avoid; }
+      .notes { white-space: pre-wrap; margin: 3mm 0; }
+      ul { margin: 1mm 0; padding-left: 5mm; }
+      li { break-inside: avoid; }
+      .planner-ingredient-list strong { margin-right: 1.5mm; }
+      footer { margin-top: 4mm; font-size: 8pt; color: #555; }
+    </style></head><body><header><h1>Daily meals</h1><p>${escapeHtml(date)}</p><p>Planned portions total: ${nutritionLabel(totals)}</p></header>
+    ${notes ? `<div class="notes"><strong>Notes</strong><br>${escapeHtml(notes)}</div>` : ""}
+    <main>${meals}</main><footer>${escapeHtml(state.configuration?.appName || "MacroVault")} · Quantities and nutrition reflect planned portions.</footer>
+    <script>window.addEventListener("load", () => window.print());<\/script></body></html>`);
+  printWindow.document.close();
+}
+
 function printRecipe(recipeId) {
   const recipe = recipeById(recipeId);
   if (!recipe) {

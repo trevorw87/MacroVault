@@ -448,6 +448,13 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  const printDayButton = event.target.closest("[data-print-planner-day]");
+  if (printDayButton) {
+    event.preventDefault();
+    printPlannerDay(printDayButton.dataset.printPlannerDay);
+    return;
+  }
+
   const smartBalanceDayButton = event.target.closest("[data-smart-balance-day]");
   if (smartBalanceDayButton) {
     const day = smartBalanceDayButton.dataset.smartBalanceDay;

@@ -1020,7 +1020,10 @@ function renderPlanner() {
                     ? `<span class="planner-remaining-met">Daily targets reached</span>`
                     : `<span><strong>${roundNutrition(remaining.calories).toLocaleString()}</strong><small>kcal remaining</small></span><span><strong>${roundNutrition(remaining.protein).toLocaleString(undefined, { maximumFractionDigits: 1 })} g</strong><small>protein remaining</small></span>`}
                 </div>
-                <button class="planner-balance-day" type="button" data-smart-balance-day="${day}">Balance day</button>
+                <div class="planner-day-actions" style="display:flex;flex-wrap:wrap;gap:8px">
+                  <button class="planner-balance-day" type="button" data-print-planner-day="${day}" aria-label="Print ${day} meals">Print</button>
+                  <button class="planner-balance-day" type="button" data-smart-balance-day="${day}">Balance day</button>
+                </div>
                 <span class="planner-view-meals"><span>View meals</span><span>Hide meals</span></span>
               </div>
             </summary>
