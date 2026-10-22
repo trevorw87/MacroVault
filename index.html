@@ -6,7 +6,7 @@
     <title>MacroVault</title>
     <meta name="theme-color" content="#25283a">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=140">
+    <link rel="stylesheet" href="styles.css?v=147">
   </head>
   <body>
     <div class="app-shell">
@@ -690,7 +690,7 @@
       <form method="dialog" class="recipe-form food-log-browser" id="foodLogForm">
         <div class="dialog-heading">
           <div><h2>Add Food to Diary</h2><p class="muted">Search your saved foods and recipes, then choose a serving.</p></div>
-          <button class="icon-button" value="cancel" type="submit" aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+          <button class="icon-button" value="cancel" type="submit" formnovalidate aria-label="Close"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
         <div class="food-log-search-row">
           <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
@@ -704,6 +704,7 @@
           <button type="button" data-food-log-filter="recent">Recent</button>
         </nav>
         <select id="foodLogSource" aria-label="Saved food" hidden></select>
+        <label id="foodLogEssentialConfirmation" class="planner-essential-confirmation" hidden><input id="foodLogEssentialConfirm" type="checkbox"><span id="foodLogEssentialConfirmLabel"></span></label>
         <div class="food-log-results" id="foodLogResults" role="listbox" aria-label="Food search results"></div>
         <div class="food-log-selection" id="foodLogSelection" hidden>
           <div class="food-log-selected-title"><span aria-hidden="true">☆</span><strong id="foodLogSelectedName">Selected food</strong></div>
@@ -739,7 +740,7 @@
           </details>
           <p class="muted" id="foodLogGramNote">Enter both gram values to calculate servings and nutrition automatically.</p>
         </div>
-        <menu><button class="secondary-button" value="cancel" type="submit">Cancel</button><button class="primary-button" id="addFoodLogSubmit" value="default" type="submit" disabled>Add to Diary</button></menu>
+        <menu><button class="secondary-button" value="cancel" type="submit" formnovalidate>Cancel</button><button class="primary-button" id="addFoodLogSubmit" value="default" type="submit" disabled>Add to Diary</button></menu>
       </form>
     </dialog>
 
@@ -778,9 +779,9 @@
     <script src="barcode-nutrition.js?v=114"></script>
     <script src="frontend-utils.js?v=116"></script>
     <script src="app-core.js?v=145"></script>
-    <script src="app-views.js?v=146"></script>
+    <script src="app-views.js?v=147"></script>
     <script src="app-editors.js?v=144"></script>
     <script src="app-features.js?v=144"></script>
-    <script src="app.js?v=146"></script>
+    <script src="app.js?v=147"></script>
   </body>
 </html>

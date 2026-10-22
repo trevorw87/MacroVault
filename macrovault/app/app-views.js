@@ -333,6 +333,55 @@ function renderTracker() {
   }).join("");
 }
 
+const plannerEssentialSpaces = [
+  ...["lunch", "dinner"].map((slot) => ({ id: `vegetables-${slot}`, group: "vegetables", slot, label: "Vegetables · 1½ cups" })),
+  ...["breakfast", "morningSnack"].map((slot) => ({ id: `fruit-${slot}`, group: "fruit", slot, label: "Fruit · 1 serving" })),
+  ...["breakfast", "lunch", "dinner"].flatMap((slot) => [
+    { id: `protein-${slot}`, group: "protein", slot, label: "Protein" },
+    { id: `carbs-${slot}`, group: "carbs", slot, label: "Carbs" }
+  ]),
+  ...["breakfast", "afternoonSnack", "eveningSnack"].map((slot, index) => ({ id: `dairy-${slot}`, group: "dairy", slot, label: `Dairy · 1 serving${index === 2 ? " (optional)" : ""}`, optional: index === 2 }))
+];
+
+function plannerEssentialAssignment(day, space) {
+  const assignment = state.plannerEssentials?.[plannerWeekDateKey(day)]?.assignments?.[space.id];
+  if (!assignment || !plannerRecipeIds(day, space.slot).includes(assignment.recipeId)) return null;
+  const recipe = recipeById(assignment.recipeId);
+  return recipe && assignment.amount === JSON.stringify([recipe.ingredients, recipeServings(recipe), plannerServingCount(day, space.slot, recipe.id)]) ? recipe.id : null;
+}
+
+function plannerEssentialsMarkup(day) {
+  const record = state.plannerEssentials?.[plannerWeekDateKey(day)];
+  if (!record) return `<div class="planner-essentials"><strong>Build around your daily essentials</strong><p>3 cups vegetables · 2 fruit · protein and carbs at each meal · dairy 2–3 times · water</p><button type="button" class="secondary-button" data-essentials-apply="${day}">Use my daily essentials</button> <button type="button" class="text-button" data-essentials-apply="week">Apply to whole week</button></div>`;
+  const required = plannerEssentialSpaces.filter((space) => !space.optional);
+  const complete = required.filter((space) => plannerEssentialAssignment(day, space)).length;
+  return `<section class="planner-essentials" aria-label="${day} daily essentials">
+    <div class="section-heading"><div><strong>Daily essentials</strong><p>${complete}/${required.length} food spaces planned · water ${record.waterGoal ? "target set" : "target needed"}</p></div><button type="button" class="text-button" data-essentials-apply="week">Apply to whole week</button></div>
+    <p class="muted">Choose foods first, then confirm the amount below. These are planning prompts; only actual foods count toward nutrition.</p>
+    <div class="planner-essentials-grid">${mealPlanSlots.map((slot) => {
+      const spaces = plannerEssentialSpaces.filter((space) => space.slot === slot.id);
+      return `<div><strong>${slot.label}</strong>${spaces.map((space) => {
+        const assignment = plannerEssentialAssignment(day, space);
+        return `<button type="button" class="planner-essential-space ${assignment ? "complete" : ""}" data-essential-day="${day}" data-essential-space="${space.id}"><span>${assignment ? "✓" : "+"} ${space.label}</span><small>${assignment ? escapeHtml(plannerMealName(recipeById(assignment))) : "Choose food or recipe"}</small></button>${assignment ? `<button type="button" class="text-button" data-essential-clear="${space.id}" data-essential-clear-day="${day}">Clear ${space.group} check</button>` : ""}`;
+      }).join("")}</div>`;
+    }).join("")}</div>
+    <label class="planner-water-plan">Water target (mL)<input type="number" min="250" max="10000" step="50" data-essential-water="${day}" value="${escapeHtml(record.waterGoal || "")}" placeholder="Your daily target"></label><small>Planning only. Log water you drink in the Tracker.</small>
+  </section>`;
+}
+
+function plannerFoodMatchesGroup(item, group) {
+  const source = item.type === "recipe" ? recipeById(item.value.slice(7)) : item.type === "ingredient" ? ingredientById(item.value.slice(11)) : null;
+  const words = [item.label, source?.category, ...(source?.tags || []), ...(source?.ingredients || [])].join(" ").toLowerCase();
+  const patterns = {
+    vegetables: /\b(vegetables?|broccoli|carrots?|spinach|peas|cucumber|tomato\w*|lettuce|salad|zucchini|capsicum|cabbage|cauliflower|mushrooms?)\b/,
+    fruit: /\b(fruit|apple\w*|banana\w*|berries|berry|grapes?|oranges?|pears?|melon|kiwi|pineapple|mango)\b/,
+    protein: /\b(protein|chicken|beef|fish|salmon|tuna|eggs?|tofu|lentils?|beans?|turkey|pork|yogh?urt)\b/,
+    carbs: /\b(carbs?|rice|bread|pasta|oats?|potato\w*|wraps?|couscous|quinoa|cereal|noodles?)\b/,
+    dairy: /\b(dairy|milk|cheese|yogh?urt|kefir)\b/
+  };
+  return Boolean(patterns[group]?.test(words));
+}
+
 function foodLogSourceOptions() {
   const recentEntries = [...(state.foodLog || [])].reverse();
   const recentNames = new Set(recentEntries.slice(0, 30).map((entry) => entry.name.toLowerCase()));
@@ -393,12 +442,14 @@ function renderFoodLogBrowser() {
     if (filter === "recent") return item.recent;
     return true;
   });
+  const group = foodPickerPlannerContext?.essentialGroup;
+  if (group) options.sort((a, b) => Number(plannerFoodMatchesGroup(b, group)) - Number(plannerFoodMatchesGroup(a, group)));
   const selectedValue = document.querySelector("#foodLogSource").value;
   document.querySelector("#foodLogResults").innerHTML = options.length ? options.map((item) => `
     <button class="food-log-result ${item.value === selectedValue ? "selected" : ""}" type="button" role="option" aria-selected="${item.value === selectedValue}" data-food-log-source="${escapeHtml(item.value)}">
       <span class="food-log-favorite" aria-hidden="true">${item.favorite ? "★" : "☆"}</span>
       <strong>${escapeHtml(item.label)}</strong>
-      <small>${item.type === "recipe" ? "Recipe" : item.type === "ingredient" ? "Ingredient" : "Recent food"}</small>
+      <small>${group && plannerFoodMatchesGroup(item, group) ? "Suggested · " : ""}${item.type === "recipe" ? "Recipe" : item.type === "ingredient" ? "Ingredient" : "Recent food"}</small>
       <span>${roundNutrition(item.calories)} kcal</span>
     </button>`).join("") : `<div class="food-log-no-results"><strong>No matching foods</strong><span>Try another search or add the food to Ingredients first.</span></div>`;
 }
@@ -409,6 +460,11 @@ function openFoodLogDialog(plannerContext = null) {
   const select = document.querySelector("#foodLogSource");
   select.innerHTML = `<option value="">Manual entry</option>${options.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("")}`;
   document.querySelector("#foodLogForm").reset();
+  const essential = plannerEssentialSpaces.find((space) => space.id === plannerContext?.essentialId);
+  document.querySelector("#foodLogEssentialConfirmation").hidden = !essential;
+  document.querySelector("#foodLogEssentialConfirm").required = Boolean(essential);
+  document.querySelector("#foodLogEssentialConfirmLabel").textContent = essential
+    ? `I have adjusted the amount to cover ${essential.label.toLowerCase()} for ${plannerContext.slotLabel.toLowerCase()}.` : "";
   document.querySelector("#foodLogSearch").value = "";
   document.querySelectorAll("#foodLogTabs [data-food-log-filter]").forEach((button) => button.classList.toggle("active", button.dataset.foodLogFilter === "all"));
   document.querySelector("#foodLogServings").value = "1.00";
@@ -1027,6 +1083,7 @@ function renderPlanner() {
                 <span class="planner-view-meals"><span>View meals</span><span>Hide meals</span></span>
               </div>
             </summary>
+            ${plannerEssentialsMarkup(day)}
             <label class="planner-day-notes">
               <span>Notes</span>
               <textarea data-planner-note="${day}" rows="2" aria-label="${day} notes" placeholder="Add meal prep reminders, plans, or anything to remember…">${escapeHtml(state.plannerNotes?.[day] || "")}</textarea>

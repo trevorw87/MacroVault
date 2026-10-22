@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.75
+
+- Added daily essentials templates for vegetables, fruit, protein, carbs, dairy, and a water target, with one-day or whole-week setup.
+- Prioritized matching foods in the picker and saved confirmed food spaces across reloads and week changes.
+- Kept empty prompts separate from nutrition totals and cleared checks when planned foods or portions change.
+
 ## 0.9.74
 
 - Fixed quick-meal control alignment across platforms.

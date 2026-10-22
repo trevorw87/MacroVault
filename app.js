@@ -334,6 +334,14 @@ document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
     }
     state.planner[context.day] ||= {};
     state.planner[context.day][context.slotId] = [...new Set([...plannerRecipeIds(context.day, context.slotId), recipeId])];
+    if (context.essentialId) {
+      const record = state.plannerEssentials?.[plannerWeekDateKey(context.day)];
+      if (record) {
+        record.assignments ||= {};
+        const recipe = recipeById(recipeId);
+        record.assignments[context.essentialId] = { recipeId, amount: JSON.stringify([recipe.ingredients, recipeServings(recipe), plannerServingCount(context.day, context.slotId, recipeId)]) };
+      }
+    }
     state.plannerServings[context.day] ||= {};
     state.plannerServings[context.day][context.slotId] ||= {};
     state.consumed[context.day] ||= {};
@@ -421,6 +429,30 @@ document.addEventListener("click", async (event) => {
     return;
   }
   const plannerFoodButton = event.target.closest("[data-planner-food-day][data-planner-food-slot]");
+  const essentialsApply = event.target.closest("[data-essentials-apply]");
+  if (essentialsApply) {
+    state.plannerEssentials ||= {};
+    const targetDays = essentialsApply.dataset.essentialsApply === "week" ? days : [essentialsApply.dataset.essentialsApply];
+    targetDays.forEach((day) => { state.plannerEssentials[plannerWeekDateKey(day)] ||= { assignments: {}, waterGoal: null }; });
+    saveState();
+    renderPlanner();
+    return;
+  }
+  const essentialButton = event.target.closest("[data-essential-day][data-essential-space]");
+  const clearEssential = event.target.closest("[data-essential-clear]");
+  if (clearEssential) {
+    const record = state.plannerEssentials?.[plannerWeekDateKey(clearEssential.dataset.essentialClearDay)];
+    if (record?.assignments) delete record.assignments[clearEssential.dataset.essentialClear];
+    saveState();
+    renderPlanner();
+    return;
+  }
+  if (essentialButton) {
+    const space = plannerEssentialSpaces.find((item) => item.id === essentialButton.dataset.essentialSpace);
+    const slot = mealPlanSlots.find((item) => item.id === space.slot);
+    openFoodLogDialog({ day: essentialButton.dataset.essentialDay, slotId: slot.id, slotLabel: slot.label, essentialId: space.id, essentialGroup: space.group });
+    return;
+  }
   if (plannerFoodButton) {
     openFoodLogDialog({
       day: plannerFoodButton.dataset.plannerFoodDay,
@@ -1053,6 +1085,15 @@ document.addEventListener("change", (event) => {
   }
 
   const habitInput = event.target.closest("[data-kid-habit]");
+  const essentialWater = event.target.closest("[data-essential-water]");
+  if (essentialWater) {
+    if (!essentialWater.reportValidity()) return;
+    const record = state.plannerEssentials?.[plannerWeekDateKey(essentialWater.dataset.essentialWater)];
+    if (record) record.waterGoal = essentialWater.value ? Number(essentialWater.value) : null;
+    saveState();
+    renderPlanner();
+    return;
+  }
   if (habitInput) {
     const { kidHabit, habit, habitIndex } = habitInput.dataset;
     state.kids[kidHabit].habits ||= {};

@@ -228,3 +228,19 @@ dialog::backdrop { background:rgba(27,29,43,.55); backdrop-filter:blur(5px); }
   .toolbar,.planner-period-controls,.planner-actions { padding:10px; border-radius:14px; }
   .section-block,.recipe-card,.planner-day-section,.planner-energy-summary { border-radius:15px; }
 }
+/* Daily essentials stay ahead of the meal plan on every screen size. */
+.planner-essentials { margin: 16px; padding: 18px; border: 1px solid #cbded2; border-radius: 16px; background: #f5faf6; color: #243e30; }
+.planner-essentials p { margin: 8px 0 12px; }
+.planner-essentials .section-heading { flex-wrap: wrap; gap: 10px; }
+.planner-essentials-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 14px 0; }
+.planner-essentials-grid > div { min-width: 0; }
+.planner-essential-space { display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 12px; margin-top: 8px; text-align: left; border: 1px dashed #9db6a6; border-radius: 10px; background: white; color: #243e30; cursor: pointer; overflow-wrap: anywhere; }
+.planner-essential-space.complete { border-style: solid; border-color: #659474; background: #e8f4eb; }
+.planner-essential-space small { color: #4d6456; }
+.planner-water-plan { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.planner-water-plan input { width: 150px; max-width: 100%; }
+.planner-essential-confirmation:not([hidden]) { display: flex; align-items: center; gap: 10px; padding: 12px; background: #e8f4eb; border-radius: 10px; }
+.planner-essential-confirmation[hidden] { display: none; }
+.planner-essential-confirmation input { width: auto; flex: 0 0 auto; }
+@media (max-width: 700px) { .planner-essentials-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .planner-essentials { margin: 10px; padding: 12px; } }
+@media (max-width: 380px) { .planner-essentials-grid { grid-template-columns: minmax(0, 1fr); } }
