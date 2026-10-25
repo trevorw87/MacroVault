@@ -343,6 +343,7 @@ document.querySelector("#foodLogForm").addEventListener("submit", (event) => {
         })),
         servings: 1,
         calories: roundNutrition(caloriesPerServing(sourceRecipe) * selectedServings),
+        nutrition: scaleNutrition(sourceRecipe.nutrition || {}, factor),
         macros: {
           protein: roundNutrition(macros.protein * selectedServings),
           carbs: roundNutrition(macros.carbs * selectedServings),

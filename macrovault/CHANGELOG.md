@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.77
+
+- Fixed fibre, sugar, and sodium scaling when adding partial recipe servings to the planner.
+- Existing affected planner portions must be removed and added again to correct their saved nutrition.
+
 ## 0.9.76
 
 - Added drag-and-drop to move planned foods between meals, with highlighted drop targets.

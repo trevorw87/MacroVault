@@ -391,6 +391,25 @@ function startServer() {
     await page.waitForFunction(() => document.querySelector("#plannerEnergySummary .planner-summary-heading span").textContent === "Monday");
     assert.equal(await page.locator("#plannerEnergySummary").innerText(), mondaySummary);
     await page.evaluate(() => {
+      const source = structuredClone(recipeById('lemon-salmon'));
+      Object.assign(source, { id: 'granola-scaling-test', name: 'Granola scaling regression', servings: 50, calories: 14640.9,
+        macros: { protein: 99.15, carbs: 100, fat: 20 }, nutrition: { fibre: 102.77, sugar: 99.35, sodium: 122.54 } });
+      state.recipes.unshift(source);
+    });
+    await page.locator('[data-planner-mobile-day="Monday"] [data-planner-column="lunch"] [data-planner-food-day]').click();
+    await page.locator('#foodLogSearch').fill('Granola scaling regression');
+    await page.locator('[data-food-log-source="recipe:granola-scaling-test"]').click();
+    await page.locator('#foodLogServings').fill('0.47');
+    await page.locator('#addFoodLogSubmit').click();
+    const portionNutrition = await page.evaluate(() => recipeNutritionPerServing(recipeById(plannerRecipeIds('Monday', 'lunch')[0])));
+    assert.equal(portionNutrition.fibre, 0.97);
+    assert.equal(portionNutrition.sugar, 0.93);
+    assert.equal(portionNutrition.sodium, 1.15);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'Planner', exact: true }).click();
+    assert.equal(await page.evaluate(() => recipeNutritionPerServing(recipeById(plannerRecipeIds('Monday', 'lunch')[0])).fibre), 0.97);
+    await page.evaluate(() => { state.planner.Monday.lunch = []; renderPlanner(); });
+    await page.evaluate(() => {
       state.planner.Monday.breakfast = [];
       saveState({ skipBackup: true });
       renderPlanner();
