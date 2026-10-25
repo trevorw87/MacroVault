@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.76
+
+- Added drag-and-drop to move planned foods between meals, with highlighted drop targets.
+- Added a Move to menu for touch screens and keyboard use, preserving portions and updating meal totals automatically.
+
 ## 0.9.75
 
 - Added daily essentials templates for vegetables, fruit, protein, carbs, dairy, and a water target, with one-day or whole-week setup.

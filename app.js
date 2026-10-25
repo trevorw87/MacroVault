@@ -145,6 +145,79 @@ function advanceHabitRow(name, habitId) {
   render();
 }
 
+let draggedPlannerDish = null;
+
+function movePlannerDish(source, day, slot) {
+  const { recipe, day: fromDay, slot: fromSlot, week } = source;
+  if (week !== state.selectedPlannerWeek || !days.includes(day) || !mealPlanSlots.some((meal) => meal.id === slot)) return;
+  if (day === fromDay && slot === fromSlot) return;
+  if (!plannerRecipeIds(fromDay, fromSlot).includes(recipe)) return;
+  if (plannerRecipeIds(day, slot).includes(recipe)) {
+    showToast("This food is already in that meal.", { type: "warning" });
+    return;
+  }
+  state.planner[day] ||= {};
+  state.planner[day][slot] = [...plannerRecipeIds(day, slot), recipe];
+  state.planner[fromDay][fromSlot] = plannerRecipeIds(fromDay, fromSlot).filter((id) => id !== recipe);
+  const override = state.plannerServings?.[fromDay]?.[fromSlot]?.[recipe];
+  if (override !== undefined) {
+    state.plannerServings[day] ||= {};
+    state.plannerServings[day][slot] ||= {};
+    state.plannerServings[day][slot][recipe] = override;
+    delete state.plannerServings[fromDay][fromSlot][recipe];
+  }
+  state.consumed[fromDay] ||= {};
+  if (!state.planner[fromDay][fromSlot].length) state.consumed[fromDay][fromSlot] = false;
+  state.consumed[day] ||= {};
+  state.consumed[day][slot] = false;
+  saveState();
+  render();
+  showToast(`Moved to ${mealPlanSlots.find((meal) => meal.id === slot).label}.`, { type: "success" });
+}
+
+function clearPlannerDrag() {
+  draggedPlannerDish = null;
+  document.querySelectorAll(".planner-dish.dragging, .planner-drop-active").forEach((item) => item.classList.remove("dragging", "planner-drop-active"));
+}
+
+document.addEventListener("dragstart", (event) => {
+  const dish = event.target.closest("[data-planner-drag]");
+  if (!dish) return;
+  if (event.target.closest("button, select, summary, a")) { event.preventDefault(); return; }
+  draggedPlannerDish = { recipe: dish.dataset.plannerDrag, day: dish.dataset.plannerDay, slot: dish.dataset.plannerSlot, week: state.selectedPlannerWeek };
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", draggedPlannerDish.recipe);
+  dish.classList.add("dragging");
+});
+
+document.addEventListener("dragover", (event) => {
+  const target = event.target.closest("[data-planner-drop-slot]");
+  if (!draggedPlannerDish || !target) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+  document.querySelectorAll(".planner-drop-active").forEach((item) => item.classList.remove("planner-drop-active"));
+  target.classList.add("planner-drop-active");
+});
+document.addEventListener("dragleave", (event) => {
+  const target = event.target.closest("[data-planner-drop-slot]");
+  if (target && !target.contains(event.relatedTarget)) target.classList.remove("planner-drop-active");
+});
+document.addEventListener("drop", (event) => {
+  const target = event.target.closest("[data-planner-drop-slot]");
+  if (!draggedPlannerDish || !target) return;
+  event.preventDefault();
+  const source = draggedPlannerDish;
+  clearPlannerDrag();
+  movePlannerDish(source, target.dataset.plannerDropDay, target.dataset.plannerDropSlot);
+});
+document.addEventListener("dragend", clearPlannerDrag);
+document.addEventListener("change", (event) => {
+  const select = event.target.closest("[data-planner-move]");
+  if (!select || !select.value) return;
+  movePlannerDish({ recipe: select.dataset.plannerMove, day: select.dataset.plannerDay, slot: select.dataset.plannerSlot, week: state.selectedPlannerWeek }, select.dataset.plannerDay, select.value);
+  select.value = "";
+});
+
 let draggedFamilyGoal = null;
 
 document.addEventListener("dragstart", (event) => {

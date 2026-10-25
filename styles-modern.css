@@ -244,3 +244,8 @@ dialog::backdrop { background:rgba(27,29,43,.55); backdrop-filter:blur(5px); }
 .planner-essential-confirmation input { width: auto; flex: 0 0 auto; }
 @media (max-width: 700px) { .planner-essentials-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .planner-essentials { margin: 10px; padding: 12px; } }
 @media (max-width: 380px) { .planner-essentials-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.planner-dish[draggable] { cursor: grab; }
+.planner-dish.dragging { opacity: .45; }
+.planner-slot-column.planner-drop-active { outline: 3px dashed #2487c9; outline-offset: -3px; background: #eaf6ff; }
+.planner-move-dish { width: auto; max-width: 130px; min-height: 28px; padding: 3px 6px; font-size: 11px; border: 1px solid #bbd9ef; border-radius: 12px; background: #f2f8ff; color: #14588a; }

@@ -858,7 +858,7 @@ function plannerCellMarkup(day, slot) {
           const alternatives = nutritionIssue ? [] : plannerAlternativeRecipes(day, slot, recipe);
           const plannedServings = plannerServingCount(day, slot.id, recipe.id);
           return `
-          <article class="planner-dish">
+          <article class="planner-dish" draggable="true" data-planner-drag="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" title="Drag to another meal">
             ${mealThumbnailMarkup(recipe, slot.label)}
             <div class="planner-meal-pick">
               <div class="planner-meal-copy">
@@ -869,6 +869,10 @@ function plannerCellMarkup(day, slot) {
                 ? `<button class="planner-nutrition-warning" data-edit-recipe="${escapeHtml(recipe.id)}" type="button" title="Excluded from daily totals">Check nutrition</button>`
                 : `<span class="planner-recipe-nutrition">${escapeHtml(`${formatPlannerNumber(caloriesPerServing(recipe), "kcal")} · ${formatPlannerNumber(macrosPerServing(recipe).protein, "protein")} · ${formatPlannerNumber(recipeNutritionPerServing(recipe).fibre, "g fibre")}`)}</span>`}
               <div class="planner-dish-chips">
+                <select class="planner-move-dish" data-planner-move="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" aria-label="Move ${escapeHtml(plannerMealName(recipe))} to another meal">
+                  <option value="">Move to…</option>
+                  ${mealPlanSlots.filter((meal) => meal.id !== slot.id).map((meal) => `<option value="${meal.id}">${meal.label}</option>`).join("")}
+                </select>
                 <button class="planner-edit-dish" data-planner-quantity="${escapeHtml(recipe.id)}" data-planner-day="${day}" data-planner-slot="${slot.id}" type="button">Quantity</button>
                 <button class="planner-status-chip ${recipe.prepared ? "prepared" : ""}" data-toggle-recipe-prepared="${escapeHtml(recipe.id)}" type="button" aria-pressed="${recipe.prepared}">${recipe.prepared ? "Prepared" : "Not prepared"}</button>
                 ${alternatives.length ? `<details class="planner-swap-menu">
@@ -1092,7 +1096,7 @@ function renderPlanner() {
               ${mealPlanSlots.map((slot) => {
                 const slotNutrition = plannerSlotNutrition(day, slot);
                 return `
-                <section class="planner-slot-column planner-mobile-slot" data-planner-column="${slot.id}">
+                <section class="planner-slot-column planner-mobile-slot" data-planner-column="${slot.id}" data-planner-drop-day="${day}" data-planner-drop-slot="${slot.id}">
                   <div class="planner-meal-label">
                     <span>${slot.label}</span>
                     <strong>${roundNutrition(slotNutrition.calories)} kcal · ${roundNutrition(slotNutrition.protein)}g protein · ${roundNutrition(slotNutrition.carbs)}g carbs · ${roundNutrition(slotNutrition.fat)}g fat</strong>
